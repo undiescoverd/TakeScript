@@ -15,6 +15,10 @@ interface EditorState {
   setVersionHistoryOpen: (open: boolean) => void;
   toggleVersionHistory: () => void;
 
+  commentsOpen: boolean;
+  setCommentsOpen: (open: boolean) => void;
+  toggleComments: () => void;
+
   isSaving: boolean;
   setIsSaving: (saving: boolean) => void;
 
@@ -38,6 +42,11 @@ export const useEditorStore = create<EditorState>((set) => ({
   setVersionHistoryOpen: (versionHistoryOpen) => set({ versionHistoryOpen }),
   toggleVersionHistory: () =>
     set((state) => ({ versionHistoryOpen: !state.versionHistoryOpen })),
+
+  commentsOpen: false,
+  setCommentsOpen: (commentsOpen) => set({ commentsOpen }),
+  toggleComments: () =>
+    set((state) => ({ commentsOpen: !state.commentsOpen })),
 
   isSaving: false,
   setIsSaving: (isSaving) => set({ isSaving }),

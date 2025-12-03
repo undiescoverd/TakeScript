@@ -14,6 +14,7 @@ import { BeatBoard } from "@/components/editor/BeatBoard";
 import { Topbar } from "@/components/layout/Topbar";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { VersionHistory } from "@/components/versions/VersionHistory";
+import { CommentsPanel } from "@/components/comments/CommentsPanel";
 
 export default function ScriptPage() {
   const params = useParams();
@@ -21,7 +22,7 @@ export default function ScriptPage() {
   const scriptId = params.id as Id<"scripts">;
   const script = useQuery(api.scripts.get, { scriptId });
   const { scheduleAutosave, saveNow } = useAutosave(scriptId);
-  const { mode } = useEditorStore();
+  const { mode, commentsOpen, setCommentsOpen } = useEditorStore();
   const [editorRef, setEditorRef] = useState<Editor | null>(null);
   const [localContent, setLocalContent] = useState<JSONContent | null>(null);
   const contentInitialized = useRef(false);
@@ -151,6 +152,13 @@ export default function ScriptPage() {
 
         {/* Version History */}
         <VersionHistory scriptId={scriptId} />
+
+        {/* Comments Panel */}
+        <CommentsPanel
+          scriptId={scriptId}
+          isOpen={commentsOpen}
+          onClose={() => setCommentsOpen(false)}
+        />
       </div>
     </div>
   );

@@ -19,6 +19,7 @@ import {
   History,
   Download,
   Loader2,
+  MessageSquare,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -35,7 +36,7 @@ export function Topbar({ scriptId, title, content, onSaveNow }: TopbarProps) {
   const [titleValue, setTitleValue] = useState(title);
   const updateTitle = useMutation(api.scripts.updateTitle);
   const saveVersion = useMutation(api.versions.save);
-  const { isSaving, toggleVersionHistory, lastSavedAt } = useEditorStore();
+  const { isSaving, toggleVersionHistory, toggleComments, lastSavedAt } = useEditorStore();
 
   useEffect(() => {
     setTitleValue(title);
@@ -160,6 +161,10 @@ export function Topbar({ scriptId, title, content, onSaveNow }: TopbarProps) {
 
         <Button variant="ghost" size="icon" onClick={toggleVersionHistory}>
           <History className="h-4 w-4" />
+        </Button>
+
+        <Button variant="ghost" size="icon" onClick={toggleComments}>
+          <MessageSquare className="h-4 w-4" />
         </Button>
 
         <ThemeToggle />
