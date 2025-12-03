@@ -1,26 +1,249 @@
+@import url("https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap");
 @import "tailwindcss";
+@import "tw-animate-css";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-script: "Courier Prime", "Courier New", monospace;
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+:root {
+  --radius: 0.625rem;
+  /* Light mode - warm paper background with orange/amber accent */
+  --background: #faf8f5;
+  --foreground: #1a1a1a;
+  --card: #ffffff;
+  --card-foreground: #1a1a1a;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a1a;
+  --primary: #ea580c; /* Orange-600 - main brand color */
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f4;
+  --secondary-foreground: #1a1a1a;
+  --muted: #f5f5f4;
+  --muted-foreground: #737373;
+  --accent: #fff7ed; /* Orange-50 - light accent background */
+  --accent-foreground: #ea580c;
+  --destructive: #ef4444;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: #fb923c; /* Orange-400 - focus rings */
+  --chart-1: #ea580c; /* Orange-600 - primary data */
+  --chart-2: #f59e0b; /* Amber-500 - secondary */
+  --chart-3: #fb923c; /* Orange-400 - tertiary */
+  --chart-4: #fdba74; /* Orange-300 - quaternary */
+  --chart-5: #fed7aa; /* Orange-200 - quinary */
+  --sidebar: #faf8f5;
+  --sidebar-foreground: #1a1a1a;
+  --sidebar-primary: #ea580c; /* Orange-600 */
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #fff7ed; /* Orange-50 */
+  --sidebar-accent-foreground: #ea580c;
+  --sidebar-border: #e5e5e5;
+  --sidebar-ring: #fb923c; /* Orange-400 */
+}
+
+.dark {
+  /* Dark mode - charcoal background with orange/amber accent */
+  --background: #1a1a1a;
+  --foreground: #e5e5e5;
+  --card: #262626;
+  --card-foreground: #e5e5e5;
+  --popover: #262626;
+  --popover-foreground: #e5e5e5;
+  --primary: #fb923c; /* Orange-400 - brighter for dark mode */
+  --primary-foreground: #1a1a1a;
+  --secondary: #404040;
+  --secondary-foreground: #e5e5e5;
+  --muted: #404040;
+  --muted-foreground: #a3a3a3;
+  --accent: #431407; /* Orange-950 - dark accent background */
+  --accent-foreground: #fb923c;
+  --destructive: #ef4444;
+  --border: #404040;
+  --input: #404040;
+  --ring: #fdba74; /* Orange-300 - softer focus for dark */
+  --chart-1: #fb923c; /* Orange-400 - primary data */
+  --chart-2: #fbbf24; /* Amber-400 - secondary */
+  --chart-3: #fdba74; /* Orange-300 - tertiary */
+  --chart-4: #fed7aa; /* Orange-200 - quaternary */
+  --chart-5: #ffedd5; /* Orange-100 - quinary */
+  --sidebar: #1a1a1a;
+  --sidebar-foreground: #e5e5e5;
+  --sidebar-primary: #fb923c; /* Orange-400 */
+  --sidebar-primary-foreground: #1a1a1a;
+  --sidebar-accent: #431407; /* Orange-950 */
+  --sidebar-accent-foreground: #fb923c;
+  --sidebar-border: #404040;
+  --sidebar-ring: #fdba74; /* Orange-300 */
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Editor Styles */
+.ProseMirror {
+  font-family: "Courier Prime", "Courier New", monospace;
+  font-size: 12pt;
+  line-height: 2;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 2rem 3rem;
+  min-height: calc(100vh - 200px);
+  outline: none;
+}
+
+.ProseMirror:focus {
+  outline: none;
+}
+
+/* Placeholder */
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: var(--muted-foreground);
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Chapter Block */
+.ProseMirror [data-type="chapter"],
+.chapter-block {
+  font-size: 14pt;
+  font-weight: bold;
+  text-transform: uppercase;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  border-left: 4px solid #ea580c; /* Orange-600 to match brand */
+  padding-left: 1rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+/* Screen Recording Block */
+.ProseMirror [data-type="screenRecording"],
+.screen-recording-block {
+  border-left: 3px solid #6b7280;
+  padding-left: 1rem;
+  margin: 1rem 0;
+  position: relative;
+}
+
+.screen-recording-block::before {
+  content: "🖥️ SCREEN RECORDING";
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6b7280;
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Demonstration Block */
+.ProseMirror [data-type="demonstration"],
+.demonstration-block {
+  border-left: 3px solid #8b5cf6;
+  padding-left: 1rem;
+  margin: 1rem 0;
+  position: relative;
+}
+
+.demonstration-block::before {
+  content: "🎬 DEMONSTRATION";
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #8b5cf6;
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Editor Note Block */
+.ProseMirror [data-type="editorNote"],
+.editor-note-block {
+  background: #fef3c7;
+  padding: 0.75rem 1rem;
+  border-radius: 0.375rem;
+  margin: 0.5rem 0;
+  position: relative;
+}
+
+.editor-note-block::before {
+  content: "📝 EDITOR NOTE";
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #92400e;
+  margin-bottom: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Dark mode for editor note */
+.dark .ProseMirror [data-type="editorNote"],
+.dark .editor-note-block {
+  background: #422006;
+}
+
+.dark .editor-note-block::before {
+  color: #fcd34d;
+}
+
+/* Recording mode - hide editor notes */
+[data-mode="recording"] [data-type="editorNote"],
+[data-mode="recording"] .editor-note-block {
+  display: none;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .ProseMirror {
+    padding: 1rem;
+  }
 }
