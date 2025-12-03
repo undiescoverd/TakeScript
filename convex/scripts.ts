@@ -1,6 +1,13 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 
+// Helper function to generate unique IDs for blocks
+function generateBlockId(blockType: string): string {
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 9);
+  return `${blockType}-${timestamp}-${random}`;
+}
+
 // Helper function to generate template-specific initial content
 function getTemplateContent(templateType?: string): string {
   const templates: Record<string, object> = {
@@ -9,7 +16,7 @@ function getTemplateContent(templateType?: string): string {
       content: [
         {
           type: "chapter",
-          attrs: { title: "Introduction", duration: 30, id: "intro" },
+          attrs: { title: "Introduction", duration: "30s", id: generateBlockId("chapter") },
         },
         {
           type: "paragraph",
@@ -19,11 +26,43 @@ function getTemplateContent(templateType?: string): string {
         },
         {
           type: "chapter",
-          attrs: { title: "Main Content", duration: 60, id: "main" },
+          attrs: { title: "Step 1: Getting Started", duration: "2m", id: generateBlockId("chapter") },
         },
         {
           type: "paragraph",
-          content: [{ type: "text", text: "" }],
+          content: [{ type: "text", text: "First, let's start by..." }],
+        },
+        {
+          type: "screenRecording",
+          attrs: { id: generateBlockId("screenRecording") },
+          content: [
+            {
+              type: "paragraph",
+              content: [
+                { type: "text", text: "Show the initial setup process..." },
+              ],
+            },
+          ],
+        },
+        {
+          type: "chapter",
+          attrs: { title: "Step 2: Main Content", duration: "3m", id: generateBlockId("chapter") },
+        },
+        {
+          type: "paragraph",
+          content: [{ type: "text", text: "Now let's dive into..." }],
+        },
+        {
+          type: "editorNote",
+          attrs: { id: generateBlockId("editorNote") },
+          content: [
+            {
+              type: "paragraph",
+              content: [
+                { type: "text", text: "Remember to highlight key features here" },
+              ],
+            },
+          ],
         },
       ],
     },
@@ -32,21 +71,44 @@ function getTemplateContent(templateType?: string): string {
       content: [
         {
           type: "chapter",
-          attrs: { title: "Demo Overview", duration: 30, id: "overview" },
+          attrs: { title: "Product Demo", duration: "1m", id: generateBlockId("chapter") },
         },
         {
           type: "paragraph",
           content: [
-            { type: "text", text: "In this demo, we'll show you..." },
+            { type: "text", text: "In this demo, we'll show you how our product solves..." },
           ],
         },
         {
           type: "screenRecording",
+          attrs: { id: generateBlockId("screenRecording") },
           content: [
             {
               type: "paragraph",
               content: [
-                { type: "text", text: "Describe what viewers will see in the recording." },
+                { type: "text", text: "Navigate to the main dashboard and show..." },
+              ],
+            },
+          ],
+        },
+        {
+          type: "chapter",
+          attrs: { title: "Key Features", duration: "2m", id: generateBlockId("chapter") },
+        },
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "Let's explore the key features..." },
+          ],
+        },
+        {
+          type: "screenRecording",
+          attrs: { id: generateBlockId("screenRecording") },
+          content: [
+            {
+              type: "paragraph",
+              content: [
+                { type: "text", text: "Demonstrate feature 1..." },
               ],
             },
           ],
@@ -58,21 +120,54 @@ function getTemplateContent(templateType?: string): string {
       content: [
         {
           type: "chapter",
-          attrs: { title: "Training Session", duration: 60, id: "session" },
+          attrs: { title: "Training Overview", duration: "1m", id: generateBlockId("chapter") },
         },
         {
           type: "paragraph",
           content: [
-            { type: "text", text: "This training will teach you..." },
+            { type: "text", text: "Welcome to this training session. Today we'll learn..." },
+          ],
+        },
+        {
+          type: "chapter",
+          attrs: { title: "Core Concepts", duration: "3m", id: generateBlockId("chapter") },
+        },
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "Let's start with the fundamental concepts..." },
           ],
         },
         {
           type: "demonstration",
+          attrs: { id: generateBlockId("demonstration") },
           content: [
             {
               type: "paragraph",
               content: [
-                { type: "text", text: "Demonstrate the key concepts here." },
+                { type: "text", text: "Demonstrate the core workflow step-by-step..." },
+              ],
+            },
+          ],
+        },
+        {
+          type: "chapter",
+          attrs: { title: "Practice Exercise", duration: "4m", id: generateBlockId("chapter") },
+        },
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "Now it's time to practice what you've learned..." },
+          ],
+        },
+        {
+          type: "editorNote",
+          attrs: { id: generateBlockId("editorNote") },
+          content: [
+            {
+              type: "paragraph",
+              content: [
+                { type: "text", text: "Add interactive exercises or quizzes here" },
               ],
             },
           ],
@@ -84,32 +179,58 @@ function getTemplateContent(templateType?: string): string {
       content: [
         {
           type: "chapter",
-          attrs: { title: "Product Walkthrough", duration: 45, id: "walkthrough" },
+          attrs: { title: "Product Introduction", duration: "1m", id: generateBlockId("chapter") },
         },
         {
           type: "paragraph",
           content: [
-            { type: "text", text: "Let's walk through the key features of..." },
+            { type: "text", text: "Welcome! Let's take a comprehensive tour of our product..." },
           ],
         },
         {
+          type: "chapter",
+          attrs: { title: "Feature 1: Dashboard", duration: "2m", id: generateBlockId("chapter") },
+        },
+        {
           type: "screenRecording",
+          attrs: { id: generateBlockId("screenRecording") },
           content: [
             {
               type: "paragraph",
               content: [
-                { type: "text", text: "Show feature 1..." },
+                { type: "text", text: "Show the dashboard overview and key metrics..." },
               ],
             },
           ],
         },
         {
+          type: "chapter",
+          attrs: { title: "Feature 2: Analytics", duration: "2m", id: generateBlockId("chapter") },
+        },
+        {
           type: "screenRecording",
+          attrs: { id: generateBlockId("screenRecording") },
           content: [
             {
               type: "paragraph",
               content: [
-                { type: "text", text: "Show feature 2..." },
+                { type: "text", text: "Navigate to analytics and explain data visualization..." },
+              ],
+            },
+          ],
+        },
+        {
+          type: "chapter",
+          attrs: { title: "Feature 3: Settings", duration: "1m", id: generateBlockId("chapter") },
+        },
+        {
+          type: "screenRecording",
+          attrs: { id: generateBlockId("screenRecording") },
+          content: [
+            {
+              type: "paragraph",
+              content: [
+                { type: "text", text: "Show customization options and preferences..." },
               ],
             },
           ],
