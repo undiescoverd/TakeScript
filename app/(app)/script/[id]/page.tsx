@@ -155,7 +155,7 @@ export default function ScriptPage() {
         <h1 className="text-2xl font-bold">Script not found</h1>
         <p className="text-muted-foreground text-center max-w-md">
           This script may not exist, or you may not have permission to view it.
-          Make sure you're signed in and that the link is correct.
+          Make sure you&apos;re signed in and that the link is correct.
         </p>
         <div className="flex gap-2">
           <button

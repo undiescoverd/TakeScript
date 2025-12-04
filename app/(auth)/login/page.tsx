@@ -60,7 +60,10 @@ export default function LoginPage() {
         </div>
 
         {/* Sign In Button */}
-        <SignInButton mode="modal" forceRedirectUrl="/dashboard">
+        <SignInButton
+          mode="modal"
+          forceRedirectUrl={searchParams.get("redirect") || "/dashboard"}
+        >
           <Button size="lg" className="w-full max-w-xs">
             <svg
               className="mr-2 h-5 w-5"
