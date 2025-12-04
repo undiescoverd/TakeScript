@@ -2,7 +2,7 @@
 
 import { NodeViewWrapper, NodeViewContent, NodeViewProps } from "@tiptap/react";
 import { useState } from "react";
-import { Input } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Edit2, Check, X } from "lucide-react";
 

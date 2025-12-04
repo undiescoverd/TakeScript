@@ -1,19 +1,22 @@
 "use client";
 
 import { SignInButton, useAuth } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
 export default function LoginPage() {
   const { isSignedIn, isLoaded } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (isLoaded && isSignedIn) {
-      router.push("/dashboard");
+      // Redirect to the script page if there's a redirect param, otherwise go to dashboard
+      const redirect = searchParams.get("redirect");
+      router.push(redirect || "/dashboard");
     }
-  }, [isSignedIn, isLoaded, router]);
+  }, [isSignedIn, isLoaded, router, searchParams]);
 
   if (!isLoaded) {
     return (

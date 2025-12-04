@@ -1,6 +1,7 @@
 "use client";
 
 import { JSONContent } from "@tiptap/react";
+import { createElement } from "react";
 import { getWordCount, getReadTime } from "@/lib/tiptap/export";
 
 interface VersionPreviewProps {
@@ -100,16 +101,17 @@ function ContentRenderer({ node }: { node: JSONContent }) {
         </p>
       );
 
-    case "heading":
+    case "heading": {
       const level = node.attrs?.level || 1;
-      const HeadingTag = `h${level}` as keyof JSX.IntrinsicElements;
-      return (
-        <HeadingTag className="mb-3 mt-6 font-bold">
-          {node.content?.map((child, index) => (
-            <ContentRenderer key={index} node={child} />
-          ))}
-        </HeadingTag>
+      const headingTag = `h${level}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
+      return createElement(
+        headingTag,
+        { className: "mb-3 mt-6 font-bold" },
+        node.content?.map((child, index) => (
+          <ContentRenderer key={index} node={child} />
+        ))
       );
+    }
 
     case "chapter":
       return (

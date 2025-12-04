@@ -20,8 +20,11 @@ import {
   Download,
   Loader2,
   MessageSquare,
+  Highlighter,
+  Users,
 } from "lucide-react";
 import { toast } from "sonner";
+import { ShareDialog } from "@/components/collaboration/ShareDialog";
 
 interface TopbarProps {
   scriptId: Id<"scripts">;
@@ -36,7 +39,7 @@ export function Topbar({ scriptId, title, content, onSaveNow }: TopbarProps) {
   const [titleValue, setTitleValue] = useState(title);
   const updateTitle = useMutation(api.scripts.updateTitle);
   const saveVersion = useMutation(api.versions.save);
-  const { isSaving, toggleVersionHistory, toggleComments, lastSavedAt } = useEditorStore();
+  const { isSaving, toggleVersionHistory, toggleComments, toggleAnnotations, lastSavedAt, collaborationEnabled, toggleCollaboration } = useEditorStore();
 
   useEffect(() => {
     setTitleValue(title);
@@ -165,6 +168,21 @@ export function Topbar({ scriptId, title, content, onSaveNow }: TopbarProps) {
 
         <Button variant="ghost" size="icon" onClick={toggleComments}>
           <MessageSquare className="h-4 w-4" />
+        </Button>
+
+        <Button variant="ghost" size="icon" onClick={toggleAnnotations} title="Annotations">
+          <Highlighter className="h-4 w-4" />
+        </Button>
+
+        <ShareDialog scriptId={scriptId} />
+
+        <Button
+          variant={collaborationEnabled ? "default" : "ghost"}
+          size="icon"
+          onClick={toggleCollaboration}
+          title={collaborationEnabled ? "Collaboration enabled" : "Enable collaboration"}
+        >
+          <Users className="h-4 w-4" />
         </Button>
 
         <ThemeToggle />

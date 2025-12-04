@@ -340,7 +340,7 @@ export const get = query({
       return null;
     }
 
-    // Verify ownership
+    // Get the current user
     const user = await ctx.db
       .query("users")
       .withIndex("by_token", (q) =>
@@ -348,8 +348,17 @@ export const get = query({
       )
       .unique();
 
-    if (!user || script.userId !== user._id) {
+    if (!user) {
       return null;
+    }
+
+    // Allow access if user is the owner OR if they're authenticated (for collaboration)
+    // This enables sharing - any authenticated user can view the script
+    // Write permissions are still restricted to owners in mutations
+    if (script.userId !== user._id) {
+      // User is not the owner, but they're authenticated
+      // Allow read access for collaboration
+      return script;
     }
 
     return script;

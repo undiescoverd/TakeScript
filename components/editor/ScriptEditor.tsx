@@ -3,20 +3,27 @@
 import { useEditor, EditorContent, JSONContent, Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useEditorStore } from "@/store/editor-store";
 import { customExtensions } from "@/lib/tiptap/extensions";
+import { SlashCommands } from "@/lib/tiptap/slash-commands";
+import { createSlashCommandsRender } from "@/lib/tiptap/suggestion-render";
+import { AnnotationMark } from "@/lib/tiptap/annotation-mark";
+import { AnnotationBubble } from "@/components/annotations/AnnotationBubble";
+import { Id } from "@/convex/_generated/dataModel";
 
 interface ScriptEditorProps {
   initialContent: JSONContent;
   onUpdate: (content: string) => void;
   onEditorReady?: (editor: Editor) => void;
+  scriptId: Id<"scripts">;
 }
 
 export function ScriptEditor({
   initialContent,
   onUpdate,
   onEditorReady,
+  scriptId,
 }: ScriptEditorProps) {
   const { mode } = useEditorStore();
   const isFirstRender = useRef(true);
@@ -33,6 +40,12 @@ export function ScriptEditor({
         placeholder: "Type '/' for commands...",
       }),
       ...customExtensions,
+      AnnotationMark,
+      SlashCommands.configure({
+        suggestion: {
+          render: createSlashCommandsRender,
+        },
+      }),
     ],
     content: initialContent,
     editorProps: {
@@ -47,12 +60,32 @@ export function ScriptEditor({
   });
 
   // Update editor content when initialContent changes (e.g., version restore)
+  // BUT only if editor is not currently focused/being edited to avoid interrupting user
   useEffect(() => {
     if (editor && !isFirstRender.current) {
-      const currentContent = JSON.stringify(editor.getJSON());
-      const newContent = JSON.stringify(initialContent);
-      if (currentContent !== newContent) {
-        editor.commands.setContent(initialContent);
+      const currentContent = editor.getJSON();
+      const newContent = initialContent;
+      
+      // Deep comparison helper
+      const deepEqual = (a: any, b: any): boolean => {
+        if (a === b) return true;
+        if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) {
+          return false;
+        }
+        const keysA = Object.keys(a);
+        const keysB = Object.keys(b);
+        if (keysA.length !== keysB.length) return false;
+        for (const key of keysA) {
+          if (!keysB.includes(key)) return false;
+          if (!deepEqual(a[key], b[key])) return false;
+        }
+        return true;
+      };
+      
+      // Only update if content is actually different AND editor is not focused
+      // This prevents interrupting user edits when autosave completes
+      if (!deepEqual(currentContent, newContent) && !editor.isFocused) {
+        editor.commands.setContent(initialContent, false); // false = don't emit update event
       }
     }
     isFirstRender.current = false;
@@ -65,17 +98,6 @@ export function ScriptEditor({
     }
   }, [editor, onEditorReady]);
 
-  // Handle slash command
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "/" && editor) {
-        // Show slash command menu
-        // This is handled by the SlashCommandMenu component
-      }
-    },
-    [editor]
-  );
-
   if (!editor) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -87,12 +109,9 @@ export function ScriptEditor({
   }
 
   return (
-    <div
-      className="h-full overflow-auto bg-background"
-      data-mode={mode}
-      onKeyDown={handleKeyDown}
-    >
+    <div className="relative h-full overflow-auto bg-background" data-mode={mode}>
       <EditorContent editor={editor} />
+      <AnnotationBubble editor={editor} scriptId={scriptId} />
     </div>
   );
 }

@@ -45,4 +45,19 @@ export default defineSchema({
   })
     .index("by_script", ["scriptId"])
     .index("by_script_unresolved", ["scriptId", "resolved"]),
+
+  annotations: defineTable({
+    scriptId: v.id("scripts"),
+    userId: v.id("users"),
+    content: v.string(), // The annotation note content
+    selectedText: v.string(), // The text that was highlighted
+    from: v.number(), // Start position in document
+    to: v.number(), // End position in document
+    color: v.string(), // Highlight color (e.g., "yellow", "green", "blue", "pink")
+    resolved: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_script", ["scriptId"])
+    .index("by_script_unresolved", ["scriptId", "resolved"]),
 });
