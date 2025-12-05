@@ -259,11 +259,25 @@ export function AnnotationsPanel({
   );
 }
 
-// Helper to get first name only
-function getFirstName(fullName: string | undefined | null): string {
-  if (!fullName) return "You";
-  const firstName = fullName.split(" ")[0];
-  return firstName || "You";
+// Helper to get display name
+function getDisplayName(
+  fullName: string | undefined | null,
+  email: string | undefined | null
+): string {
+  // If name exists and is not "Anonymous", use it
+  if (fullName && fullName.trim() && fullName !== "Anonymous") {
+    const firstName = fullName.split(" ")[0];
+    return firstName || fullName;
+  }
+  
+  // Fallback to email if available
+  if (email && email.trim()) {
+    const emailLocal = email.split("@")[0];
+    return emailLocal.charAt(0).toUpperCase() + emailLocal.slice(1);
+  }
+  
+  // Last resort
+  return "You";
 }
 
 interface AnnotationCardProps {
@@ -350,7 +364,7 @@ function AnnotationCard({
       <div className="mb-2 flex items-start justify-between">
         <div>
           <div className="text-sm font-medium">
-            {getFirstName(annotation.user?.name)}
+            {getDisplayName(annotation.user?.name, annotation.user?.email)}
           </div>
           <div className="text-xs text-muted-foreground">
             {formatDistanceToNow(annotation.createdAt)}
