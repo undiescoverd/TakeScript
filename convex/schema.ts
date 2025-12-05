@@ -2,12 +2,43 @@ import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
 export default defineSchema({
+  // Organizations for multi-tenancy and team collaboration
+  organizations: defineTable({
+    name: v.string(),
+    slug: v.string(), // URL-friendly identifier
+    plan: v.optional(v.string()), // "free" | "pro" | "enterprise"
+    aiProvider: v.string(), // "anthropic" | "openai"
+    anthropicModel: v.optional(v.string()), // "claude-sonnet-4-5-20250929" | "claude-opus-4-5-20251101"
+    openaiModel: v.optional(v.string()), // "gpt-4o" | "gpt-4-turbo"
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_slug", ["slug"]),
+
   users: defineTable({
     email: v.string(),
     name: v.string(),
     avatar: v.optional(v.string()),
     tokenIdentifier: v.string(),
-  }).index("by_token", ["tokenIdentifier"]),
+    organizationId: v.id("organizations"), // Link to organization
+    role: v.string(), // "owner" | "admin" | "member" | "viewer"
+  })
+    .index("by_token", ["tokenIdentifier"])
+    .index("by_organization", ["organizationId"]),
+
+  // Organization invitations for team management
+  organizationInvitations: defineTable({
+    organizationId: v.id("organizations"),
+    email: v.string(),
+    role: v.string(), // "admin" | "member" | "viewer"
+    token: v.string(), // Unique invite token
+    invitedBy: v.id("users"),
+    status: v.string(), // "pending" | "accepted" | "declined" | "expired"
+    expiresAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_token", ["token"])
+    .index("by_email", ["email"]),
 
   scripts: defineTable({
     title: v.string(),
@@ -21,10 +52,13 @@ export default defineSchema({
     targetType: v.optional(v.string()), // "pages" | "minutes"
     category: v.optional(v.string()), // Project/folder name
     status: v.optional(v.string()), // "draft" | "in-progress" | "complete" | "archived"
+    organizationId: v.optional(v.id("organizations")), // Link to organization
+    sharedWith: v.optional(v.array(v.id("users"))), // Specific users with access
   })
     .index("by_user", ["userId"])
     .index("by_user_and_edited", ["userId", "lastEditedAt"])
-    .index("by_user_and_category", ["userId", "category"]),
+    .index("by_user_and_category", ["userId", "category"])
+    .index("by_organization", ["organizationId"]),
 
   scriptVersions: defineTable({
     scriptId: v.id("scripts"),
@@ -74,4 +108,35 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_category", ["category"])
     .index("system_templates", ["isSystem"]),
+
+  // Brand guidelines for AI context
+  brandGuidelines: defineTable({
+    organizationId: v.id("organizations"),
+    name: v.string(),
+    content: v.string(), // Extracted plain text from file
+    fileUrl: v.optional(v.string()), // Convex storage URL
+    fileType: v.string(), // "pdf" | "docx" | "txt"
+    uploadedBy: v.id("users"),
+    isActive: v.boolean(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_organization_active", ["organizationId", "isActive"]),
+
+  // AI request tracking for analytics and billing
+  aiRequests: defineTable({
+    userId: v.id("users"),
+    organizationId: v.id("organizations"),
+    scriptId: v.optional(v.id("scripts")),
+    requestType: v.string(), // "chat" | "grammar" | "review" | "generation" | "inline"
+    provider: v.string(), // "anthropic" | "openai"
+    model: v.string(), // Model name used
+    tokensUsed: v.optional(v.number()), // Token count if available
+    cost: v.optional(v.number()), // USD cost estimate
+    createdAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_user", ["userId"])
+    .index("by_script", ["scriptId"]),
 });
