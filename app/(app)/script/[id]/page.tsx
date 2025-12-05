@@ -16,6 +16,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { VersionHistory } from "@/components/versions/VersionHistory";
 import { CommentsPanel } from "@/components/comments/CommentsPanel";
 import { AnnotationsPanel } from "@/components/annotations/AnnotationsPanel";
+import { IdentityDebugger } from "@/components/debug/IdentityDebugger";
 
 export default function ScriptPage() {
   const params = useParams();
@@ -271,6 +272,9 @@ export default function ScriptPage() {
           onClose={() => setAnnotationsOpen(false)}
           editor={editorRef}
         />
+
+        {/* Identity Debugger */}
+        <IdentityDebugger />
       </div>
     </div>
   );

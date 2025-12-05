@@ -16,7 +16,7 @@ export const list = query({
       return [];
     }
 
-    const user = await ctx.db
+    let user = await ctx.db
       .query("users")
       .withIndex("by_token", (q) =>
         q.eq("tokenIdentifier", identity.tokenIdentifier)
@@ -26,6 +26,9 @@ export const list = query({
     if (!user || script.userId !== user._id) {
       return [];
     }
+
+    // Note: Queries are read-only and cannot modify the database
+    // User info updates happen in mutations (create, update, etc.)
 
     // Get all annotations for this script
     const annotations = await ctx.db
@@ -87,22 +90,35 @@ export const create = mutation({
 
     // Helper to get a display name from identity
     const getDisplayName = () => {
-      // Log for debugging (remove in production)
-      console.log("[annotations.create] Identity:", {
-        name: identity.name,
-        email: identity.email,
-        tokenIdentifier: identity.tokenIdentifier,
-      });
-      
-      if (identity.name && identity.name.trim()) {
-        return identity.name.trim();
+      // Log full identity object for debugging
+      console.log("[annotations.create] Full Identity:", JSON.stringify(identity, null, 2));
+
+      // Try different name fields that Clerk might provide
+      // Clerk with Google OAuth may use: givenName, given_name, firstName, name
+      const nameFields = [
+        identity.givenName,
+        identity.given_name,
+        identity.firstName,
+        identity.name,
+        identity.nickname,
+      ];
+
+      for (const nameField of nameFields) {
+        if (nameField && typeof nameField === 'string' && nameField.trim()) {
+          console.log("[annotations.create] Using name field:", nameField);
+          return nameField.trim();
+        }
       }
+
+      // Fallback to email-based name
       if (identity.email && identity.email.trim()) {
-        // Use email's local part (before @) as fallback
         const emailLocal = identity.email.split("@")[0];
-        // Capitalize first letter
-        return emailLocal.charAt(0).toUpperCase() + emailLocal.slice(1);
+        const fallbackName = emailLocal.charAt(0).toUpperCase() + emailLocal.slice(1);
+        console.log("[annotations.create] Using email fallback:", fallbackName);
+        return fallbackName;
       }
+
+      console.log("[annotations.create] Defaulting to Anonymous");
       return "Anonymous";
     };
 

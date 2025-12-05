@@ -11,13 +11,28 @@ export const store = mutation({
 
     // Helper to get a display name from identity
     const getDisplayName = () => {
-      if (identity.name) return identity.name;
-      if (identity.email) {
-        // Use email's local part (before @) as fallback
+      // Try different name fields that Clerk might provide
+      // Clerk with Google OAuth may use: givenName, given_name, firstName, name
+      const nameFields = [
+        identity.givenName,
+        identity.given_name,
+        identity.firstName,
+        identity.name,
+        identity.nickname,
+      ];
+
+      for (const nameField of nameFields) {
+        if (nameField && typeof nameField === 'string' && nameField.trim()) {
+          return nameField.trim();
+        }
+      }
+
+      // Fallback to email-based name
+      if (identity.email && identity.email.trim()) {
         const emailLocal = identity.email.split("@")[0];
-        // Capitalize first letter
         return emailLocal.charAt(0).toUpperCase() + emailLocal.slice(1);
       }
+
       return "Anonymous";
     };
 
