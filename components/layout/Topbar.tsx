@@ -23,21 +23,29 @@ import {
   Highlighter,
   Users,
   Check,
+  Sparkles,
+  CheckCircle,
+  FileSearch,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ShareDialog } from "@/components/collaboration/ShareDialog";
 import { SaveTemplateDialog } from "@/components/templates/SaveTemplateDialog";
 import { useFeatureFlag } from "@/hooks/use-feature-flags";
+import { getFeatureFlags } from "@/lib/feature-flags";
 
 interface TopbarProps {
   scriptId: Id<"scripts">;
   title: string;
   content: JSONContent;
   onSaveNow: () => Promise<void>;
+  onOpenAIChat?: () => void;
+  onGrammarCheck?: () => void;
+  onScriptReview?: () => void;
 }
 
-export function Topbar({ scriptId, title, content, onSaveNow }: TopbarProps) {
+export function Topbar({ scriptId, title, content, onSaveNow, onOpenAIChat, onGrammarCheck, onScriptReview }: TopbarProps) {
   const router = useRouter();
+  const flags = getFeatureFlags();
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(title);
   const [showSavedMessage, setShowSavedMessage] = useState(false);
@@ -209,6 +217,24 @@ export function Topbar({ scriptId, title, content, onSaveNow }: TopbarProps) {
         <Button variant="ghost" size="icon" onClick={toggleAnnotations} title="Annotations">
           <Highlighter className="h-4 w-4" />
         </Button>
+
+        {flags.aiChatEnabled && onOpenAIChat && (
+          <Button variant="ghost" size="icon" onClick={onOpenAIChat} title="AI Assistant">
+            <Sparkles className="h-4 w-4" />
+          </Button>
+        )}
+
+        {flags.aiGrammarCheckEnabled && onGrammarCheck && (
+          <Button variant="ghost" size="icon" onClick={onGrammarCheck} title="Check Grammar & Style">
+            <CheckCircle className="h-4 w-4" />
+          </Button>
+        )}
+
+        {flags.aiReviewEnabled && onScriptReview && (
+          <Button variant="ghost" size="icon" onClick={onScriptReview} title="Review Script">
+            <FileSearch className="h-4 w-4" />
+          </Button>
+        )}
 
         <ShareDialog scriptId={scriptId} />
 

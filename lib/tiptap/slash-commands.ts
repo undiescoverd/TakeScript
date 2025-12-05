@@ -3,6 +3,7 @@ import { Editor, Range } from "@tiptap/core";
 import Suggestion, { SuggestionOptions } from "@tiptap/suggestion";
 import { PluginKey } from "@tiptap/pm/state";
 import { generateBlockId } from "@/lib/utils";
+import { getFeatureFlags } from "@/lib/feature-flags";
 
 export interface SlashCommandItem {
   name: string;
@@ -190,6 +191,79 @@ export const slashCommandItems: SlashCommandItem[] = [
   },
 ];
 
+// AI Commands (dynamically added based on feature flags)
+export function getAICommands(): SlashCommandItem[] {
+  const flags = getFeatureFlags();
+  const aiCommands: SlashCommandItem[] = [];
+
+  if (flags.aiGenerationEnabled) {
+    aiCommands.push({
+      name: "AI Generate",
+      description: "Generate content with AI.",
+      icon: "✨",
+      command: ({ editor, range }) => {
+        editor.chain().focus().deleteRange(range).run();
+        // Dispatch custom event to open generation dialog
+        window.dispatchEvent(
+          new CustomEvent("ai:generate", {
+            detail: { editor, range },
+          })
+        );
+      },
+    });
+
+    aiCommands.push({
+      name: "AI Expand",
+      description: "Expand selected text with AI.",
+      icon: "🔍",
+      command: ({ editor, range }) => {
+        const { from, to } = editor.state.selection;
+        const selectedText = editor.state.doc.textBetween(from, to);
+        editor.chain().focus().deleteRange(range).run();
+        window.dispatchEvent(
+          new CustomEvent("ai:expand", {
+            detail: { editor, range, selectedText },
+          })
+        );
+      },
+    });
+
+    aiCommands.push({
+      name: "AI Rephrase",
+      description: "Rephrase text for clarity.",
+      icon: "✏️",
+      command: ({ editor, range }) => {
+        const { from, to } = editor.state.selection;
+        const selectedText = editor.state.doc.textBetween(from, to);
+        editor.chain().focus().deleteRange(range).run();
+        window.dispatchEvent(
+          new CustomEvent("ai:rephrase", {
+            detail: { editor, range, selectedText },
+          })
+        );
+      },
+    });
+
+    aiCommands.push({
+      name: "AI Summarize",
+      description: "Summarize text concisely.",
+      icon: "📝",
+      command: ({ editor, range }) => {
+        const { from, to } = editor.state.selection;
+        const selectedText = editor.state.doc.textBetween(from, to);
+        editor.chain().focus().deleteRange(range).run();
+        window.dispatchEvent(
+          new CustomEvent("ai:summarize", {
+            detail: { editor, range, selectedText },
+          })
+        );
+      },
+    });
+  }
+
+  return aiCommands;
+}
+
 export const SlashCommandsPluginKey = new PluginKey("slash-commands");
 
 /**
@@ -285,8 +359,11 @@ const defaultSuggestionOptions = {
     props.command({ editor, range });
   },
   items: ({ query }: { query: string }) => {
+    // Combine base commands with AI commands
+    const allItems = [...slashCommandItems, ...getAICommands()];
+
     // Score and filter items
-    const scoredItems = slashCommandItems
+    const scoredItems = allItems
       .map((item) => ({
         item,
         ...smartMatch(item, query),
