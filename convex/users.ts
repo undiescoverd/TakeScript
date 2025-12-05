@@ -47,6 +47,33 @@ export const store = mutation({
     const displayName = getDisplayName();
 
     if (user !== null) {
+      // Migration: If existing user doesn't have an organization, create one
+      if (!user.organizationId) {
+        const orgId = await ctx.db.insert("organizations", {
+          name: `${user.name}'s Workspace`,
+          slug: user.name
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-+|-+$/g, "")
+            .slice(0, 50) + "-" + Date.now().toString(36),
+          plan: "free",
+          aiProvider: "anthropic",
+          anthropicModel: "claude-sonnet-4-5-20250929",
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+
+        await ctx.db.patch(user._id, {
+          organizationId: orgId,
+          role: "owner",
+          name: displayName,
+          email: identity.email ?? "",
+          avatar: identity.pictureUrl,
+        });
+
+        return user._id;
+      }
+
       // If we've seen this identity before but the name has changed, patch the value
       if (user.name !== displayName || user.email !== identity.email) {
         await ctx.db.patch(user._id, {
@@ -58,12 +85,30 @@ export const store = mutation({
       return user._id;
     }
 
-    // If it's a new identity, create a new User
+    // If it's a new identity, create a new organization and user
+    // Create personal organization first
+    const orgId = await ctx.db.insert("organizations", {
+      name: `${displayName}'s Workspace`,
+      slug: displayName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "")
+        .slice(0, 50) + "-" + Date.now().toString(36),
+      plan: "free",
+      aiProvider: "anthropic",
+      anthropicModel: "claude-sonnet-4-5-20250929",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
+
+    // Create user with organization as owner
     return await ctx.db.insert("users", {
       name: displayName,
       email: identity.email ?? "",
       avatar: identity.pictureUrl,
       tokenIdentifier: identity.tokenIdentifier,
+      organizationId: orgId,
+      role: "owner",
     });
   },
 });
@@ -84,3 +129,14 @@ export const current = query({
       .unique();
   },
 });
+
+/**
+ * Helper function to get user by token identifier
+ * Used by other Convex functions to look up the current user
+ */
+export async function getUserByTokenIdentifier(ctx: any, tokenIdentifier: string) {
+  return await ctx.db
+    .query("users")
+    .withIndex("by_token", (q) => q.eq("tokenIdentifier", tokenIdentifier))
+    .unique();
+}
