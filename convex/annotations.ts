@@ -87,8 +87,17 @@ export const create = mutation({
 
     // Helper to get a display name from identity
     const getDisplayName = () => {
-      if (identity.name) return identity.name;
-      if (identity.email) {
+      // Log for debugging (remove in production)
+      console.log("[annotations.create] Identity:", {
+        name: identity.name,
+        email: identity.email,
+        tokenIdentifier: identity.tokenIdentifier,
+      });
+      
+      if (identity.name && identity.name.trim()) {
+        return identity.name.trim();
+      }
+      if (identity.email && identity.email.trim()) {
         // Use email's local part (before @) as fallback
         const emailLocal = identity.email.split("@")[0];
         // Capitalize first letter
@@ -97,9 +106,10 @@ export const create = mutation({
       return "Anonymous";
     };
 
+    const displayName = getDisplayName();
+    
     if (!user) {
       // Create user if they don't exist
-      const displayName = getDisplayName();
       const userId = await ctx.db.insert("users", {
         name: displayName,
         email: identity.email ?? "",
@@ -108,17 +118,14 @@ export const create = mutation({
       });
       user = await ctx.db.get(userId);
     } else {
-      // Always update user with latest info from Clerk
-      const displayName = getDisplayName();
-      if (user.name !== displayName || user.email !== identity.email) {
-        await ctx.db.patch(user._id, {
-          name: displayName,
-          email: identity.email ?? user.email ?? "",
-          avatar: identity.pictureUrl ?? user.avatar,
-        });
-        // Refresh user object
-        user = await ctx.db.get(user._id);
-      }
+      // Always update user with latest info from Clerk to ensure we have current name
+      await ctx.db.patch(user._id, {
+        name: displayName,
+        email: identity.email ?? user.email ?? "",
+        avatar: identity.pictureUrl ?? user.avatar,
+      });
+      // Refresh user object to get updated data
+      user = await ctx.db.get(user._id);
     }
 
     if (!user || script.userId !== user._id) {
