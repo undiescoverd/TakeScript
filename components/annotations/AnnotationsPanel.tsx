@@ -54,8 +54,12 @@ export function AnnotationsPanel({
   const handleDelete = async (annotationId: Id<"annotations">) => {
     try {
       // Remove the mark from the editor
-      if (editor) {
-        editor.commands.removeAnnotation(annotationId);
+      if (editor && editor.view) {
+        try {
+          editor.commands.removeAnnotation(annotationId);
+        } catch {
+          // Editor view not ready, continue with deletion anyway
+        }
       }
       await removeAnnotation({ annotationId });
       toast.success("Annotation deleted");
@@ -74,13 +78,17 @@ export function AnnotationsPanel({
       await updateAnnotation({ annotationId, color });
 
       // Also update the highlight color in the editor
-      if (editor) {
-        editor
-          .chain()
-          .focus()
-          .setTextSelection({ from, to })
-          .setAnnotation({ annotationId, color })
-          .run();
+      if (editor && editor.view) {
+        try {
+          editor
+            .chain()
+            .focus()
+            .setTextSelection({ from, to })
+            .setAnnotation({ annotationId, color })
+            .run();
+        } catch {
+          // Editor view not ready, skip editor update
+        }
       }
     } catch {
       toast.error("Failed to update color");
@@ -111,9 +119,13 @@ export function AnnotationsPanel({
     setSelectedAnnotationId(annotationId);
 
     // Scroll to the annotation in the editor
-    if (editor) {
-      editor.commands.setTextSelection(from);
-      editor.commands.scrollIntoView();
+    if (editor && editor.view) {
+      try {
+        editor.commands.setTextSelection(from);
+        editor.commands.scrollIntoView();
+      } catch {
+        // Editor view not ready, skip scrolling
+      }
     }
   };
 

@@ -5,7 +5,7 @@ import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
-import { useEffect } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useEditorStore } from "@/store/editor-store";
 import { customExtensions } from "@/lib/tiptap/extensions";
 import { SlashCommands } from "@/lib/tiptap/slash-commands";
@@ -27,6 +27,8 @@ export function CollaborativeEditor({
   onEditorReady,
 }: CollaborativeEditorProps) {
   const { mode } = useEditorStore();
+  const [showSyncStatus, setShowSyncStatus] = useState(true);
+  const syncStatusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Initialize collaboration
   const {
@@ -41,6 +43,30 @@ export function CollaborativeEditor({
     enabled: true,
   });
 
+  // Hide sync status after it's been stable for a while (Google Docs style)
+  useEffect(() => {
+    if (isSynced && connectionStatus === "connected") {
+      // Clear any existing timeout
+      if (syncStatusTimeoutRef.current) {
+        clearTimeout(syncStatusTimeoutRef.current);
+      }
+      // Show "Synced" briefly, then hide
+      setShowSyncStatus(true);
+      syncStatusTimeoutRef.current = setTimeout(() => {
+        setShowSyncStatus(false);
+      }, 2000); // Hide after 2 seconds of being synced
+    } else {
+      // Show status when not synced
+      setShowSyncStatus(true);
+    }
+
+    return () => {
+      if (syncStatusTimeoutRef.current) {
+        clearTimeout(syncStatusTimeoutRef.current);
+      }
+    };
+  }, [isSynced, connectionStatus]);
+
   const editor = useEditor(
     {
       immediatelyRender: false,
@@ -49,8 +75,8 @@ export function CollaborativeEditor({
           heading: {
             levels: [1, 2, 3],
           },
-          // Disable history since Collaboration provides its own
-          history: false,
+          // Disable undoRedo since Collaboration provides its own history
+          undoRedo: false,
         }),
         Placeholder.configure({
           placeholder: "Type '/' for commands...",
@@ -135,35 +161,42 @@ export function CollaborativeEditor({
 
   return (
     <div className="h-full overflow-auto bg-background" data-mode={mode}>
-      {/* Collaboration status bar */}
-      <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="flex items-center gap-2">
-          <div
-            className={`h-2 w-2 rounded-full ${
-              connectionStatus === "connected"
-                ? "bg-green-500"
-                : connectionStatus === "connecting"
-                  ? "bg-yellow-500 animate-pulse"
-                  : "bg-red-500"
-            }`}
-          />
-          <span className="text-xs text-muted-foreground">
-            {connectionStatus === "connected"
-              ? isSynced
-                ? "Synced"
-                : "Syncing..."
-              : connectionStatus === "connecting"
-                ? "Connecting..."
-                : "Offline"}
-          </span>
-        </div>
+      {/* Collaboration status bar - only show when needed (Google Docs style) */}
+      {(showSyncStatus || collaborators.length > 0) && (
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          {showSyncStatus && (
+            <div className="flex items-center gap-2">
+              <div
+                className={`h-2 w-2 rounded-full transition-colors ${
+                  connectionStatus === "connected"
+                    ? "bg-green-500"
+                    : connectionStatus === "connecting"
+                      ? "bg-yellow-500 animate-pulse"
+                      : "bg-red-500"
+                }`}
+              />
+              <span className="text-xs text-muted-foreground">
+                {connectionStatus === "connected"
+                  ? isSynced
+                    ? "All changes saved"
+                    : "Saving..."
+                  : connectionStatus === "connecting"
+                    ? "Connecting..."
+                    : "Offline"}
+              </span>
+            </div>
+          )}
+          {!showSyncStatus && <div />}
 
-        {/* Active collaborators */}
-        <Collaborators
-          collaborators={collaborators}
-          currentUser={currentUser}
-        />
-      </div>
+          {/* Active collaborators - always show if there are any */}
+          {collaborators.length > 0 && (
+            <Collaborators
+              collaborators={collaborators}
+              currentUser={currentUser}
+            />
+          )}
+        </div>
+      )}
 
       {/* Editor content */}
       <EditorContent editor={editor} />

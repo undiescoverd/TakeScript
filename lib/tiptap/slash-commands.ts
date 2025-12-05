@@ -273,46 +273,51 @@ function smartMatch(
 }
 
 export interface SlashCommandsOptions {
-  suggestion: Omit<SuggestionOptions<SlashCommandItem>, "editor">;
+  suggestion: Partial<Omit<SuggestionOptions<SlashCommandItem>, "editor">>;
 }
+
+// Default suggestion options - these will be merged with user-provided options
+const defaultSuggestionOptions = {
+  char: "/",
+  startOfLine: false,
+  pluginKey: SlashCommandsPluginKey,
+  command: ({ editor, range, props }: { editor: Editor; range: Range; props: SlashCommandItem }) => {
+    props.command({ editor, range });
+  },
+  items: ({ query }: { query: string }) => {
+    // Score and filter items
+    const scoredItems = slashCommandItems
+      .map((item) => ({
+        item,
+        ...smartMatch(item, query),
+      }))
+      .filter((scored) => scored.matches)
+      .sort((a, b) => b.score - a.score);
+
+    return scoredItems.map((scored) => scored.item);
+  },
+};
 
 export const SlashCommands = Extension.create<SlashCommandsOptions>({
   name: "slashCommands",
 
   addOptions() {
     return {
-      suggestion: {
-        char: "/",
-        startOfLine: false,
-        pluginKey: SlashCommandsPluginKey,
-        command: ({ editor, range, props }) => {
-          props.command({ editor, range });
-        },
-        items: ({ query }) => {
-          // Score and filter items
-          const scoredItems = slashCommandItems
-            .map((item) => ({
-              item,
-              ...smartMatch(item, query),
-            }))
-            .filter((scored) => scored.matches)
-            .sort((a, b) => b.score - a.score);
-
-          return scoredItems.map((scored) => scored.item);
-        },
-        render: () => {
-          // This will be overridden by the component
-          return {};
-        },
-      },
+      suggestion: {},
     };
   },
 
   addProseMirrorPlugins() {
+    // Merge default options with user-provided options
+    const suggestionOptions = {
+      ...defaultSuggestionOptions,
+      ...this.options.suggestion,
+    };
+
     return [
       Suggestion({
         editor: this.editor,
-        ...this.options.suggestion,
+        ...suggestionOptions,
       }),
     ];
   },

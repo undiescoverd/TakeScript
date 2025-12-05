@@ -256,7 +256,8 @@ function getTemplateContent(templateType?: string): string {
 export const create = mutation({
   args: {
     title: v.string(),
-    templateType: v.optional(v.string()),
+    templateType: v.optional(v.string()), // Backward compatibility
+    templateId: v.optional(v.id("templates")), // New template system
     targetLength: v.optional(v.number()),
     targetType: v.optional(v.string()),
     category: v.optional(v.string()),
@@ -279,7 +280,27 @@ export const create = mutation({
     }
 
     const now = Date.now();
-    const initialContent = getTemplateContent(args.templateType);
+    let initialContent: string;
+
+    // Try to get content from template ID first (new system)
+    if (args.templateId) {
+      const template = await ctx.db.get(args.templateId);
+      if (template) {
+        // Sanitize template content to regenerate block IDs
+        initialContent = sanitizeTemplateContent(template.content);
+
+        // Update lastUsedAt timestamp for the template
+        await ctx.db.patch(args.templateId, {
+          lastUsedAt: now,
+        });
+      } else {
+        // Template not found, use default
+        initialContent = getTemplateContent();
+      }
+    } else {
+      // Fall back to old templateType system
+      initialContent = getTemplateContent(args.templateType);
+    }
 
     const scriptId = await ctx.db.insert("scripts", {
       title: args.title,
@@ -297,6 +318,38 @@ export const create = mutation({
     return scriptId;
   },
 });
+
+// Helper function to sanitize template content (duplicate from templates.ts for use here)
+function sanitizeTemplateContent(content: string): string {
+  try {
+    const parsed = JSON.parse(content);
+
+    // Recursively traverse the document and regenerate IDs for custom blocks
+    const regenerateIds = (node: any): any => {
+      if (!node || typeof node !== "object") return node;
+
+      // If this is a custom block with an ID attribute, regenerate it
+      if (node.attrs?.id && node.type) {
+        const blockTypes = ["chapter", "screenRecording", "demonstration", "editorNote"];
+        if (blockTypes.includes(node.type)) {
+          node.attrs.id = generateBlockId(node.type);
+        }
+      }
+
+      // Recursively process content array
+      if (Array.isArray(node.content)) {
+        node.content = node.content.map(regenerateIds);
+      }
+
+      return node;
+    };
+
+    return JSON.stringify(regenerateIds(parsed));
+  } catch (error) {
+    console.error("Error sanitizing template content:", error);
+    return content; // Return original if parsing fails
+  }
+}
 
 export const list = query({
   args: {},

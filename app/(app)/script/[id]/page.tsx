@@ -22,7 +22,7 @@ export default function ScriptPage() {
   const router = useRouter();
   const scriptId = params.id as Id<"scripts">;
   const script = useQuery(api.scripts.get, { scriptId });
-  const { scheduleAutosave, saveNow, setOnSaveComplete, getLastSavedContent } = useAutosave(scriptId);
+  const { scheduleAutosave, saveNow, setOnSaveComplete, getLastSavedContent, initializeLastSaved } = useAutosave(scriptId);
   const { mode, commentsOpen, setCommentsOpen, annotationsOpen, setAnnotationsOpen, collaborationEnabled } = useEditorStore();
   const [editorRef, setEditorRef] = useState<Editor | null>(null);
   const [localContent, setLocalContent] = useState<JSONContent | null>(null);
@@ -46,14 +46,18 @@ export default function ScriptPage() {
         const parsed = JSON.parse(script.content);
         // Syncing external state to local state - this is intentional
         setLocalContent(parsed);
+        // Initialize last saved content to prevent immediate save on first load
+        initializeLastSaved(script.content);
         contentInitialized.current = true;
       } catch {
         // Syncing external state to local state - this is intentional
+        const emptyContent = JSON.stringify({ type: "doc", content: [] });
         setLocalContent({ type: "doc", content: [] });
+        initializeLastSaved(emptyContent);
         contentInitialized.current = true;
       }
     }
-  }, [script?.content]);
+  }, [script?.content, initializeLastSaved]);
 
   // Update local content when script changes (e.g., version restore)
   // BUT only if it's different from what we last saved (to avoid feedback loop)
@@ -124,6 +128,41 @@ export default function ScriptPage() {
     },
     []
   );
+
+  // Save immediately on blur (when user clicks away) - like Google Docs
+  useEffect(() => {
+    if (!editorRef) return;
+
+    // Safely check if view is available - accessing view.dom can throw if not mounted
+    let editorElement: HTMLElement | null = null;
+    try {
+      if (editorRef.view && editorRef.view.dom) {
+        editorElement = editorRef.view.dom;
+      }
+    } catch {
+      // View not available yet, skip setting up blur handler
+      return;
+    }
+
+    if (!editorElement) return;
+
+    const handleBlur = () => {
+      if (localContent) {
+        // Save immediately when editor loses focus
+        saveNow(JSON.stringify(localContent)).catch((error) => {
+          console.error("Failed to save on blur:", error);
+        });
+      }
+    };
+
+    editorElement.addEventListener("blur", handleBlur, true);
+
+    return () => {
+      if (editorElement) {
+        editorElement.removeEventListener("blur", handleBlur, true);
+      }
+    };
+  }, [editorRef, localContent, saveNow]);
 
   // Save on navigation away
   useEffect(() => {

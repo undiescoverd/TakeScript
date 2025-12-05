@@ -1,6 +1,9 @@
 import { mergeAttributes, Node } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import { ChapterNodeView } from "./ChapterNodeView";
+import { ScreenRecordingNodeView } from "./ScreenRecordingNodeView";
+import { DemonstrationNodeView } from "./DemonstrationNodeView";
+import { EditorNoteNodeView } from "./EditorNoteNodeView";
 
 // Chapter Block Extension
 export const ChapterBlock = Node.create({
@@ -105,6 +108,10 @@ export const ScreenRecordingBlock = Node.create({
       0,
     ];
   },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(ScreenRecordingNodeView);
+  },
 });
 
 // Demonstration Block Extension
@@ -140,6 +147,10 @@ export const DemonstrationBlock = Node.create({
       0,
     ];
   },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(DemonstrationNodeView);
+  },
 });
 
 // Editor Note Block Extension
@@ -174,6 +185,10 @@ export const EditorNoteBlock = Node.create({
       }),
       0,
     ];
+  },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(EditorNoteNodeView);
   },
 });
 

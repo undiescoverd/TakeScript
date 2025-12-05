@@ -69,6 +69,7 @@ export function useCollaboration({
 
   const providerRef = useRef<HocuspocusProvider | null>(null);
   const colorRef = useRef<string>(generateUserColor());
+  const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Create Y.Doc instance (stable across renders)
   const ydoc = useMemo(() => new Y.Doc(), []);
@@ -145,7 +146,14 @@ export function useCollaboration({
       },
 
       onSynced: () => {
-        setIsSynced(true);
+        // Throttle sync status updates to prevent flashing
+        // Only update UI after changes have stabilized
+        if (syncTimeoutRef.current) {
+          clearTimeout(syncTimeoutRef.current);
+        }
+        syncTimeoutRef.current = setTimeout(() => {
+          setIsSynced(true);
+        }, 300); // 300ms delay before showing "Synced"
       },
 
       onAwarenessUpdate: () => {
@@ -159,6 +167,9 @@ export function useCollaboration({
     providerRef.current = provider;
 
     return () => {
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+      }
       provider.destroy();
       providerRef.current = null;
       setIsConnected(false);

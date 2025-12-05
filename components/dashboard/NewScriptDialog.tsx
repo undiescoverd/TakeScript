@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { Id } from "@/convex/_generated/dataModel";
 import {
   Dialog,
   DialogContent,
@@ -21,10 +22,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, BookOpen, Video, GraduationCap, MousePointer } from "lucide-react";
+import { Plus, BookOpen, Video, GraduationCap, MousePointer, Search } from "lucide-react";
 import { toast } from "sonner";
 import { TemplateCard } from "./TemplateCard";
 import { cn } from "@/lib/utils";
+import { getTemplateIcon } from "@/lib/template-icons";
+import { useFeatureFlag } from "@/hooks/use-feature-flags";
 
 const TEMPLATES = [
   {
@@ -55,7 +58,8 @@ const TEMPLATES = [
 
 interface FormData {
   title: string;
-  templateType?: string;
+  templateType?: string; // Backward compatibility
+  templateId?: Id<"templates">; // New template system
   targetLength?: number;
   targetType?: "pages" | "minutes";
   category?: string;
@@ -69,8 +73,49 @@ export function NewScriptDialog() {
     targetType: "minutes",
   });
   const [isCreating, setIsCreating] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const router = useRouter();
   const createScript = useMutation(api.scripts.create);
+  const templatesEnabled = useFeatureFlag("templatesEnabled");
+
+  // Only query templates if feature is enabled
+  const templates = useQuery(
+    templatesEnabled ? api.templates.list : "skip"
+  );
+
+  // Separate user and system templates
+  const userTemplates = useMemo(
+    () => templates?.filter((t) => !t.isSystem) || [],
+    [templates]
+  );
+
+  const systemTemplates = useMemo(
+    () => templates?.filter((t) => t.isSystem) || [],
+    [templates]
+  );
+
+  // Filter templates based on search
+  const filteredUserTemplates = useMemo(
+    () =>
+      userTemplates.filter(
+        (t) =>
+          !searchQuery ||
+          t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          t.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      ),
+    [userTemplates, searchQuery]
+  );
+
+  const filteredSystemTemplates = useMemo(
+    () =>
+      systemTemplates.filter(
+        (t) =>
+          !searchQuery ||
+          t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          t.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      ),
+    [systemTemplates, searchQuery]
+  );
 
   const handleCreate = async () => {
     if (!formData.title.trim()) {
@@ -83,6 +128,7 @@ export function NewScriptDialog() {
       const scriptId = await createScript({
         title: formData.title.trim(),
         templateType: formData.templateType,
+        templateId: formData.templateId,
         targetLength: formData.targetLength,
         targetType: formData.targetType,
         category: formData.category,
@@ -101,6 +147,7 @@ export function NewScriptDialog() {
   const resetForm = () => {
     setStep(1);
     setFormData({ title: "", targetType: "minutes" });
+    setSearchQuery("");
   };
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -179,27 +226,181 @@ export function NewScriptDialog() {
                 <p className="text-sm text-muted-foreground">
                   Choose a template to start with pre-built structure
                 </p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {TEMPLATES.map((template) => (
-                    <TemplateCard
-                      key={template.value}
-                      icon={template.icon}
-                      title={template.label}
-                      description={template.description}
-                      value={template.value}
-                      selected={formData.templateType === template.value}
-                      onClick={() =>
-                        setFormData({
-                          ...formData,
-                          templateType:
-                            formData.templateType === template.value
-                              ? undefined
-                              : template.value,
-                        })
-                      }
+
+                {/* Search Templates */}
+                {templates && templates.length > 4 && (
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Search templates..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="pl-9"
                     />
-                  ))}
-                </div>
+                  </div>
+                )}
+
+                {/* User Templates */}
+                {filteredUserTemplates.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-medium">My Templates</h3>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {filteredUserTemplates.map((template) => {
+                        const TemplateIcon = getTemplateIcon(template.name, template.category);
+                        return (
+                          <button
+                            key={template._id}
+                            type="button"
+                            onClick={() =>
+                              setFormData({
+                                ...formData,
+                                templateId:
+                                  formData.templateId === template._id
+                                    ? undefined
+                                    : template._id,
+                                templateType: undefined,
+                              })
+                            }
+                            className={cn(
+                              "relative flex w-full flex-col items-start gap-3 rounded-lg border-2 p-4 text-left transition-all hover:border-primary/50",
+                              formData.templateId === template._id
+                                ? "border-primary bg-accent"
+                                : "border-border bg-card hover:bg-accent/50"
+                            )}
+                          >
+                            <div
+                              className={cn(
+                                "flex h-10 w-10 items-center justify-center rounded-full transition-colors",
+                                formData.templateId === template._id
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted text-muted-foreground"
+                              )}
+                            >
+                              <TemplateIcon className="h-5 w-5" />
+                            </div>
+                          <div className="flex-1">
+                            <h4 className="font-semibold">{template.name}</h4>
+                            {template.description && (
+                              <p className="text-sm text-muted-foreground line-clamp-2">
+                                {template.description}
+                              </p>
+                            )}
+                          </div>
+                          {formData.templateId === template._id && (
+                            <div className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-primary">
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                                className="h-3 w-3 text-primary-foreground"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            </div>
+                          )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* System Templates */}
+                {(filteredSystemTemplates.length > 0 || TEMPLATES.length > 0) && (
+                  <div className="space-y-2">
+                    <h3 className="text-sm font-medium">System Templates</h3>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {/* Show database system templates if available */}
+                      {filteredSystemTemplates.map((template) => {
+                        const TemplateIcon = getTemplateIcon(template.name, template.category);
+                        return (
+                          <button
+                            key={template._id}
+                            type="button"
+                            onClick={() =>
+                              setFormData({
+                                ...formData,
+                                templateId:
+                                  formData.templateId === template._id
+                                    ? undefined
+                                    : template._id,
+                                templateType: undefined,
+                              })
+                            }
+                            className={cn(
+                              "relative flex w-full flex-col items-start gap-3 rounded-lg border-2 p-4 text-left transition-all hover:border-primary/50",
+                              formData.templateId === template._id
+                                ? "border-primary bg-accent"
+                                : "border-border bg-card hover:bg-accent/50"
+                            )}
+                          >
+                            <div
+                              className={cn(
+                                "flex h-10 w-10 items-center justify-center rounded-full transition-colors",
+                                formData.templateId === template._id
+                                  ? "bg-primary text-primary-foreground"
+                                  : "bg-muted text-muted-foreground"
+                              )}
+                            >
+                              <TemplateIcon className="h-5 w-5" />
+                            </div>
+                          <div className="flex-1">
+                            <h4 className="font-semibold">{template.name}</h4>
+                            {template.description && (
+                              <p className="text-sm text-muted-foreground line-clamp-2">
+                                {template.description}
+                              </p>
+                            )}
+                          </div>
+                          {formData.templateId === template._id && (
+                            <div className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-primary">
+                              <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                viewBox="0 0 20 20"
+                                fill="currentColor"
+                                className="h-3 w-3 text-primary-foreground"
+                              >
+                                <path
+                                  fillRule="evenodd"
+                                  d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
+                                  clipRule="evenodd"
+                                />
+                              </svg>
+                            </div>
+                          )}
+                          </button>
+                        );
+                      })}
+
+                      {/* Fallback to hardcoded templates if no system templates in DB */}
+                      {filteredSystemTemplates.length === 0 &&
+                        TEMPLATES.map((template) => (
+                          <TemplateCard
+                            key={template.value}
+                            icon={template.icon}
+                            title={template.label}
+                            description={template.description}
+                            value={template.value}
+                            selected={formData.templateType === template.value}
+                            onClick={() =>
+                              setFormData({
+                                ...formData,
+                                templateType:
+                                  formData.templateType === template.value
+                                    ? undefined
+                                    : template.value,
+                                templateId: undefined,
+                              })
+                            }
+                          />
+                        ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end gap-2 pt-4">
@@ -314,12 +515,15 @@ export function NewScriptDialog() {
                   <p className="font-medium">{formData.title}</p>
                 </div>
 
-                {formData.templateType && (
+                {(formData.templateId || formData.templateType) && (
                   <div>
                     <p className="text-sm text-muted-foreground">Template</p>
                     <p className="font-medium">
-                      {TEMPLATES.find((t) => t.value === formData.templateType)
-                        ?.label}
+                      {formData.templateId
+                        ? templates?.find((t) => t._id === formData.templateId)
+                            ?.name
+                        : TEMPLATES.find((t) => t.value === formData.templateType)
+                            ?.label}
                     </p>
                   </div>
                 )}

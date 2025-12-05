@@ -2,11 +2,9 @@
 
 import { NodeViewWrapper, NodeViewContent, NodeViewProps } from "@tiptap/react";
 import { useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Edit2, Check, X } from "lucide-react";
+import { Edit2, Check, X, Trash2 } from "lucide-react";
 
-export function ChapterNodeView({ node, updateAttributes }: NodeViewProps) {
+export function ChapterNodeView({ node, updateAttributes, deleteNode }: NodeViewProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(node.attrs.title || "Untitled Chapter");
   const [duration, setDuration] = useState(node.attrs.duration || "");
@@ -88,15 +86,28 @@ export function ChapterNodeView({ node, updateAttributes }: NodeViewProps) {
               </div>
             )}
           </div>
-          <button
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-accent rounded"
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsEditing(true);
-            }}
-          >
-            <Edit2 className="h-4 w-4 text-muted-foreground" />
-          </button>
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              className="p-1.5 hover:bg-accent rounded"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsEditing(true);
+              }}
+              title="Edit chapter"
+            >
+              <Edit2 className="h-4 w-4 text-muted-foreground" />
+            </button>
+            <button
+              className="p-1.5 hover:bg-destructive/10 rounded"
+              onClick={(e) => {
+                e.stopPropagation();
+                deleteNode();
+              }}
+              title="Delete chapter"
+            >
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </button>
+          </div>
         </div>
         <div className="mt-2">
           <NodeViewContent className="chapter-content" />

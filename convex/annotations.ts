@@ -77,12 +77,49 @@ export const create = mutation({
       throw new Error("Script not found");
     }
 
-    const user = await ctx.db
+    // Ensure user exists and has latest name/email
+    let user = await ctx.db
       .query("users")
       .withIndex("by_token", (q) =>
         q.eq("tokenIdentifier", identity.tokenIdentifier)
       )
       .unique();
+
+    // Helper to get a display name from identity
+    const getDisplayName = () => {
+      if (identity.name) return identity.name;
+      if (identity.email) {
+        // Use email's local part (before @) as fallback
+        const emailLocal = identity.email.split("@")[0];
+        // Capitalize first letter
+        return emailLocal.charAt(0).toUpperCase() + emailLocal.slice(1);
+      }
+      return "Anonymous";
+    };
+
+    if (!user) {
+      // Create user if they don't exist
+      const displayName = getDisplayName();
+      const userId = await ctx.db.insert("users", {
+        name: displayName,
+        email: identity.email ?? "",
+        avatar: identity.pictureUrl,
+        tokenIdentifier: identity.tokenIdentifier,
+      });
+      user = await ctx.db.get(userId);
+    } else {
+      // Always update user with latest info from Clerk
+      const displayName = getDisplayName();
+      if (user.name !== displayName || user.email !== identity.email) {
+        await ctx.db.patch(user._id, {
+          name: displayName,
+          email: identity.email ?? user.email ?? "",
+          avatar: identity.pictureUrl ?? user.avatar,
+        });
+        // Refresh user object
+        user = await ctx.db.get(user._id);
+      }
+    }
 
     if (!user || script.userId !== user._id) {
       throw new Error("Not authorized");

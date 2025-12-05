@@ -6,11 +6,15 @@ import { ScriptGrid } from "@/components/dashboard/ScriptGrid";
 import { NewScriptDialog } from "@/components/dashboard/NewScriptDialog";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { TemplateLibrary } from "@/components/templates/TemplateLibrary";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { api } from "@/convex/_generated/api";
-import { FileText, TrendingUp, CheckCircle, Activity, FolderOpen } from "lucide-react";
+import { FileText, TrendingUp, CheckCircle, Activity, FolderOpen, Layout } from "lucide-react";
+import { useFeatureFlag } from "@/hooks/use-feature-flags";
 
 export default function DashboardPage() {
   const stats = useQuery(api.analytics.getUserStats);
+  const templatesEnabled = useFeatureFlag("templatesLibraryEnabled");
 
   return (
     <div className="min-h-screen bg-background">
@@ -65,17 +69,61 @@ export default function DashboardPage() {
           </div>
         )}
 
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold">My Scripts</h2>
-            <p className="text-muted-foreground">
-              Create and manage your tutorial scripts
-            </p>
-          </div>
-          <NewScriptDialog />
-        </div>
+        {templatesEnabled ? (
+          <Tabs defaultValue="scripts" className="space-y-6">
+            <TabsList>
+              <TabsTrigger value="scripts" className="gap-2">
+                <FileText className="h-4 w-4" />
+                Scripts
+              </TabsTrigger>
+              <TabsTrigger value="templates" className="gap-2">
+                <Layout className="h-4 w-4" />
+                Templates
+              </TabsTrigger>
+            </TabsList>
 
-        <ScriptGrid />
+            <TabsContent value="scripts" className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold">My Scripts</h2>
+                  <p className="text-muted-foreground">
+                    Create and manage your tutorial scripts
+                  </p>
+                </div>
+                <NewScriptDialog />
+              </div>
+
+              <ScriptGrid />
+            </TabsContent>
+
+            <TabsContent value="templates" className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold">Templates</h2>
+                  <p className="text-muted-foreground">
+                    Manage your reusable script templates
+                  </p>
+                </div>
+              </div>
+
+              <TemplateLibrary />
+            </TabsContent>
+          </Tabs>
+        ) : (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold">My Scripts</h2>
+                <p className="text-muted-foreground">
+                  Create and manage your tutorial scripts
+                </p>
+              </div>
+              <NewScriptDialog />
+            </div>
+
+            <ScriptGrid />
+          </div>
+        )}
       </main>
     </div>
   );

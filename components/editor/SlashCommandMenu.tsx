@@ -69,6 +69,7 @@ export const SlashCommandMenu = forwardRef<
         position: "fixed" as const,
         top: rect.bottom + 8,
         left: rect.left,
+        zIndex: 9999,
       }
     : { display: "none" as const };
 

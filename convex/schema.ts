@@ -60,4 +60,18 @@ export default defineSchema({
   })
     .index("by_script", ["scriptId"])
     .index("by_script_unresolved", ["scriptId", "resolved"]),
+
+  templates: defineTable({
+    name: v.string(), // Template name (required)
+    description: v.optional(v.string()), // Optional description
+    content: v.string(), // JSON stringified Tiptap document (required)
+    userId: v.optional(v.id("users")), // Owner ID (null for system templates)
+    category: v.optional(v.string()), // Optional category for organization
+    isSystem: v.boolean(), // Boolean flag for built-in templates
+    createdAt: v.number(),
+    lastUsedAt: v.optional(v.number()), // Optional timestamp for tracking usage
+  })
+    .index("by_user", ["userId"])
+    .index("by_category", ["category"])
+    .index("system_templates", ["isSystem"]),
 });

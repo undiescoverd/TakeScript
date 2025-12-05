@@ -22,9 +22,12 @@ import {
   MessageSquare,
   Highlighter,
   Users,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ShareDialog } from "@/components/collaboration/ShareDialog";
+import { SaveTemplateDialog } from "@/components/templates/SaveTemplateDialog";
+import { useFeatureFlag } from "@/hooks/use-feature-flags";
 
 interface TopbarProps {
   scriptId: Id<"scripts">;
@@ -37,13 +40,37 @@ export function Topbar({ scriptId, title, content, onSaveNow }: TopbarProps) {
   const router = useRouter();
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleValue, setTitleValue] = useState(title);
+  const [showSavedMessage, setShowSavedMessage] = useState(false);
+  const [wasSaving, setWasSaving] = useState(false);
   const updateTitle = useMutation(api.scripts.updateTitle);
   const saveVersion = useMutation(api.versions.save);
   const { isSaving, toggleVersionHistory, toggleComments, toggleAnnotations, lastSavedAt, collaborationEnabled, toggleCollaboration } = useEditorStore();
+  const templatesSaveEnabled = useFeatureFlag("templatesSaveEnabled");
 
   useEffect(() => {
     setTitleValue(title);
   }, [title]);
+
+  // Track previous saving state to detect transitions
+  useEffect(() => {
+    setWasSaving(isSaving);
+  }, [isSaving]);
+
+  // Show "All changes saved" message briefly when save completes (Google Docs style)
+  // Only trigger when transitioning from saving to not saving
+  useEffect(() => {
+    if (wasSaving && !isSaving && lastSavedAt) {
+      // Save just completed
+      setShowSavedMessage(true);
+      const timer = setTimeout(() => {
+        setShowSavedMessage(false);
+      }, 3000); // Hide after 3 seconds
+      return () => clearTimeout(timer);
+    } else if (isSaving) {
+      // Currently saving - hide the saved message
+      setShowSavedMessage(false);
+    }
+  }, [isSaving, lastSavedAt, wasSaving]);
 
   const wordCount = getWordCount(content);
   const readTime = getReadTime(content);
@@ -133,12 +160,17 @@ export function Topbar({ scriptId, title, content, onSaveNow }: TopbarProps) {
           </button>
         )}
 
-        {isSaving && (
+        {isSaving ? (
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Loader2 className="h-3 w-3 animate-spin" />
             Saving...
           </div>
-        )}
+        ) : showSavedMessage ? (
+          <div className="flex items-center gap-1 text-xs text-muted-foreground animate-in fade-in duration-200">
+            <Check className="h-3 w-3 text-green-600" />
+            All changes saved
+          </div>
+        ) : null}
       </div>
 
       {/* Center section */}
@@ -156,6 +188,10 @@ export function Topbar({ scriptId, title, content, onSaveNow }: TopbarProps) {
           <Download className="mr-2 h-4 w-4" />
           Export
         </Button>
+
+        {templatesSaveEnabled && (
+          <SaveTemplateDialog content={JSON.stringify(content)} />
+        )}
 
         <Button variant="outline" size="sm" onClick={handleSaveVersion}>
           <Save className="mr-2 h-4 w-4" />

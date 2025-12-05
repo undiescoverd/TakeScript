@@ -9,6 +9,18 @@ export const store = mutation({
       throw new Error("Called storeUser without authentication present");
     }
 
+    // Helper to get a display name from identity
+    const getDisplayName = () => {
+      if (identity.name) return identity.name;
+      if (identity.email) {
+        // Use email's local part (before @) as fallback
+        const emailLocal = identity.email.split("@")[0];
+        // Capitalize first letter
+        return emailLocal.charAt(0).toUpperCase() + emailLocal.slice(1);
+      }
+      return "Anonymous";
+    };
+
     // Check if we've already stored this identity before
     const user = await ctx.db
       .query("users")
@@ -17,11 +29,13 @@ export const store = mutation({
       )
       .unique();
 
+    const displayName = getDisplayName();
+
     if (user !== null) {
       // If we've seen this identity before but the name has changed, patch the value
-      if (user.name !== identity.name || user.email !== identity.email) {
+      if (user.name !== displayName || user.email !== identity.email) {
         await ctx.db.patch(user._id, {
-          name: identity.name ?? "Anonymous",
+          name: displayName,
           email: identity.email ?? "",
           avatar: identity.pictureUrl,
         });
@@ -31,7 +45,7 @@ export const store = mutation({
 
     // If it's a new identity, create a new User
     return await ctx.db.insert("users", {
-      name: identity.name ?? "Anonymous",
+      name: displayName,
       email: identity.email ?? "",
       avatar: identity.pictureUrl,
       tokenIdentifier: identity.tokenIdentifier,

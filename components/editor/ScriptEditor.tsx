@@ -85,7 +85,7 @@ export function ScriptEditor({
       // Only update if content is actually different AND editor is not focused
       // This prevents interrupting user edits when autosave completes
       if (!deepEqual(currentContent, newContent) && !editor.isFocused) {
-        editor.commands.setContent(initialContent, false); // false = don't emit update event
+        editor.commands.setContent(initialContent, { emitUpdate: false });
       }
     }
     isFirstRender.current = false;
