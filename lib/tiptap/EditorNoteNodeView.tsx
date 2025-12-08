@@ -2,6 +2,7 @@
 
 import { NodeViewWrapper, NodeViewContent, NodeViewProps } from "@tiptap/react";
 import { StickyNote, Trash2 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function EditorNoteNodeView({ deleteNode }: NodeViewProps) {
   return (
@@ -13,16 +14,24 @@ export function EditorNoteNodeView({ deleteNode }: NodeViewProps) {
             <span className="font-medium text-sm uppercase tracking-wide">Editor Note</span>
             <span className="text-xs text-muted-foreground">(hidden in recording mode)</span>
           </div>
-          <button
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-destructive/10 rounded"
-            onClick={(e) => {
-              e.stopPropagation();
-              deleteNode();
-            }}
-            title="Delete editor note"
-          >
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </button>
+          <TooltipProvider delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-destructive/10 rounded"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteNode();
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Delete editor note</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
         <div className="mt-2 text-sm">
           <NodeViewContent className="editor-note-content min-h-[1.5em]" />

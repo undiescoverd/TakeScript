@@ -3,13 +3,15 @@
 import { useEditor, EditorContent, JSONContent, Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
+import Highlight from "@tiptap/extension-highlight";
+import Underline from "@tiptap/extension-underline";
 import { useEffect, useRef } from "react";
 import { useEditorStore } from "@/store/editor-store";
 import { customExtensions } from "@/lib/tiptap/extensions";
 import { SlashCommands } from "@/lib/tiptap/slash-commands";
 import { createSlashCommandsRender } from "@/lib/tiptap/suggestion-render";
 import { AnnotationMark } from "@/lib/tiptap/annotation-mark";
-import { AnnotationBubble } from "@/components/annotations/AnnotationBubble";
+import { SelectionToolbar } from "@/components/editor/SelectionToolbar";
 import { Id } from "@/convex/_generated/dataModel";
 
 interface ScriptEditorProps {
@@ -37,8 +39,10 @@ export function ScriptEditor({
         },
       }),
       Placeholder.configure({
-        placeholder: "Type '/' for commands...",
+        placeholder: "Type '/' for commands or select text for formatting...",
       }),
+      Highlight,
+      Underline,
       ...customExtensions,
       AnnotationMark,
       SlashCommands.configure({
@@ -111,7 +115,7 @@ export function ScriptEditor({
   return (
     <div className="relative h-full overflow-auto bg-background" data-mode={mode}>
       <EditorContent editor={editor} />
-      <AnnotationBubble editor={editor} scriptId={scriptId} />
+      <SelectionToolbar editor={editor} scriptId={scriptId} />
     </div>
   );
 }

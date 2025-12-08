@@ -3,6 +3,7 @@
 import { NodeViewWrapper, NodeViewContent, NodeViewProps } from "@tiptap/react";
 import { useState } from "react";
 import { Edit2, Check, X, Trash2 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function ChapterNodeView({ node, updateAttributes, deleteNode }: NodeViewProps) {
   const [isEditing, setIsEditing] = useState(false);
@@ -71,7 +72,7 @@ export function ChapterNodeView({ node, updateAttributes, deleteNode }: NodeView
   return (
     <NodeViewWrapper className="chapter-node-view">
       <div
-        className="group relative mb-6 mt-8 border-l-4 border-primary pl-4 py-2 cursor-pointer hover:bg-accent/50 rounded-r transition-colors"
+        className="group relative mb-6 mt-8 border-l-4 border-primary pl-4 py-2 cursor-pointer hover:bg-accent/50 rounded-r-lg transition-colors"
         data-id={node.attrs.id}
         onClick={() => setIsEditing(true)}
       >
@@ -86,28 +87,42 @@ export function ChapterNodeView({ node, updateAttributes, deleteNode }: NodeView
               </div>
             )}
           </div>
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              className="p-1.5 hover:bg-accent rounded"
-              onClick={(e) => {
-                e.stopPropagation();
-                setIsEditing(true);
-              }}
-              title="Edit chapter"
-            >
-              <Edit2 className="h-4 w-4 text-muted-foreground" />
-            </button>
-            <button
-              className="p-1.5 hover:bg-destructive/10 rounded"
-              onClick={(e) => {
-                e.stopPropagation();
-                deleteNode();
-              }}
-              title="Delete chapter"
-            >
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </button>
-          </div>
+          <TooltipProvider delayDuration={0}>
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    className="p-1.5 hover:bg-accent rounded"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsEditing(true);
+                    }}
+                  >
+                    <Edit2 className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Edit chapter</p>
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    className="p-1.5 hover:bg-destructive/10 rounded"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteNode();
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Delete chapter</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </TooltipProvider>
         </div>
         <div className="mt-2">
           <NodeViewContent className="chapter-content" />

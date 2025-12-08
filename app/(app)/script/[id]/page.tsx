@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useQuery } from "convex/react";
+import { useQuery, useAction } from "convex/react";
 import { useCallback, useState, useEffect, useRef } from "react";
 import { JSONContent, Editor } from "@tiptap/react";
 import { api } from "@/convex/_generated/api";
@@ -16,11 +16,17 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { VersionHistory } from "@/components/versions/VersionHistory";
 import { CommentsPanel } from "@/components/comments/CommentsPanel";
 import { AnnotationsPanel } from "@/components/annotations/AnnotationsPanel";
-import { IdentityDebugger } from "@/components/debug/IdentityDebugger";
+import { AIAssistantPanel } from "@/components/ai/AIAssistantPanel";
+import { GrammarCheckResults } from "@/components/ai/GrammarCheckResults";
+import { ScriptReviewPanel } from "@/components/ai/ScriptReviewPanel";
+import { AIGenerationDialog } from "@/components/ai/AIGenerationDialog";
+import { getFeatureFlags } from "@/lib/feature-flags";
+import { toast } from "sonner";
 
 export default function ScriptPage() {
   const params = useParams();
   const router = useRouter();
+  const flags = getFeatureFlags();
   const scriptId = params.id as Id<"scripts">;
   const script = useQuery(api.scripts.get, { scriptId });
   const { scheduleAutosave, saveNow, setOnSaveComplete, getLastSavedContent, initializeLastSaved } = useAutosave(scriptId);
@@ -29,6 +35,18 @@ export default function ScriptPage() {
   const [localContent, setLocalContent] = useState<JSONContent | null>(null);
   const contentInitialized = useRef(false);
   const isRestoringVersionRef = useRef(false);
+
+  // AI Panel States
+  const [aiChatOpen, setAiChatOpen] = useState(false);
+  const [grammarCheckResults, setGrammarCheckResults] = useState<any>(null);
+  const [reviewResults, setReviewResults] = useState<any>(null);
+  const [generationDialogOpen, setGenerationDialogOpen] = useState(false);
+  const [generationTask, setGenerationTask] = useState<"generate" | "expand" | "rephrase" | "summarize">("generate");
+  const [generationPrompt, setGenerationPrompt] = useState("");
+
+  // AI Actions
+  const checkGrammar = useAction(api.ai.checkGrammarAndStyle);
+  const reviewScript = useAction(api.ai.reviewScript);
 
   // Track when save completes - we use getLastSavedContent() to compare instead
   useEffect(() => {
@@ -130,6 +148,92 @@ export default function ScriptPage() {
     []
   );
 
+  // AI Handler Functions
+  const handleOpenAIChat = useCallback(() => {
+    setAiChatOpen(true);
+  }, []);
+
+  const handleGrammarCheck = useCallback(async () => {
+    if (!flags.aiGrammarCheckEnabled) return;
+
+    try {
+      toast.info("Checking grammar and style...");
+      const result = await checkGrammar({ scriptId });
+      setGrammarCheckResults(result);
+    } catch (error) {
+      console.error("Grammar check error:", error);
+      toast.error("Failed to check grammar. Please try again.");
+    }
+  }, [flags.aiGrammarCheckEnabled, checkGrammar, scriptId]);
+
+  const handleScriptReview = useCallback(async () => {
+    if (!flags.aiReviewEnabled) return;
+
+    try {
+      toast.info("Reviewing script...");
+      const result = await reviewScript({ scriptId });
+      setReviewResults(result);
+    } catch (error) {
+      console.error("Review error:", error);
+      toast.error("Failed to review script. Please try again.");
+    }
+  }, [flags.aiReviewEnabled, reviewScript, scriptId]);
+
+  const handleInsertContent = useCallback(
+    (content: string) => {
+      if (editorRef) {
+        editorRef.commands.insertContent(content);
+      }
+    },
+    [editorRef]
+  );
+
+  // Listen for AI slash command events
+  useEffect(() => {
+    const handleAIGenerate = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      setGenerationTask("generate");
+      setGenerationPrompt("");
+      setGenerationDialogOpen(true);
+    };
+
+    const handleAIExpand = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const { selectedText } = customEvent.detail;
+      setGenerationTask("expand");
+      setGenerationPrompt(selectedText || "");
+      setGenerationDialogOpen(true);
+    };
+
+    const handleAIRephrase = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const { selectedText } = customEvent.detail;
+      setGenerationTask("rephrase");
+      setGenerationPrompt(selectedText || "");
+      setGenerationDialogOpen(true);
+    };
+
+    const handleAISummarize = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const { selectedText } = customEvent.detail;
+      setGenerationTask("summarize");
+      setGenerationPrompt(selectedText || "");
+      setGenerationDialogOpen(true);
+    };
+
+    window.addEventListener("ai:generate", handleAIGenerate);
+    window.addEventListener("ai:expand", handleAIExpand);
+    window.addEventListener("ai:rephrase", handleAIRephrase);
+    window.addEventListener("ai:summarize", handleAISummarize);
+
+    return () => {
+      window.removeEventListener("ai:generate", handleAIGenerate);
+      window.removeEventListener("ai:expand", handleAIExpand);
+      window.removeEventListener("ai:rephrase", handleAIRephrase);
+      window.removeEventListener("ai:summarize", handleAISummarize);
+    };
+  }, []);
+
   // Save immediately on blur (when user clicks away) - like Google Docs
   useEffect(() => {
     if (!editorRef) return;
@@ -228,6 +332,9 @@ export default function ScriptPage() {
         title={script.title}
         content={localContent}
         onSaveNow={handleSaveNow}
+        onOpenAIChat={handleOpenAIChat}
+        onGrammarCheck={handleGrammarCheck}
+        onScriptReview={handleScriptReview}
       />
 
       {/* Beat Board */}
@@ -273,8 +380,57 @@ export default function ScriptPage() {
           editor={editorRef}
         />
 
-        {/* Identity Debugger */}
-        <IdentityDebugger />
+        {/* AI Assistant Panel */}
+        {flags.aiChatEnabled && (
+          <AIAssistantPanel
+            scriptId={scriptId}
+            isOpen={aiChatOpen}
+            onClose={() => setAiChatOpen(false)}
+          />
+        )}
+
+        {/* Grammar Check Results */}
+        {grammarCheckResults && (
+          <GrammarCheckResults
+            issues={grammarCheckResults.issues || []}
+            overallScore={grammarCheckResults.overallScore || 0}
+            summary={grammarCheckResults.summary || ""}
+            onClose={() => setGrammarCheckResults(null)}
+          />
+        )}
+
+        {/* Script Review Panel */}
+        {reviewResults && (
+          <ScriptReviewPanel
+            overallScore={reviewResults.overallScore || 0}
+            strengths={reviewResults.strengths || []}
+            improvements={reviewResults.improvements || []}
+            suggestions={reviewResults.suggestions || []}
+            toneCompliance={reviewResults.toneCompliance || { score: 0, notes: "" }}
+            pacing={reviewResults.pacing || { score: 0, notes: "" }}
+            clarity={reviewResults.clarity || { score: 0, notes: "" }}
+            onClose={() => setReviewResults(null)}
+          />
+        )}
+
+        {/* AI Generation Dialog */}
+        {flags.aiGenerationEnabled && (
+          <AIGenerationDialog
+            scriptId={scriptId}
+            open={generationDialogOpen}
+            onOpenChange={(open) => {
+              setGenerationDialogOpen(open);
+              if (!open) {
+                setGenerationPrompt("");
+                setGenerationTask("generate");
+              }
+            }}
+            onInsert={handleInsertContent}
+            initialPrompt={generationPrompt}
+            initialTask={generationTask}
+          />
+        )}
+
       </div>
     </div>
   );

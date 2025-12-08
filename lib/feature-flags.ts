@@ -11,10 +11,14 @@ export interface FeatureFlags {
   templatesLibraryEnabled: boolean;
   templatesSaveEnabled: boolean;
 
-  // Future features can be added here
-  // collaborationEnabled: boolean;
-  // aiAssistantEnabled: boolean;
-  // advancedAnalyticsEnabled: boolean;
+  // AI Features
+  aiEnabled: boolean;
+  aiChatEnabled: boolean;
+  aiBrandGuidelinesEnabled: boolean;
+  aiGrammarCheckEnabled: boolean;
+  aiReviewEnabled: boolean;
+  aiGenerationEnabled: boolean;
+  aiInlineSuggestionsEnabled: boolean;
 }
 
 /**
@@ -29,6 +33,15 @@ function getFeatureFlagsFromEnv(): FeatureFlags {
     templatesEnabled: process.env.NEXT_PUBLIC_FEATURE_TEMPLATES === 'true' || isDevelopment,
     templatesLibraryEnabled: process.env.NEXT_PUBLIC_FEATURE_TEMPLATES_LIBRARY === 'true' || isDevelopment,
     templatesSaveEnabled: process.env.NEXT_PUBLIC_FEATURE_TEMPLATES_SAVE === 'true' || isDevelopment,
+
+    // AI Features - disabled by default, must be explicitly enabled
+    aiEnabled: process.env.NEXT_PUBLIC_FEATURE_AI === 'true',
+    aiChatEnabled: process.env.NEXT_PUBLIC_FEATURE_AI_CHAT === 'true',
+    aiBrandGuidelinesEnabled: process.env.NEXT_PUBLIC_FEATURE_AI_BRAND_GUIDELINES === 'true',
+    aiGrammarCheckEnabled: process.env.NEXT_PUBLIC_FEATURE_AI_GRAMMAR_CHECK === 'true',
+    aiReviewEnabled: process.env.NEXT_PUBLIC_FEATURE_AI_REVIEW === 'true',
+    aiGenerationEnabled: process.env.NEXT_PUBLIC_FEATURE_AI_GENERATION === 'true',
+    aiInlineSuggestionsEnabled: process.env.NEXT_PUBLIC_FEATURE_AI_INLINE === 'true',
   };
 }
 
@@ -68,4 +81,43 @@ export function getDisabledFeatures(): string[] {
   return Object.entries(featureFlags)
     .filter(([_, enabled]) => !enabled)
     .map(([feature]) => feature);
+}
+
+/**
+ * Check if any AI features are enabled
+ */
+export function hasAnyAIFeatures(): boolean {
+  return featureFlags.aiEnabled && (
+    featureFlags.aiChatEnabled ||
+    featureFlags.aiBrandGuidelinesEnabled ||
+    featureFlags.aiGrammarCheckEnabled ||
+    featureFlags.aiReviewEnabled ||
+    featureFlags.aiGenerationEnabled ||
+    featureFlags.aiInlineSuggestionsEnabled
+  );
+}
+
+/**
+ * Get list of enabled AI features
+ */
+export function getEnabledAIFeatures(): string[] {
+  if (!featureFlags.aiEnabled) return [];
+
+  const features: string[] = [];
+  if (featureFlags.aiChatEnabled) features.push('chat');
+  if (featureFlags.aiBrandGuidelinesEnabled) features.push('brand-guidelines');
+  if (featureFlags.aiGrammarCheckEnabled) features.push('grammar-check');
+  if (featureFlags.aiReviewEnabled) features.push('review');
+  if (featureFlags.aiGenerationEnabled) features.push('generation');
+  if (featureFlags.aiInlineSuggestionsEnabled) features.push('inline-suggestions');
+
+  return features;
+}
+
+/**
+ * Get feature flags object (alias for direct access)
+ * Useful for components that need the full flags object
+ */
+export function getFeatureFlags(): FeatureFlags {
+  return featureFlags;
 }
