@@ -11,7 +11,6 @@ import { customExtensions } from "@/lib/tiptap/extensions";
 import { SlashCommands } from "@/lib/tiptap/slash-commands";
 import { createSlashCommandsRender } from "@/lib/tiptap/suggestion-render";
 import { AnnotationMark } from "@/lib/tiptap/annotation-mark";
-import { AnnotationBubble } from "@/components/annotations/AnnotationBubble";
 import { SelectionToolbar } from "@/components/editor/SelectionToolbar";
 import { Id } from "@/convex/_generated/dataModel";
 
@@ -116,8 +115,7 @@ export function ScriptEditor({
   return (
     <div className="relative h-full overflow-auto bg-background" data-mode={mode}>
       <EditorContent editor={editor} />
-      <SelectionToolbar editor={editor} />
-      <AnnotationBubble editor={editor} scriptId={scriptId} />
+      <SelectionToolbar editor={editor} scriptId={scriptId} />
     </div>
   );
 }
