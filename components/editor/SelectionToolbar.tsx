@@ -21,6 +21,11 @@ import {
   FileText,
   MessageSquare,
   X,
+  Hash,
+  ScreenShare,
+  Presentation,
+  StickyNote,
+  ChevronDown,
 } from "lucide-react";
 import { getFeatureFlags } from "@/lib/feature-flags";
 import { useMutation } from "convex/react";
@@ -33,17 +38,39 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useEditorStore } from "@/store/editor-store";
 import {
   annotationColors,
   AnnotationColor,
 } from "@/lib/tiptap/annotation-mark";
+import { generateBlockId } from "@/lib/utils";
 
 interface SelectionToolbarProps {
   editor: Editor;
   scriptId: Id<"scripts">;
 }
+
+// Highlight color options
+const highlightColors = [
+  { id: "default", name: "Default Color", class: "bg-yellow-200 dark:bg-yellow-800" },
+  { id: "red", name: "Red", class: "bg-red-200 dark:bg-red-800" },
+  { id: "orange", name: "Orange", class: "bg-orange-200 dark:bg-orange-800" },
+  { id: "yellow", name: "Yellow", class: "bg-yellow-200 dark:bg-yellow-800" },
+  { id: "green", name: "Green", class: "bg-green-200 dark:bg-green-800" },
+  { id: "teal", name: "Teal", class: "bg-teal-200 dark:bg-teal-800" },
+  { id: "blue", name: "Blue", class: "bg-blue-200 dark:bg-blue-800" },
+  { id: "purple", name: "Purple", class: "bg-purple-200 dark:bg-purple-800" },
+  { id: "grey", name: "Grey", class: "bg-gray-200 dark:bg-gray-800" },
+];
 
 export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -57,6 +84,7 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
     to: number;
     text: string;
   } | null>(null);
+  const isSelectingRef = useRef(false);
 
   const flags = getFeatureFlags();
   const createAnnotation = useMutation(api.annotations.create);
@@ -64,8 +92,8 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
 
   useEffect(() => {
     const updateToolbar = () => {
-      // Don't update if annotation popover is open
-      if (isAnnotationOpen) return;
+      // Don't update if annotation popover is open or user is actively selecting
+      if (isAnnotationOpen || isSelectingRef.current) return;
 
       const { selection } = editor.state;
       const { from, to } = selection;
@@ -92,8 +120,7 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
       setSelectionData({ from, to, text: selectedText });
 
       // Calculate toolbar position (above selection, centered)
-      const editorRect = view.dom.getBoundingClientRect();
-      const toolbarWidth = 500; // Approximate width
+      const toolbarWidth = 600; // Approximate width
       const toolbarHeight = 48; // Approximate height
 
       const left = (start.left + end.left) / 2 - toolbarWidth / 2;
@@ -103,13 +130,43 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
       setIsVisible(true);
     };
 
-    // Update on selection change
-    editor.on("selectionUpdate", updateToolbar);
-    editor.on("update", updateToolbar);
+    // Track when user starts selecting (mousedown)
+    const handleMouseDown = (e: MouseEvent) => {
+      // Only track if mousedown is in the editor
+      if ((e.target as HTMLElement).closest(".ProseMirror")) {
+        isSelectingRef.current = true;
+        setIsVisible(false);
+      }
+    };
+
+    // Track when user finishes selecting (mouseup)
+    const handleMouseUp = () => {
+      if (isSelectingRef.current) {
+        isSelectingRef.current = false;
+        // Small delay to let selection settle
+        setTimeout(updateToolbar, 50);
+      }
+    };
+
+    // Update on selection change (only when not actively selecting)
+    const handleSelectionUpdate = () => {
+      if (!isSelectingRef.current) {
+        updateToolbar();
+      }
+    };
+
+    editor.on("selectionUpdate", handleSelectionUpdate);
+    editor.on("update", handleSelectionUpdate);
+
+    // Listen for mouse events globally
+    document.addEventListener("mousedown", handleMouseDown);
+    document.addEventListener("mouseup", handleMouseUp);
 
     return () => {
-      editor.off("selectionUpdate", updateToolbar);
-      editor.off("update", updateToolbar);
+      editor.off("selectionUpdate", handleSelectionUpdate);
+      editor.off("update", handleSelectionUpdate);
+      document.removeEventListener("mousedown", handleMouseDown);
+      document.removeEventListener("mouseup", handleMouseUp);
     };
   }, [editor, isAnnotationOpen]);
 
@@ -206,6 +263,92 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
     );
   };
 
+  const handleHighlightColor = (colorId: string) => {
+    if (colorId === "default") {
+      editor.chain().focus().toggleHighlight().run();
+    } else {
+      editor.chain().focus().toggleHighlight({ color: colorId }).run();
+    }
+  };
+
+  const insertChapter = () => {
+    const { from, to } = editor.state.selection;
+    const selectedText = editor.state.doc.textBetween(from, to);
+
+    // Use selected text as chapter title if available, otherwise default
+    const chapterTitle = selectedText.trim() || "New Chapter";
+
+    editor
+      .chain()
+      .focus()
+      .deleteSelection()
+      .insertContent({
+        type: "chapter",
+        attrs: {
+          title: chapterTitle,
+          id: generateBlockId("chapter"),
+        },
+      })
+      .run();
+  };
+
+  const insertScreenRecording = () => {
+    const { from, to } = editor.state.selection;
+    const selectedText = editor.state.doc.textBetween(from, to);
+
+    // Use selected text as content if available, otherwise default
+    const content = selectedText.trim() || "Describe screen recording...";
+
+    editor
+      .chain()
+      .focus()
+      .deleteSelection()
+      .insertContent({
+        type: "screenRecording",
+        attrs: { id: generateBlockId("screenRecording") },
+        content: [{ type: "text", text: content }],
+      })
+      .run();
+  };
+
+  const insertDemonstration = () => {
+    const { from, to } = editor.state.selection;
+    const selectedText = editor.state.doc.textBetween(from, to);
+
+    // Use selected text as content if available, otherwise default
+    const content = selectedText.trim() || "Describe demonstration...";
+
+    editor
+      .chain()
+      .focus()
+      .deleteSelection()
+      .insertContent({
+        type: "demonstration",
+        attrs: { id: generateBlockId("demonstration") },
+        content: [{ type: "text", text: content }],
+      })
+      .run();
+  };
+
+  const insertEditorNote = () => {
+    const { from, to } = editor.state.selection;
+    const selectedText = editor.state.doc.textBetween(from, to);
+
+    // Use selected text as content if available, otherwise default
+    const content = selectedText.trim() || "Editor note...";
+
+    editor
+      .chain()
+      .focus()
+      .deleteSelection()
+      .insertContent({
+        type: "editorNote",
+        attrs: { id: generateBlockId("editorNote") },
+        content: [{ type: "text", text: content }],
+      })
+      .run();
+  };
+
   if (!isVisible) return null;
 
   const hasAnnotation = editor.isActive("annotation");
@@ -244,12 +387,36 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
         onClick={() => editor.chain().focus().toggleStrike().run()}
         isActive={editor.isActive("strike")}
       />
-      <ToolbarButton
-        icon={<Highlighter className="h-4 w-4" />}
-        tooltip="Highlight"
-        onClick={() => editor.chain().focus().toggleHighlight().run()}
-        isActive={editor.isActive("highlight")}
-      />
+
+      {/* Highlight with Color Picker */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className={`rounded p-1.5 transition-colors hover:bg-accent flex items-center gap-0.5 ${
+              editor.isActive("highlight") ? "bg-accent text-accent-foreground" : "text-muted-foreground"
+            }`}
+            title="Highlight"
+          >
+            <Highlighter className="h-4 w-4" />
+            <ChevronDown className="h-3 w-3" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-48">
+          <DropdownMenuLabel>Highlight Color</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {highlightColors.map((color) => (
+            <DropdownMenuItem
+              key={color.id}
+              onClick={() => handleHighlightColor(color.id)}
+              className="flex items-center gap-2"
+            >
+              <div className={`h-4 w-4 rounded ${color.class} border`} />
+              <span className="text-sm">{color.name}</span>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <div className="mx-1 h-6 w-px bg-border" />
 
@@ -299,6 +466,30 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
         tooltip="Code"
         onClick={() => editor.chain().focus().toggleCode().run()}
         isActive={editor.isActive("code")}
+      />
+
+      <div className="mx-1 h-6 w-px bg-border" />
+
+      {/* Script Blocks */}
+      <ToolbarButton
+        icon={<Hash className="h-4 w-4" />}
+        tooltip="Chapter"
+        onClick={insertChapter}
+      />
+      <ToolbarButton
+        icon={<ScreenShare className="h-4 w-4" />}
+        tooltip="Screen Recording"
+        onClick={insertScreenRecording}
+      />
+      <ToolbarButton
+        icon={<Presentation className="h-4 w-4" />}
+        tooltip="Demonstration"
+        onClick={insertDemonstration}
+      />
+      <ToolbarButton
+        icon={<StickyNote className="h-4 w-4" />}
+        tooltip="Editor Note"
+        onClick={insertEditorNote}
       />
 
       <div className="mx-1 h-6 w-px bg-border" />

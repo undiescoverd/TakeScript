@@ -87,7 +87,7 @@ export function ChapterNodeView({ node, updateAttributes, deleteNode }: NodeView
               </div>
             )}
           </div>
-          <TooltipProvider delayDuration={100}>
+          <TooltipProvider delayDuration={0}>
             <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <Tooltip>
                 <TooltipTrigger asChild>

@@ -13,7 +13,7 @@ export function DemonstrationNodeView({ deleteNode }: NodeViewProps) {
             <Play className="h-5 w-5" />
             <span className="font-medium text-sm uppercase tracking-wide">Demonstration</span>
           </div>
-          <TooltipProvider delayDuration={100}>
+          <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button

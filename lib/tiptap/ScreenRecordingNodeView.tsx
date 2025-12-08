@@ -13,7 +13,7 @@ export function ScreenRecordingNodeView({ deleteNode }: NodeViewProps) {
             <Monitor className="h-5 w-5" />
             <span className="font-medium text-sm uppercase tracking-wide">Screen Recording</span>
           </div>
-          <TooltipProvider delayDuration={100}>
+          <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button

@@ -14,7 +14,7 @@ export function EditorNoteNodeView({ deleteNode }: NodeViewProps) {
             <span className="font-medium text-sm uppercase tracking-wide">Editor Note</span>
             <span className="text-xs text-muted-foreground">(hidden in recording mode)</span>
           </div>
-          <TooltipProvider delayDuration={100}>
+          <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
