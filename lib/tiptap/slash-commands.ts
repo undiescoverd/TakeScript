@@ -518,39 +518,45 @@ export const SlashCommands = Extension.create<SlashCommandsOptions>({
 
   addKeyboardShortcuts() {
     return {
-      "/": () => {
+      // Mod+k opens command menu (Cmd+K on Mac, Ctrl+K on Windows/Linux)
+      "Mod-k": () => {
         const { state } = this.editor;
         const { selection } = state;
         const { from, to } = selection;
 
-        // Check if there's a selection
+        // Capture current selection (if any)
         const hasSelection = from !== to;
 
         if (hasSelection) {
-          // Capture the selection before "/" is inserted
+          // Store the original selection
           capturedSelection = {
-            from: from - 1, // Adjust for the "/" that will be inserted
-            to: to - 1,
+            from: from + 1, // Adjust for "/" that will be inserted before selection
+            to: to + 1,
             text: state.doc.textBetween(from, to),
             isEmpty: false,
           };
 
-          // Insert "/" at the start of the selection WITHOUT deleting the selection
-          // This triggers the suggestion menu
+          // Insert "/" at the START of selection, keeping selection intact
           this.editor
             .chain()
             .focus()
             .command(({ tr }) => {
-              // Insert "/" at the cursor position
               tr.insertText("/", from, from);
               return true;
             })
             .run();
+        } else {
+          capturedSelection = undefined;
 
-          return true; // Prevent default behavior
+          // No selection, just insert "/" normally
+          this.editor
+            .chain()
+            .focus()
+            .insertContent("/")
+            .run();
         }
 
-        return false; // Allow default "/" behavior when no selection
+        return true; // Prevent default Cmd+K behavior
       },
     };
   },
