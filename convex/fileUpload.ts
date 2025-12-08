@@ -1,3 +1,5 @@
+"use node";
+
 import { v } from "convex/values";
 import { action } from "./_generated/server";
 
@@ -13,7 +15,8 @@ export const generateUploadUrl = action({
 
 /**
  * Extract text from uploaded file
- * Supports: TXT, PDF, DOCX
+ * Currently only supports TXT files.
+ * PDF and DOCX support temporarily disabled due to bundling issues.
  */
 export const extractTextFromFile = action({
   args: {
@@ -25,33 +28,27 @@ export const extractTextFromFile = action({
     const file = await ctx.storage.get(args.storageId);
     if (!file) throw new Error("File not found in storage");
 
-    const blob = await file.blob();
+    const arrayBuffer = await file.arrayBuffer();
 
     switch (args.fileType) {
       case "txt":
-        return await blob.text();
+        // Convert ArrayBuffer to string for text files
+        const decoder = new TextDecoder("utf-8");
+        return decoder.decode(arrayBuffer);
 
       case "pdf":
-        // PDF extraction using pdf-parse library
-        try {
-          const pdfParse = require('pdf-parse');
-          const buffer = await blob.arrayBuffer();
-          const data = await pdfParse(Buffer.from(buffer));
-          return data.text;
-        } catch (error) {
-          throw new Error(`Failed to extract PDF: ${error}`);
-        }
+        // PDF extraction temporarily disabled
+        // TODO: Re-enable when bundling issues are resolved
+        throw new Error(
+          "PDF extraction is temporarily disabled. Please upload a .txt file instead, or paste your brand guidelines directly."
+        );
 
       case "docx":
-        // DOCX extraction using mammoth library
-        try {
-          const mammoth = require('mammoth');
-          const buffer = await blob.arrayBuffer();
-          const result = await mammoth.extractRawText({ buffer: Buffer.from(buffer) });
-          return result.value;
-        } catch (error) {
-          throw new Error(`Failed to extract DOCX: ${error}`);
-        }
+        // DOCX extraction temporarily disabled
+        // TODO: Re-enable when bundling issues are resolved
+        throw new Error(
+          "DOCX extraction is temporarily disabled. Please upload a .txt file instead, or paste your brand guidelines directly."
+        );
 
       default:
         throw new Error(`Unsupported file type: ${args.fileType}`);
@@ -84,7 +81,6 @@ export const getFileMetadata = action({
 
     return {
       size: file.size,
-      // Add more metadata as needed
     };
   },
 });

@@ -212,3 +212,27 @@ export const updateMemberRole = mutation({
     await ctx.db.patch(args.userId, { role: args.role });
   },
 });
+
+/**
+ * Fix all organizations to use OpenRouter (one-time migration)
+ * Run with: npx convex run organizations:migrateToOpenRouter
+ */
+export const migrateToOpenRouter = mutation({
+  handler: async (ctx) => {
+    const orgs = await ctx.db.query("organizations").collect();
+    let updated = 0;
+
+    for (const org of orgs) {
+      if (org.aiProvider === "anthropic" || !org.aiProvider) {
+        await ctx.db.patch(org._id, {
+          aiProvider: "openrouter",
+          openrouterModel: "anthropic/claude-3.5-sonnet",
+          updatedAt: Date.now(),
+        });
+        updated++;
+      }
+    }
+
+    return { updated, total: orgs.length };
+  },
+});

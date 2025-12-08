@@ -133,6 +133,7 @@ export const current = query({
 /**
  * Helper function to get user by token identifier
  * Used by other Convex functions to look up the current user
+ * NOTE: This only works in queries/mutations (not actions)
  */
 export async function getUserByTokenIdentifier(ctx: any, tokenIdentifier: string) {
   return await ctx.db
@@ -140,3 +141,17 @@ export async function getUserByTokenIdentifier(ctx: any, tokenIdentifier: string
     .withIndex("by_token", (q) => q.eq("tokenIdentifier", tokenIdentifier))
     .unique();
 }
+
+/**
+ * Query to get user by token identifier
+ * Can be called from actions via ctx.runQuery
+ */
+export const getByToken = query({
+  args: { tokenIdentifier: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", args.tokenIdentifier))
+      .unique();
+  },
+});

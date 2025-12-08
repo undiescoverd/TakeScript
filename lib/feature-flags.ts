@@ -113,3 +113,11 @@ export function getEnabledAIFeatures(): string[] {
 
   return features;
 }
+
+/**
+ * Get feature flags object (alias for direct access)
+ * Useful for components that need the full flags object
+ */
+export function getFeatureFlags(): FeatureFlags {
+  return featureFlags;
+}

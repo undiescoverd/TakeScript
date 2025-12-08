@@ -2,6 +2,7 @@
 
 import { NodeViewWrapper, NodeViewContent, NodeViewProps } from "@tiptap/react";
 import { Monitor, Trash2 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function ScreenRecordingNodeView({ deleteNode }: NodeViewProps) {
   return (
@@ -12,16 +13,24 @@ export function ScreenRecordingNodeView({ deleteNode }: NodeViewProps) {
             <Monitor className="h-5 w-5" />
             <span className="font-medium text-sm uppercase tracking-wide">Screen Recording</span>
           </div>
-          <button
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-destructive/10 rounded"
-            onClick={(e) => {
-              e.stopPropagation();
-              deleteNode();
-            }}
-            title="Delete screen recording block"
-          >
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </button>
+          <TooltipProvider delayDuration={100}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-destructive/10 rounded"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteNode();
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Delete screen recording block</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
         <div className="mt-2 text-sm text-muted-foreground">
           <NodeViewContent className="screen-recording-content min-h-[1.5em]" />

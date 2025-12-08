@@ -1,7 +1,133 @@
 import { v } from "convex/values";
 import { action } from "./_generated/server";
 import { api } from "./_generated/api";
-import { getUserByTokenIdentifier } from "./users";
+
+/**
+ * Helper: Extract plain text from Tiptap JSONContent (server-side version)
+ * Simplified version of exportToPlainText for use in Convex actions
+ */
+function extractPlainText(content: any): string {
+  if (!content) return "";
+
+  const lines: string[] = [];
+
+  function extractText(node: any): void {
+    // Skip editor notes
+    if (node.type === "editorNote") {
+      return;
+    }
+
+    // Handle text nodes
+    if (node.type === "text" && node.text) {
+      return; // Text is collected via getTextContent
+    }
+
+    // Handle different block types
+    switch (node.type) {
+      case "doc":
+        node.content?.forEach(extractText);
+        break;
+
+      case "chapter":
+        if (node.attrs?.title) {
+          lines.push("");
+          lines.push(`[${node.attrs.title.toUpperCase()}]`);
+          if (node.attrs.duration) {
+            lines.push(`(${node.attrs.duration})`);
+          }
+          lines.push("");
+        }
+        node.content?.forEach(extractText);
+        break;
+
+      case "screenRecording":
+        lines.push("");
+        lines.push("[SCREEN RECORDING]");
+        const screenText = getTextContent(node);
+        if (screenText) {
+          lines.push(screenText);
+        }
+        lines.push("");
+        break;
+
+      case "demonstration":
+        lines.push("");
+        lines.push("[DEMONSTRATION]");
+        const demoText = getTextContent(node);
+        if (demoText) {
+          lines.push(demoText);
+        }
+        lines.push("");
+        break;
+
+      case "paragraph":
+        const text = getTextContent(node);
+        if (text) {
+          lines.push(text);
+        }
+        break;
+
+      case "heading":
+        const headingText = getTextContent(node);
+        if (headingText) {
+          lines.push("");
+          lines.push(headingText.toUpperCase());
+          lines.push("");
+        }
+        break;
+
+      case "bulletList":
+      case "orderedList":
+        node.content?.forEach((item: any, index: number) => {
+          const itemText = getTextContent(item);
+          if (itemText) {
+            const prefix = node.type === "orderedList" ? `${index + 1}. ` : "• ";
+            lines.push(prefix + itemText);
+          }
+        });
+        break;
+
+      case "listItem":
+        node.content?.forEach(extractText);
+        break;
+
+      case "blockquote":
+        const quoteText = getTextContent(node);
+        if (quoteText) {
+          lines.push(`"${quoteText}"`);
+        }
+        break;
+
+      case "hardBreak":
+        lines.push("");
+        break;
+
+      default:
+        // Recursively process unknown nodes
+        node.content?.forEach(extractText);
+    }
+  }
+
+  function getTextContent(node: any): string {
+    if (node.type === "text" && node.text) {
+      return node.text;
+    }
+
+    if (node.content) {
+      return node.content.map(getTextContent).join("");
+    }
+
+    return "";
+  }
+
+  extractText(content);
+
+  // Clean up: remove excessive blank lines
+  return lines
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
 
 /**
  * Helper: Get brand guidelines for user's organization
@@ -16,25 +142,41 @@ async function getBrandGuidelinesForUser(ctx: any) {
 
 /**
  * Helper: Get organization AI settings
+ * Returns default settings if user doesn't have an organization yet
  */
 async function getOrganizationAISettings(ctx: any) {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) throw new Error("Not authenticated");
 
-  const user = await getUserByTokenIdentifier(ctx, identity.tokenIdentifier);
-  if (!user || !user.organizationId) throw new Error("User not found");
+  const user = await ctx.runQuery(api.users.getByToken, {
+    tokenIdentifier: identity.tokenIdentifier
+  });
+  if (!user) throw new Error("User not found");
+
+  // If user doesn't have an organization, use default settings
+  if (!user.organizationId) {
+    return {
+      provider: "openrouter" as const,
+      model: "anthropic/claude-3.5-sonnet",
+    };
+  }
 
   const org = await ctx.runQuery(api.organizations.get, {
     organizationId: user.organizationId,
   });
 
-  return {
-    provider: (org?.aiProvider as "anthropic" | "openai") || "anthropic",
-    model:
-      org?.aiProvider === "anthropic"
-        ? org?.anthropicModel || "claude-sonnet-4-5-20250929"
-        : org?.openaiModel || "gpt-4o",
-  };
+  const provider = (org?.aiProvider as "anthropic" | "openai" | "openrouter") || "openrouter";
+
+  let model: string;
+  if (provider === "anthropic") {
+    model = org?.anthropicModel || "claude-sonnet-4-5-20250929";
+  } else if (provider === "openrouter") {
+    model = org?.openrouterModel || "anthropic/claude-3.5-sonnet";
+  } else {
+    model = org?.openaiModel || "gpt-4o";
+  }
+
+  return { provider, model };
 }
 
 /**
@@ -52,15 +194,17 @@ function buildSystemPrompt(brandGuidelines: string | null, task: string): string
 }
 
 /**
- * Helper: Call AI API (supports both Anthropic and OpenAI)
+ * Helper: Call AI API (supports Anthropic, OpenAI, and OpenRouter)
  */
 async function callAI(
   messages: Array<{ role: string; content: string }>,
-  provider: "anthropic" | "openai",
+  provider: "anthropic" | "openai" | "openrouter",
   model: string
 ): Promise<string> {
   if (provider === "anthropic") {
     return await callAnthropic(messages, model);
+  } else if (provider === "openrouter") {
+    return await callOpenRouter(messages, model);
   } else {
     return await callOpenAI(messages, model);
   }
@@ -138,6 +282,43 @@ async function callOpenAI(
 }
 
 /**
+ * Helper: Call OpenRouter API
+ * OpenRouter provides unified access to multiple AI models (Anthropic, OpenAI, Google, etc.)
+ * Uses OpenAI-compatible API format
+ */
+async function callOpenRouter(
+  messages: Array<{ role: string; content: string }>,
+  model: string
+): Promise<string> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) throw new Error("OPENROUTER_API_KEY not configured");
+
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+      "HTTP-Referer": process.env.OPENROUTER_HTTP_REFERER || "https://takescript.app",
+      "X-Title": process.env.OPENROUTER_APP_NAME || "TakeScript",
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: 0.7,
+      max_tokens: 2000,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`OpenRouter API error: ${response.statusText} - ${error}`);
+  }
+
+  const data = await response.json();
+  return data.choices[0].message.content;
+}
+
+/**
  * Helper: Track AI request for analytics
  */
 async function trackAIRequest(
@@ -151,7 +332,9 @@ async function trackAIRequest(
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return;
 
-    const user = await getUserByTokenIdentifier(ctx, identity.tokenIdentifier);
+    const user = await ctx.runQuery(api.users.getByToken, {
+      tokenIdentifier: identity.tokenIdentifier
+    });
     if (!user || !user.organizationId) return;
 
     await ctx.runMutation(api.aiRequests.create, {
@@ -193,9 +376,8 @@ export const chat = action({
     const script = await ctx.runQuery(api.scripts.get, { scriptId: args.scriptId });
     const scriptContent = script?.content ? JSON.parse(script.content) : null;
 
-    // TODO: Import exportToPlainText from lib/tiptap/export
-    // For now, use simple extraction
-    const plainText = scriptContent ? JSON.stringify(scriptContent) : "";
+    // Extract plain text from Tiptap JSONContent
+    const plainText = scriptContent ? extractPlainText(scriptContent) : "";
 
     // Build context-aware prompt
     const systemPrompt = buildSystemPrompt(
@@ -239,7 +421,7 @@ export const checkGrammarAndStyle = action({
     // Get script content
     const script = await ctx.runQuery(api.scripts.get, { scriptId: args.scriptId });
     const scriptContent = script?.content ? JSON.parse(script.content) : null;
-    const textToCheck = args.selectedText || JSON.stringify(scriptContent);
+    const textToCheck = args.selectedText || (scriptContent ? extractPlainText(scriptContent) : "");
 
     const systemPrompt = buildSystemPrompt(
       brandGuidelines,
@@ -292,7 +474,7 @@ export const reviewScript = action({
 
     const script = await ctx.runQuery(api.scripts.get, { scriptId: args.scriptId });
     const scriptContent = script?.content ? JSON.parse(script.content) : null;
-    const plainText = JSON.stringify(scriptContent);
+    const plainText = scriptContent ? extractPlainText(scriptContent) : "";
 
     const systemPrompt = buildSystemPrompt(
       brandGuidelines,
@@ -362,7 +544,7 @@ export const generateContent = action({
 
     const script = await ctx.runQuery(api.scripts.get, { scriptId: args.scriptId });
     const scriptContent = script?.content ? JSON.parse(script.content) : null;
-    const plainText = JSON.stringify(scriptContent);
+    const plainText = scriptContent ? extractPlainText(scriptContent) : "";
 
     const systemPrompt = buildSystemPrompt(
       brandGuidelines,

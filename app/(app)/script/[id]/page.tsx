@@ -16,7 +16,6 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { VersionHistory } from "@/components/versions/VersionHistory";
 import { CommentsPanel } from "@/components/comments/CommentsPanel";
 import { AnnotationsPanel } from "@/components/annotations/AnnotationsPanel";
-import { IdentityDebugger } from "@/components/debug/IdentityDebugger";
 import { AIAssistantPanel } from "@/components/ai/AIAssistantPanel";
 import { GrammarCheckResults } from "@/components/ai/GrammarCheckResults";
 import { ScriptReviewPanel } from "@/components/ai/ScriptReviewPanel";
@@ -432,8 +431,6 @@ export default function ScriptPage() {
           />
         )}
 
-        {/* Identity Debugger */}
-        <IdentityDebugger />
       </div>
     </div>
   );
