@@ -152,6 +152,38 @@ export const ChapterBlock = Node.create({
 });
 ```
 
+**Speaker Attribution System**:
+TakeScript includes a sophisticated speaker attribution system for dialogue in tutorial scripts.
+
+- **Speaker Mark**: Tiptap Mark extension (`lib/tiptap/speaker-mark.ts`) that stores `speakerId` and `faceVisible` attributes
+- **State Management**: Zustand store (`store/speaker-store.ts`) manages speaker list with colors and metadata
+- **Visual Indicators**: 3px colored left border on paragraphs + clickable speaker pills
+- **Keyboard Shortcuts**: Fast speaker assignment and management via keyboard
+
+**Keyboard Shortcuts** (Cmd on Mac, Ctrl on Windows/Linux):
+- **Cmd+1 through Cmd+4**: Assign speakers 1-4 to selected text with intelligent toggle/swap behavior:
+  - **No speaker assigned**: Adds speaker to selection
+  - **Same speaker assigned**: Removes speaker (toggle off)
+  - **Different speaker assigned**: Swaps to new speaker
+- **Cmd+`** (backtick): Remove speaker from current selection
+- **Selection Required**: All shortcuts require text selection. To add speaker without selection, use slash commands.
+
+**Implementation Details**:
+- Speaker marks render as `<span data-speaker-id="..." data-face-visible="...">` in the editor
+- Speaker name displayed via CSS `::before` pseudo-element on paragraphs (stable, no flashing)
+- Colored 3px left border indicates speaker attribution
+- Edit button widget appears on hover above the speaker name
+- ProseMirror node decorations add data attributes for CSS-based rendering
+- Deletion cascade: Removing a speaker removes all associated marks from the document
+- Face visibility toggle: Distinguish between on-camera dialogue (visible) and voiceover (VO)
+
+**Key Files**:
+- `lib/tiptap/speaker-mark.ts` - Mark extension with commands and decoration plugin
+- `components/editor/SpeakerLegend.tsx` - Speaker management sidebar
+- `components/editor/SpeakerEditDialog.tsx` - Edit speaker assignments dialog
+- `store/speaker-store.ts` - Global speaker state
+- `styles/editor.css` - Speaker visual styles (lines 431-548)
+
 #### 4. Autosave System
 `hooks/use-autosave.ts` implements debounced autosave:
 - **30-second delay** after last edit

@@ -57,7 +57,6 @@ import {
 import { generateBlockId } from "@/lib/utils";
 import { useSpeakerStore } from "@/store/speaker-store";
 import { AddSpeakerDialog } from "./AddSpeakerDialog";
-import { SpeakerPill } from "./SpeakerPill";
 import {
   Dialog,
   DialogContent,
@@ -65,7 +64,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { Eye, EyeOff } from "lucide-react";
+import { Video, VideoOff } from "lucide-react";
 
 interface SelectionToolbarProps {
   editor: Editor;
@@ -761,35 +760,39 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
                 {/* Speaker Preview */}
                 <div className="space-y-2">
                   <div className="text-xs text-muted-foreground">Speaker</div>
-                  <div
-                    className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium text-white"
-                    style={{ backgroundColor: speakers.find(s => s.id === tempSpeakerId)?.color }}
-                  >
-                    {faceVisible ? (
-                      <Eye className="h-3 w-3" />
-                    ) : (
-                      <EyeOff className="h-3 w-3" />
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-1 h-6 rounded-full"
+                      style={{ backgroundColor: speakers.find(s => s.id === tempSpeakerId)?.color }}
+                    />
+                    <span
+                      className="text-sm font-semibold uppercase tracking-wide"
+                      style={{ color: speakers.find(s => s.id === tempSpeakerId)?.color }}
+                    >
+                      {speakers.find(s => s.id === tempSpeakerId)?.name}
+                    </span>
+                    {!faceVisible && (
+                      <span className="text-xs text-muted-foreground italic">(VO)</span>
                     )}
-                    <span>{speakers.find(s => s.id === tempSpeakerId)?.name}</span>
                   </div>
                 </div>
 
-                {/* Face Visibility Toggle */}
+                {/* On Camera / Voiceover Toggle */}
                 <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/30">
                   <div className="flex items-center gap-3">
                     <div className={`rounded-full p-1.5 ${faceVisible ? 'bg-primary/10' : 'bg-muted'}`}>
                       {faceVisible ? (
-                        <Eye className="h-3.5 w-3.5 text-primary" />
+                        <Video className="h-3.5 w-3.5 text-primary" />
                       ) : (
-                        <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+                        <VideoOff className="h-3.5 w-3.5 text-muted-foreground" />
                       )}
                     </div>
                     <div>
                       <label htmlFor="face-visible" className="cursor-pointer font-medium text-sm">
-                        Face Visible
+                        On Camera
                       </label>
                       <p className="text-xs text-muted-foreground mt-0.5">
-                        {faceVisible ? 'On camera' : 'Voiceover'}
+                        {faceVisible ? 'Speaker is visible' : 'Voiceover only'}
                       </p>
                     </div>
                   </div>

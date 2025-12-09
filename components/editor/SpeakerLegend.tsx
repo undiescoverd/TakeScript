@@ -111,9 +111,14 @@ export function SpeakerLegend() {
                 </span>
                 {/* Show keyboard shortcut for first 4 speakers */}
                 {index < 4 && (
-                  <kbd className="hidden sm:inline-flex h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                    <span className="text-xs">⌘</span>{index + 1}
-                  </kbd>
+                  <div className="hidden sm:flex items-center gap-1">
+                    <kbd className="h-5 select-none inline-flex items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
+                      <span className="text-xs">⌘</span>{index + 1}
+                    </kbd>
+                    <span className="text-[9px] text-muted-foreground/70">
+                      toggle/swap
+                    </span>
+                  </div>
                 )}
               </div>
               <div className="flex items-center gap-1.5 mt-0.5">
@@ -161,6 +166,23 @@ export function SpeakerLegend() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Keyboard shortcuts help */}
+      <div className="rounded-lg border border-dashed p-3 text-xs text-muted-foreground space-y-1.5">
+        <div className="font-medium text-foreground mb-2">Keyboard Shortcuts</div>
+        <div className="flex items-center gap-2">
+          <kbd className="h-5 inline-flex items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium">
+            <span className="text-xs">⌘</span>1-4
+          </kbd>
+          <span>Add speaker, or toggle/swap if already assigned</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <kbd className="h-5 inline-flex items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium">
+            <span className="text-xs">⌘</span>`
+          </kbd>
+          <span>Remove speaker from selection</span>
+        </div>
       </div>
 
       <AddSpeakerDialog

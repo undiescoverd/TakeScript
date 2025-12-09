@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useAction } from "convex/react";
-import { useCallback, useState, useEffect, useRef, useMemo, startTransition } from "react";
+import { useCallback, useState, useEffect, useRef, useMemo } from "react";
 import { JSONContent, Editor } from "@tiptap/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -125,10 +125,9 @@ export default function ScriptPage() {
         ? script.content
         : JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] });
 
-      // Update local content
-      startTransition(() => {
-        setLocalContent(initialContent);
-      });
+      // Update local content - use regular setState, not startTransition
+      // startTransition defers updates which can cause the loading screen to stay visible
+      setLocalContent(initialContent);
 
       // Initialize autosave
       if (typeof initializeLastSaved === 'function') {
@@ -198,9 +197,7 @@ export default function ScriptPage() {
         // This is a real external change (version restore, etc.)
         // Update via initialContent memo which will trigger the effect above
         lastScriptContentRef.current = script.content;
-        startTransition(() => {
-          setLocalContent(initialContent);
-        });
+        setLocalContent(initialContent);
         isRestoringVersionRef.current = false;
       } catch {
         // ignore parse errors

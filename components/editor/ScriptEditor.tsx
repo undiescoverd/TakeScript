@@ -5,17 +5,15 @@ import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Highlight from "@tiptap/extension-highlight";
 import Underline from "@tiptap/extension-underline";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { useEditorStore } from "@/store/editor-store";
 import { customExtensions } from "@/lib/tiptap/extensions";
 import { SlashCommands } from "@/lib/tiptap/slash-commands";
 import { createSlashCommandsRender } from "@/lib/tiptap/suggestion-render";
 import { AnnotationMark } from "@/lib/tiptap/annotation-mark";
-import { SpeakerMark } from "@/lib/tiptap/speaker-mark";
-import { setupSpeakerPillObserver, setPillClickHandler, applySpeakerColors, renderSpeakerPills } from "@/lib/tiptap/speaker-pill-renderer";
+import { SpeakerMark, onSpeakerLabelClick, updateSpeakersInEditor } from "@/lib/tiptap/speaker-mark";
 import { SelectionToolbar } from "@/components/editor/SelectionToolbar";
-import { SpeakerPillPopover } from "@/components/editor/SpeakerPillPopover";
-import { Popover } from "@/components/ui/popover";
+import { SpeakerEditDialog } from "@/components/editor/SpeakerEditDialog";
 import { Id } from "@/convex/_generated/dataModel";
 import { useSpeakerStore } from "@/store/speaker-store";
 import { toast } from "sonner";
@@ -35,10 +33,15 @@ export function ScriptEditor({
 }: ScriptEditorProps) {
   const { mode } = useEditorStore();
   const isFirstRender = useRef(true);
+
+  // Get speakers directly from store - no useShallow needed since we're doing our own comparison
   const speakers = useSpeakerStore((state) => state.speakers);
 
-  // Speaker pill popover state - single state to avoid batching issues
-  const [selectedPill, setSelectedPill] = useState<{
+  // Track the last speakers we sent to the editor to prevent unnecessary updates
+  const lastSpeakersRef = useRef<string>("");
+
+  // Speaker edit dialog state
+  const [selectedSpeaker, setSelectedSpeaker] = useState<{
     speakerId: string;
     position: number;
     faceVisible: boolean;
@@ -59,10 +62,10 @@ export function ScriptEditor({
         placeholder: "Type '/' for commands or select text for formatting...",
       }),
       Highlight,
-      Underline, // Explicitly add Underline (not in StarterKit by default)
+      Underline,
       ...customExtensions,
       AnnotationMark,
-      SpeakerMark, // SpeakerMark includes its own ProseMirror plugins for pill rendering
+      SpeakerMark,
       SlashCommands.configure({
         suggestion: {
           render: createSlashCommandsRender,
@@ -97,19 +100,17 @@ export function ScriptEditor({
         setIsTimedOut(true);
         setEditorError(new Error("Editor initialization timed out. The document may be too large or contain problematic content."));
       }
-    }, 10000); // 10 second timeout
+    }, 10000);
 
     return () => clearTimeout(timeout);
   }, [editor, editorError]);
 
   // Update editor content when initialContent changes (e.g., version restore)
-  // BUT only if editor is not currently focused/being edited to avoid interrupting user
   useEffect(() => {
     if (editor && !isFirstRender.current) {
       const currentContent = editor.getJSON();
       const newContent = initialContent;
-      
-      // Deep comparison helper
+
       const deepEqual = (a: any, b: any): boolean => {
         if (a === b) return true;
         if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) {
@@ -124,9 +125,7 @@ export function ScriptEditor({
         }
         return true;
       };
-      
-      // Only update if content is actually different AND editor is not focused
-      // This prevents interrupting user edits when autosave completes
+
       if (!deepEqual(currentContent, newContent) && !editor.isFocused) {
         editor.commands.setContent(initialContent, { emitUpdate: false });
       }
@@ -141,66 +140,40 @@ export function ScriptEditor({
     }
   }, [editor, onEditorReady]);
 
-  // Set up speaker pill observer and click handler
+  // Set up speaker label click handler (uses event delegation in ProseMirror plugin)
   useEffect(() => {
     if (!editor) return;
 
-    let isHandlingClick = false;
-
-    // Set up click handler for speaker pills
-    console.log("Setting up pill click handler");
-    setPillClickHandler((speakerId, position, faceVisible) => {
-      console.log("Pill click handler called:", { speakerId, position, faceVisible });
-
-      // Prevent duplicate calls
-      if (isHandlingClick) {
-        console.log("Ignoring duplicate handler call");
-        return;
-      }
-
-      isHandlingClick = true;
-
-      // Use requestAnimationFrame to ensure state update happens in next frame
-      requestAnimationFrame(() => {
-        setSelectedPill({ speakerId, position, faceVisible });
-
-        // Reset after dialog opens
-        setTimeout(() => {
-          isHandlingClick = false;
-        }, 500);
-      });
-    });
-
-    const editorElement = editor.view.dom as HTMLElement;
-    const observer = setupSpeakerPillObserver(editorElement);
-
-    // Hook into editor updates to ensure colors are applied on every content change
-    const updateHandler = () => {
-      // Use double requestAnimationFrame to ensure DOM has fully updated
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          applySpeakerColors(editorElement);
-        });
-      });
-    };
-
-    editor.on("update", updateHandler);
-    editor.on("selectionUpdate", updateHandler);
-    
-    // Also apply colors immediately when editor is ready
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        applySpeakerColors(editorElement);
-      });
+    onSpeakerLabelClick((speakerId, position, faceVisible) => {
+      setSelectedSpeaker({ speakerId, position, faceVisible });
     });
 
     return () => {
-      observer.disconnect();
-      editor.off("update", updateHandler);
-      editor.off("selectionUpdate", updateHandler);
-      setPillClickHandler(() => {});
+      onSpeakerLabelClick(null);
     };
   }, [editor]);
+
+  // SINGLE unified effect for syncing speakers to the editor plugin
+  // This replaces the previous two-effect approach that caused race conditions
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+
+    // Serialize for comparison to prevent unnecessary updates
+    const speakersKey = JSON.stringify(
+      speakers.map(s => ({ id: s.id, name: s.name, color: s.color, faceVisible: s.faceVisible }))
+    );
+
+    // Skip if speakers haven't actually changed
+    if (speakersKey === lastSpeakersRef.current) {
+      return;
+    }
+
+    lastSpeakersRef.current = speakersKey;
+
+    // Update the editor plugin state directly with the speakers array
+    // This is atomic - the speakers are passed directly to decoration creation
+    updateSpeakersInEditor(editor, speakers);
+  }, [editor, speakers]);
 
   // Set up callback to remove speaker marks when a speaker is deleted
   useEffect(() => {
@@ -209,7 +182,6 @@ export function ScriptEditor({
     const setOnSpeakerDeleted = useSpeakerStore.getState().setOnSpeakerDeleted;
 
     setOnSpeakerDeleted((deletedSpeakerId: string) => {
-      // Remove all speaker marks with this speakerId
       const { doc, tr } = editor.state;
       const speakerMarkType = editor.schema.marks.speaker;
       let transaction = tr;
@@ -232,66 +204,98 @@ export function ScriptEditor({
     });
 
     return () => {
-      // Clean up callback on unmount
       useSpeakerStore.getState().setOnSpeakerDeleted(() => {});
     };
   }, [editor]);
 
-  // Re-render speaker pills when speakers change (e.g., when a speaker is deleted or updated)
-  useEffect(() => {
-    if (!editor) return;
+  // Helper function to get speaker mark at current selection
+  const getSpeakerAtSelection = useCallback((editor: Editor): string | null => {
+    const { from, to } = editor.state.selection;
+    const speakerMarkType = editor.schema.marks.speaker;
+    let speakerId: string | null = null;
 
-    const editorElement = editor.view.dom as HTMLElement;
-    // Force re-render to update all pills with latest speaker data
-    renderSpeakerPills(editorElement, true);
-  }, [editor, speakers]);
+    editor.state.doc.nodesBetween(from, to, (node) => {
+      if (node.isText && node.marks.length > 0) {
+        const speakerMark = node.marks.find((m) => m.type === speakerMarkType);
+        if (speakerMark) {
+          speakerId = speakerMark.attrs.speakerId;
+          return false;
+        }
+      }
+    });
 
-  // Keyboard shortcuts for quick speaker assignment (Cmd+1 through Cmd+4)
+    return speakerId;
+  }, []);
+
+  // Keyboard shortcuts for speaker assignment (Cmd+1-4) and removal (Cmd+`)
   useEffect(() => {
     if (!editor) return;
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Check for Cmd+1 through Cmd+4 (or Ctrl on Windows/Linux)
       const isCmdOrCtrl = event.metaKey || event.ctrlKey;
-      const number = parseInt(event.key);
 
+      // Handle Cmd+` (backtick) - Remove speaker
+      if (isCmdOrCtrl && event.key === "`") {
+        event.preventDefault();
+
+        const { from, to } = editor.state.selection;
+        if (from === to) {
+          toast.error("Please select text first");
+          return;
+        }
+
+        const currentSpeakerId = getSpeakerAtSelection(editor);
+        if (!currentSpeakerId) {
+          toast.info("No speaker assigned to this selection");
+          return;
+        }
+
+        const speaker = speakers.find((s) => s.id === currentSpeakerId);
+        editor.chain().focus().setTextSelection({ from, to }).unsetSpeaker().run();
+        toast.success(`Removed ${speaker?.name || "speaker"}`);
+        return;
+      }
+
+      // Handle Cmd+1 through Cmd+4 - Toggle/Swap speaker
+      const number = parseInt(event.key);
       if (isCmdOrCtrl && number >= 1 && number <= 4) {
         event.preventDefault();
 
-        // Check if there's a selection
         const { from, to } = editor.state.selection;
         if (from === to) {
           toast.error("Please select some text first");
           return;
         }
 
-        // Get the speaker at the specified index (0-3)
         const speaker = speakers[number - 1];
         if (!speaker) {
           toast.error(`No speaker assigned to Cmd+${number}`);
           return;
         }
 
-        // Apply the speaker mark
-        editor
-          .chain()
-          .focus()
-          .setTextSelection({ from, to })
-          .setSpeaker(speaker.id)
-          .run();
+        const currentSpeakerId = getSpeakerAtSelection(editor);
 
-        toast.success(`Assigned to ${speaker.name}`);
+        if (!currentSpeakerId) {
+          editor.chain().focus().setTextSelection({ from, to }).setSpeaker(speaker.id).run();
+          toast.success(`Assigned to ${speaker.name}`);
+        } else if (currentSpeakerId === speaker.id) {
+          editor.chain().focus().setTextSelection({ from, to }).unsetSpeaker().run();
+          toast.success(`Removed ${speaker.name}`);
+        } else {
+          const previousSpeaker = speakers.find((s) => s.id === currentSpeakerId);
+          editor.chain().focus().setTextSelection({ from, to }).setSpeaker(speaker.id).run();
+          toast.success(`Changed from ${previousSpeaker?.name || "Unknown"} to ${speaker.name}`);
+        }
       }
     };
 
-    // Add event listener to the editor's DOM element
     const editorElement = editor.view.dom;
     editorElement.addEventListener("keydown", handleKeyDown);
 
     return () => {
       editorElement.removeEventListener("keydown", handleKeyDown);
     };
-  }, [editor, speakers]);
+  }, [editor, speakers, getSpeakerAtSelection]);
 
   // Show error state if editor failed to initialize
   if (editorError) {
@@ -338,16 +342,16 @@ export function ScriptEditor({
       <EditorContent editor={editor} />
       <SelectionToolbar editor={editor} scriptId={scriptId} />
 
-      {/* Speaker Pill Popover - Using modal mode since we don't have a React trigger element */}
-      {selectedPill && (
-        <SpeakerPillPopover
+      {/* Speaker Edit Dialog */}
+      {selectedSpeaker && (
+        <SpeakerEditDialog
           editor={editor}
-          speakerId={selectedPill.speakerId}
-          position={selectedPill.position}
-          open={!!selectedPill}
+          speakerId={selectedSpeaker.speakerId}
+          position={selectedSpeaker.position}
+          open={!!selectedSpeaker}
           onOpenChange={(open) => {
             if (!open) {
-              setSelectedPill(null);
+              setSelectedSpeaker(null);
             }
           }}
         />
