@@ -1,16 +1,11 @@
 "use client";
 
-import { useAuth, UserButton } from "@clerk/nextjs";
-import { useConvexAuth } from "convex/react";
-import { useMutation } from "convex/react";
+import { useAuth } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { api } from "@/convex/_generated/api";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { isSignedIn, isLoaded } = useAuth();
-  const { isAuthenticated } = useConvexAuth();
-  const storeUser = useMutation(api.users.store);
   const router = useRouter();
 
   useEffect(() => {
@@ -19,12 +14,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [isSignedIn, isLoaded, router]);
 
-  // Store user in Convex when authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      storeUser();
-    }
-  }, [isAuthenticated, storeUser]);
+  // StoreUserEffect in providers.tsx handles user storage in Convex
+  // No need to duplicate that logic here
 
   if (!isLoaded || !isSignedIn) {
     return (

@@ -2,10 +2,10 @@
 
 import { NodeViewWrapper, NodeViewContent, NodeViewProps } from "@tiptap/react";
 import { useState } from "react";
-import { Edit2, Check, X, Trash2 } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Edit2, Check, X } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-export function ChapterNodeView({ node, updateAttributes, deleteNode }: NodeViewProps) {
+export function ChapterNodeView({ node, updateAttributes, editor, getPos }: NodeViewProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [title, setTitle] = useState(node.attrs.title || "Untitled Chapter");
   const [duration, setDuration] = useState(node.attrs.duration || "");
@@ -19,6 +19,40 @@ export function ChapterNodeView({ node, updateAttributes, deleteNode }: NodeView
     setTitle(node.attrs.title || "Untitled Chapter");
     setDuration(node.attrs.duration || "");
     setIsEditing(false);
+  };
+
+  const handleRemoveBlock = () => {
+    const pos = getPos();
+    if (typeof pos !== "number") return;
+
+    const currentNode = editor.state.doc.nodeAt(pos);
+    if (!currentNode) return;
+
+    // Get the text content from this node
+    const textContent = currentNode.textContent;
+
+    editor
+      .chain()
+      .focus()
+      .command(({ tr }) => {
+        const start = pos;
+        const end = pos + currentNode.nodeSize;
+
+        // If there's text content inside the chapter, preserve it as a paragraph
+        // Otherwise, just delete the chapter marker entirely
+        if (textContent && textContent.trim()) {
+          const paragraph = editor.schema.nodes.paragraph.create(
+            null,
+            editor.schema.text(textContent)
+          );
+          tr.replaceWith(start, end, paragraph);
+        } else {
+          // No content - just delete the chapter block
+          tr.delete(start, end);
+        }
+        return true;
+      })
+      .run();
   };
 
   if (isEditing) {
@@ -87,42 +121,40 @@ export function ChapterNodeView({ node, updateAttributes, deleteNode }: NodeView
               </div>
             )}
           </div>
-          <TooltipProvider delayDuration={0}>
-            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    className="p-1.5 hover:bg-accent rounded"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsEditing(true);
-                    }}
-                  >
-                    <Edit2 className="h-4 w-4 text-muted-foreground" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Edit chapter</p>
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    className="p-1.5 hover:bg-destructive/10 rounded"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteNode();
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Delete chapter</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          </TooltipProvider>
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className="p-1.5 hover:bg-accent rounded"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsEditing(true);
+                  }}
+                >
+                  <Edit2 className="h-4 w-4 text-muted-foreground" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Edit chapter</p>
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className="p-1.5 hover:bg-muted rounded"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleRemoveBlock();
+                  }}
+                >
+                  <X className="h-4 w-4 text-muted-foreground" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Remove block (keep text)</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
         </div>
         <div className="mt-2">
           <NodeViewContent className="chapter-content" />

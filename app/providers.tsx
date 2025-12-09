@@ -6,6 +6,7 @@ import { ClerkProvider, useAuth } from "@clerk/nextjs";
 import { ThemeProvider } from "next-themes";
 import { ReactNode } from "react";
 import { StoreUserEffect } from "@/components/auth/StoreUserEffect";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const convex = new ConvexReactClient(
   process.env.NEXT_PUBLIC_CONVEX_URL as string
@@ -23,8 +24,10 @@ export function Providers({ children }: { children: ReactNode }) {
           enableSystem
           disableTransitionOnChange
         >
-          <StoreUserEffect />
-          {children}
+          <TooltipProvider delayDuration={0}>
+            <StoreUserEffect />
+            {children}
+          </TooltipProvider>
         </ThemeProvider>
       </ConvexProviderWithClerk>
     </ClerkProvider>

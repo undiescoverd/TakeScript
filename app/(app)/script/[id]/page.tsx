@@ -2,12 +2,13 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useAction } from "convex/react";
-import { useCallback, useState, useEffect, useRef } from "react";
+import { useCallback, useState, useEffect, useRef, useMemo, startTransition } from "react";
 import { JSONContent, Editor } from "@tiptap/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useAutosave } from "@/hooks/use-autosave";
 import { useEditorStore } from "@/store/editor-store";
+import { useSpeakerStore } from "@/store/speaker-store";
 import { ScriptEditor } from "@/components/editor/ScriptEditor";
 import { CollaborativeEditor } from "@/components/editor/CollaborativeEditor";
 import { BeatBoard } from "@/components/editor/BeatBoard";
@@ -23,6 +24,31 @@ import { AIGenerationDialog } from "@/components/ai/AIGenerationDialog";
 import { getFeatureFlags } from "@/lib/feature-flags";
 import { toast } from "sonner";
 
+interface GrammarCheckResult {
+  issues?: Array<{
+    type: "grammar" | "spelling" | "style" | "tone" | "clarity";
+    message: string;
+    suggestion: string;
+    severity: "low" | "medium" | "high";
+  }>;
+  overallScore?: number;
+  summary?: string;
+}
+
+interface ScriptReviewResult {
+  overallScore?: number;
+  strengths?: string[];
+  improvements?: string[];
+  suggestions?: Array<{
+    chapter: string;
+    suggestion: string;
+    priority: "low" | "medium" | "high";
+  }>;
+  toneCompliance?: { score: number; notes: string };
+  pacing?: { score: number; notes: string };
+  clarity?: { score: number; notes: string };
+}
+
 export default function ScriptPage() {
   const params = useParams();
   const router = useRouter();
@@ -31,15 +57,50 @@ export default function ScriptPage() {
   const script = useQuery(api.scripts.get, { scriptId });
   const { scheduleAutosave, saveNow, setOnSaveComplete, getLastSavedContent, initializeLastSaved } = useAutosave(scriptId);
   const { mode, commentsOpen, setCommentsOpen, annotationsOpen, setAnnotationsOpen, collaborationEnabled } = useEditorStore();
+  const { setSpeakers, clearSpeakers } = useSpeakerStore();
   const [editorRef, setEditorRef] = useState<Editor | null>(null);
-  const [localContent, setLocalContent] = useState<JSONContent | null>(null);
+  
+  // Compute initial content from script using useMemo (no effect needed)
+  const initialContent = useMemo<JSONContent | null>(() => {
+    if (script === undefined || script === null) return null;
+
+    const emptyContent = { type: "doc" as const, content: [{ type: "paragraph" }] };
+
+    if (script.content && script.content.trim() !== "") {
+      try {
+        console.log(`[Script ${scriptId}] Parsing content, length: ${script.content.length}`);
+        const parsed = JSON.parse(script.content);
+        console.log(`[Script ${scriptId}] Parse successful, type: ${parsed?.type}, content items: ${parsed?.content?.length || 0}`);
+
+        if (parsed && typeof parsed === 'object' && parsed.type === 'doc') {
+          return parsed;
+        } else {
+          console.error(`[Script ${scriptId}] Invalid document structure:`, {
+            hasType: !!parsed?.type,
+            type: parsed?.type,
+            hasContent: !!parsed?.content
+          });
+        }
+      } catch (parseError) {
+        console.error(`[Script ${scriptId}] Failed to parse script content:`, parseError, "Content preview:", script.content?.substring(0, 200));
+      }
+    } else {
+      console.log(`[Script ${scriptId}] Empty or null content, using empty document`);
+    }
+
+    return emptyContent;
+  }, [script, scriptId]);
+  
+  // Local content state - starts from initial content, then tracks user edits
+  const [localContent, setLocalContent] = useState<JSONContent | null>(() => initialContent);
   const contentInitialized = useRef(false);
   const isRestoringVersionRef = useRef(false);
+  const lastScriptContentRef = useRef<string | null>(null);
 
   // AI Panel States
   const [aiChatOpen, setAiChatOpen] = useState(false);
-  const [grammarCheckResults, setGrammarCheckResults] = useState<any>(null);
-  const [reviewResults, setReviewResults] = useState<any>(null);
+  const [grammarCheckResults, setGrammarCheckResults] = useState<GrammarCheckResult | null>(null);
+  const [reviewResults, setReviewResults] = useState<ScriptReviewResult | null>(null);
   const [generationDialogOpen, setGenerationDialogOpen] = useState(false);
   const [generationTask, setGenerationTask] = useState<"generate" | "expand" | "rephrase" | "summarize">("generate");
   const [generationPrompt, setGenerationPrompt] = useState("");
@@ -57,32 +118,57 @@ export default function ScriptPage() {
     return () => setOnSaveComplete(null);
   }, [setOnSaveComplete]);
 
-  // Initialize local content from script
-  // This effect syncs external state (Convex query) to local state, which is a valid use case
+  // Initialize localContent and autosave when script first loads
   useEffect(() => {
-    if (script?.content && !contentInitialized.current) {
-      try {
-        const parsed = JSON.parse(script.content);
-        // Syncing external state to local state - this is intentional
-        setLocalContent(parsed);
-        // Initialize last saved content to prevent immediate save on first load
-        initializeLastSaved(script.content);
-        contentInitialized.current = true;
-      } catch {
-        // Syncing external state to local state - this is intentional
-        const emptyContent = JSON.stringify({ type: "doc", content: [] });
-        setLocalContent({ type: "doc", content: [] });
-        initializeLastSaved(emptyContent);
-        contentInitialized.current = true;
+    if (script !== undefined && script !== null && !contentInitialized.current && initialContent) {
+      const contentString = script.content && script.content.trim() !== ""
+        ? script.content
+        : JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] });
+
+      // Update local content
+      startTransition(() => {
+        setLocalContent(initialContent);
+      });
+
+      // Initialize autosave
+      if (typeof initializeLastSaved === 'function') {
+        try {
+          initializeLastSaved(contentString);
+          lastScriptContentRef.current = contentString;
+        } catch (initError) {
+          console.error("Error initializing last saved content:", initError);
+        }
+      }
+
+      contentInitialized.current = true;
+    }
+  }, [script, initialContent, initializeLastSaved]);
+
+  // Load speakers from Convex when script loads
+  useEffect(() => {
+    if (script !== undefined && script !== null) {
+      if (script.speakers && Array.isArray(script.speakers)) {
+        console.log(`[Script ${scriptId}] Loading ${script.speakers.length} speakers from Convex`);
+        setSpeakers(script.speakers);
+      } else {
+        console.log(`[Script ${scriptId}] No speakers in script, initializing empty array`);
+        setSpeakers([]);
       }
     }
-  }, [script?.content, initializeLastSaved]);
+  }, [script, scriptId, setSpeakers]);
+
+  // Clear speakers when navigating away
+  useEffect(() => {
+    return () => {
+      console.log(`[Script ${scriptId}] Cleaning up - clearing speakers`);
+      clearSpeakers();
+    };
+  }, [scriptId, clearSpeakers]);
 
   // Update local content when script changes (e.g., version restore)
   // BUT only if it's different from what we last saved (to avoid feedback loop)
-  // This effect syncs external state (Convex query) to local state, which is a valid use case
   useEffect(() => {
-    if (script?.content && contentInitialized.current) {
+    if (script?.content && contentInitialized.current && initialContent) {
       try {
         const lastSaved = getLastSavedContent();
         
@@ -104,16 +190,23 @@ export default function ScriptPage() {
           return;
         }
         
+        // Skip if this is the same as what we already have
+        if (script.content === lastScriptContentRef.current && !isRestoringVersionRef.current) {
+          return;
+        }
+        
         // This is a real external change (version restore, etc.)
-        const parsed = JSON.parse(script.content);
-        // Syncing external state to local state - this is intentional
-        setLocalContent(parsed);
+        // Update via initialContent memo which will trigger the effect above
+        lastScriptContentRef.current = script.content;
+        startTransition(() => {
+          setLocalContent(initialContent);
+        });
         isRestoringVersionRef.current = false;
       } catch {
         // ignore parse errors
       }
     }
-  }, [script?.content, getLastSavedContent]);
+  }, [script?.content, initialContent, getLastSavedContent]);
 
   const handleContentUpdate = useCallback(
     (content: string) => {
@@ -190,32 +283,28 @@ export default function ScriptPage() {
 
   // Listen for AI slash command events
   useEffect(() => {
-    const handleAIGenerate = (e: Event) => {
-      const customEvent = e as CustomEvent;
+    const handleAIGenerate = () => {
       setGenerationTask("generate");
       setGenerationPrompt("");
       setGenerationDialogOpen(true);
     };
 
     const handleAIExpand = (e: Event) => {
-      const customEvent = e as CustomEvent;
-      const { selectedText } = customEvent.detail;
+      const { selectedText } = (e as CustomEvent).detail;
       setGenerationTask("expand");
       setGenerationPrompt(selectedText || "");
       setGenerationDialogOpen(true);
     };
 
     const handleAIRephrase = (e: Event) => {
-      const customEvent = e as CustomEvent;
-      const { selectedText } = customEvent.detail;
+      const { selectedText } = (e as CustomEvent).detail;
       setGenerationTask("rephrase");
       setGenerationPrompt(selectedText || "");
       setGenerationDialogOpen(true);
     };
 
     const handleAISummarize = (e: Event) => {
-      const customEvent = e as CustomEvent;
-      const { selectedText } = customEvent.detail;
+      const { selectedText } = (e as CustomEvent).detail;
       setGenerationTask("summarize");
       setGenerationPrompt(selectedText || "");
       setGenerationDialogOpen(true);
@@ -283,6 +372,7 @@ export default function ScriptPage() {
 
   // Loading state
   if (script === undefined) {
+    console.log(`[Script ${scriptId}] Waiting for script to load from Convex...`);
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="animate-pulse text-muted-foreground">
@@ -294,6 +384,7 @@ export default function ScriptPage() {
 
   // Not found state
   if (script === null) {
+    console.error(`[Script ${scriptId}] Script not found in database`);
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-4">
         <h1 className="text-2xl font-bold">Script not found</h1>
@@ -315,6 +406,7 @@ export default function ScriptPage() {
 
   // Wait for content to be initialized
   if (!localContent) {
+    console.log(`[Script ${scriptId}] Waiting for content to initialize. Script loaded: ${!!script}, initialContent: ${!!initialContent}`);
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="animate-pulse text-muted-foreground">
@@ -323,6 +415,9 @@ export default function ScriptPage() {
       </div>
     );
   }
+
+  console.log(`[Script ${scriptId}] Rendering editor with content`);
+
 
   return (
     <div className="flex h-screen flex-col bg-background" data-mode={mode}>

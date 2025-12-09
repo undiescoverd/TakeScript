@@ -126,9 +126,9 @@ export const getByToken = query({
       return null;
     }
 
+    // Check if invitation has expired (don't try to patch in query - that's read-only)
     if (invitation.expiresAt < Date.now()) {
-      // Auto-expire
-      await ctx.db.patch(invitation._id, { status: "expired" });
+      // Return null for expired invitations - the accept mutation handles the actual status update
       return null;
     }
 

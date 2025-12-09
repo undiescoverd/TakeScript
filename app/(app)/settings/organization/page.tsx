@@ -34,18 +34,18 @@ export default function OrganizationSettingsPage() {
   const [openaiModel, setOpenaiModel] = useState("gpt-4o");
 
   useEffect(() => {
-    if (organization) {
+    if (organization && "name" in organization && "aiProvider" in organization) {
       setName(organization.name);
       setAiProvider((organization.aiProvider as "anthropic" | "openai") || "anthropic");
-      setAnthropicModel(organization.anthropicModel || "claude-sonnet-4-5-20250929");
-      setOpenaiModel(organization.openaiModel || "gpt-4o");
+      setAnthropicModel((organization as any).anthropicModel || "claude-sonnet-4-5-20250929");
+      setOpenaiModel((organization as any).openaiModel || "gpt-4o");
     }
   }, [organization]);
 
   const handleSaveName = async () => {
-    if (!organization) return;
+    if (!organization || !("name" in organization)) return;
     try {
-      await updateOrganization({ organizationId: organization._id, name });
+      await updateOrganization({ organizationId: organization._id as any, name });
       toast.success("Organization name updated");
     } catch (error) {
       toast.error("Failed to update organization name");
@@ -53,10 +53,10 @@ export default function OrganizationSettingsPage() {
   };
 
   const handleSaveAISettings = async () => {
-    if (!organization) return;
+    if (!organization || !("aiProvider" in organization)) return;
     try {
       await updateAISettings({
-        organizationId: organization._id,
+        organizationId: organization._id as any,
         aiProvider,
         anthropicModel,
         openaiModel,

@@ -158,7 +158,7 @@
 /* Demonstration Block */
 .ProseMirror [data-type="demonstration"],
 .demonstration-block {
-  border-left: 3px solid #8b5cf6;
+  border-left: 3px solid var(--speaker-color, #8b5cf6);
   padding-left: 1rem;
   margin: 1rem 0;
 }
@@ -426,6 +426,91 @@
 }
 .dark .annotation-orange:hover {
   background-color: rgba(234, 88, 12, 0.6);
+}
+
+/* ===== Speaker Styles ===== */
+
+/* Speaker text - with left border */
+.ProseMirror p.has-speaker,
+.ProseMirror p:has(.speaker-text),
+.ProseMirror p[data-speaker-id] {
+  position: relative;
+  padding-left: 1rem;
+}
+
+.ProseMirror p.has-speaker::before,
+.ProseMirror p:has(.speaker-text)::before,
+.ProseMirror p[data-speaker-id]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background-color: var(--speaker-color, #3b82f6);
+  border-radius: 2px;
+}
+
+/* Hide paragraph speaker border when inside demonstration blocks - the block border shows instead */
+.demonstration-content p.has-speaker,
+.demonstration-content p:has(.speaker-text) {
+  padding-left: 0;
+}
+
+.demonstration-content p.has-speaker::before,
+.demonstration-content p:has(.speaker-text)::before {
+  display: none;
+}
+
+/* Speaker-attributed text */
+.speaker-text {
+  /* Keep text looking natural, border provides visual indicator */
+  display: inline;
+}
+
+/* Speaker pill widget - floats outside the left border */
+.speaker-pill-widget {
+  position: absolute;
+  left: -0.75rem;
+  top: 0.125rem;
+  transform: translateX(-100%);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: white;
+  user-select: none;
+  opacity: 0.85;
+  transition: opacity 0.2s;
+  line-height: 1.5;
+  white-space: nowrap;
+  z-index: 10;
+}
+
+.speaker-pill-widget:hover {
+  opacity: 1;
+  transform: translateX(-100%) scale(1.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+}
+
+.speaker-pill-widget svg {
+  width: 0.75rem;
+  height: 0.75rem;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.speaker-pill-widget span {
+  pointer-events: none;
+}
+
+/* Ensure parent paragraph is positioned for absolute positioning */
+.ProseMirror p:has(.speaker-pill-widget) {
+  position: relative;
 }
 
 /* ===== Collaboration Styles ===== */

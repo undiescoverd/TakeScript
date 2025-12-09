@@ -28,6 +28,9 @@ import { TemplateCard } from "./TemplateCard";
 import { cn } from "@/lib/utils";
 import { getTemplateIcon } from "@/lib/template-icons";
 import { useFeatureFlag } from "@/hooks/use-feature-flags";
+import { Doc } from "@/convex/_generated/dataModel";
+
+type Template = Doc<"templates">;
 
 const TEMPLATES = [
   {
@@ -80,17 +83,17 @@ export function NewScriptDialog() {
 
   // Only query templates if feature is enabled
   const templates = useQuery(
-    templatesEnabled ? api.templates.list : "skip"
+    templatesEnabled ? api.templates.list : ("skip" as any)
   );
 
   // Separate user and system templates
   const userTemplates = useMemo(
-    () => templates?.filter((t) => !t.isSystem) || [],
+    () => templates?.filter((t: Template) => !t.isSystem) || [],
     [templates]
   );
 
   const systemTemplates = useMemo(
-    () => templates?.filter((t) => t.isSystem) || [],
+    () => templates?.filter((t: Template) => t.isSystem) || [],
     [templates]
   );
 
@@ -98,7 +101,7 @@ export function NewScriptDialog() {
   const filteredUserTemplates = useMemo(
     () =>
       userTemplates.filter(
-        (t) =>
+        (t: Template) =>
           !searchQuery ||
           t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           t.description?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -109,7 +112,7 @@ export function NewScriptDialog() {
   const filteredSystemTemplates = useMemo(
     () =>
       systemTemplates.filter(
-        (t) =>
+        (t: Template) =>
           !searchQuery ||
           t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
           t.description?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -245,7 +248,7 @@ export function NewScriptDialog() {
                   <div className="space-y-2">
                     <h3 className="text-sm font-medium">My Templates</h3>
                     <div className="grid gap-3 sm:grid-cols-2">
-                      {filteredUserTemplates.map((template) => {
+                      {filteredUserTemplates.map((template: Template) => {
                         const TemplateIcon = getTemplateIcon(template.name, template.category);
                         return (
                           <button
@@ -315,7 +318,7 @@ export function NewScriptDialog() {
                     <h3 className="text-sm font-medium">System Templates</h3>
                     <div className="grid gap-3 sm:grid-cols-2">
                       {/* Show database system templates if available */}
-                      {filteredSystemTemplates.map((template) => {
+                      {filteredSystemTemplates.map((template: Template) => {
                         const TemplateIcon = getTemplateIcon(template.name, template.category);
                         return (
                           <button
@@ -520,7 +523,7 @@ export function NewScriptDialog() {
                     <p className="text-sm text-muted-foreground">Template</p>
                     <p className="font-medium">
                       {formData.templateId
-                        ? templates?.find((t) => t._id === formData.templateId)
+                        ? templates?.find((t: Template) => t._id === formData.templateId)
                             ?.name
                         : TEMPLATES.find((t) => t.value === formData.templateType)
                             ?.label}

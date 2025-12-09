@@ -138,7 +138,7 @@ export const current = query({
 export async function getUserByTokenIdentifier(ctx: any, tokenIdentifier: string) {
   return await ctx.db
     .query("users")
-    .withIndex("by_token", (q) => q.eq("tokenIdentifier", tokenIdentifier))
+    .withIndex("by_token", (q: any) => q.eq("tokenIdentifier", tokenIdentifier))
     .unique();
 }
 

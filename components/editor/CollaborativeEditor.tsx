@@ -163,7 +163,7 @@ export function CollaborativeEditor({
     <div className="h-full overflow-auto bg-background" data-mode={mode}>
       {/* Collaboration status bar - only show when needed (Google Docs style) */}
       {(showSyncStatus || collaborators.length > 0) && (
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background/95 px-4 py-2 backdrop-blur supports-backdrop-filter:bg-background/60">
           {showSyncStatus && (
             <div className="flex items-center gap-2">
               <div

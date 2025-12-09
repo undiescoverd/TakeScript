@@ -26,6 +26,8 @@ import {
   Presentation,
   StickyNote,
   ChevronDown,
+  UserCircle,
+  Plus,
 } from "lucide-react";
 import { getFeatureFlags } from "@/lib/feature-flags";
 import { useMutation } from "convex/react";
@@ -53,6 +55,17 @@ import {
   AnnotationColor,
 } from "@/lib/tiptap/annotation-mark";
 import { generateBlockId } from "@/lib/utils";
+import { useSpeakerStore } from "@/store/speaker-store";
+import { AddSpeakerDialog } from "./AddSpeakerDialog";
+import { SpeakerPill } from "./SpeakerPill";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { Eye, EyeOff } from "lucide-react";
 
 interface SelectionToolbarProps {
   editor: Editor;
@@ -85,15 +98,20 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
     text: string;
   } | null>(null);
   const isSelectingRef = useRef(false);
+  const [isAddSpeakerOpen, setIsAddSpeakerOpen] = useState(false);
+  const [isSpeakerMenuOpen, setIsSpeakerMenuOpen] = useState(false);
+  const [tempSpeakerId, setTempSpeakerId] = useState<string | null>(null);
+  const [faceVisible, setFaceVisible] = useState(true);
 
   const flags = getFeatureFlags();
   const createAnnotation = useMutation(api.annotations.create);
   const { setAnnotationsOpen } = useEditorStore();
+  const speakers = useSpeakerStore((state) => state.speakers);
 
   useEffect(() => {
     const updateToolbar = () => {
-      // Don't update if annotation popover is open or user is actively selecting
-      if (isAnnotationOpen || isSelectingRef.current) return;
+      // Don't update if annotation popover is open, speaker menu is open, or user is actively selecting
+      if (isAnnotationOpen || isSpeakerMenuOpen || isSelectingRef.current) return;
 
       const { selection } = editor.state;
       const { from, to } = selection;
@@ -168,7 +186,7 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
       document.removeEventListener("mousedown", handleMouseDown);
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [editor, isAnnotationOpen]);
+  }, [editor, isAnnotationOpen, isSpeakerMenuOpen]);
 
   // Reset annotation state when popover closes
   useEffect(() => {
@@ -349,6 +367,56 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
       .run();
   };
 
+  const handleSpeakerClick = (speakerId: string) => {
+    // Store the speaker ID and open the visibility dialog
+    setTempSpeakerId(speakerId);
+    setFaceVisible(true); // Default to visible
+    setIsSpeakerMenuOpen(false); // Close dropdown
+    // Dialog will be shown via state
+  };
+
+  const handleApplySpeaker = () => {
+    if (!tempSpeakerId) return;
+
+    // Get current selection directly from editor state
+    // This ensures we use the actual current selection, not stale stored state
+    const { from, to } = editor.state.selection;
+
+    if (from === to) {
+      toast.error("Please select some text first");
+      return;
+    }
+
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({ from, to })
+      .setSpeaker(tempSpeakerId, faceVisible)
+      .run();
+
+    setIsVisible(false);
+    setSelectionData(null);
+    setTempSpeakerId(null);
+    setFaceVisible(true);
+    toast.success("Speaker assigned");
+  };
+
+  const handleCancelSpeaker = () => {
+    setTempSpeakerId(null);
+    setFaceVisible(true);
+  };
+
+  const handleRemoveSpeaker = () => {
+    editor.chain().focus().unsetSpeaker().run();
+    setIsVisible(false);
+    setSelectionData(null);
+    toast.success("Speaker removed");
+  };
+
+  const handleSpeakerCreated = (speakerId: string) => {
+    handleSpeakerClick(speakerId);
+  };
+
   if (!isVisible) return null;
 
   const hasAnnotation = editor.isActive("annotation");
@@ -494,6 +562,72 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
 
       <div className="mx-1 h-6 w-px bg-border" />
 
+      {/* Speaker Assignment */}
+      <DropdownMenu open={isSpeakerMenuOpen} onOpenChange={setIsSpeakerMenuOpen}>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className="rounded px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent flex items-center gap-1"
+            title="Assign speaker"
+          >
+            <UserCircle className="h-4 w-4" />
+            Speaker
+            <ChevronDown className="h-3 w-3" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-56">
+          <DropdownMenuLabel>Assign Speaker</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {speakers.length > 0 ? (
+            speakers.map((speaker) => (
+              <DropdownMenuItem
+                key={speaker.id}
+                onClick={() => handleSpeakerClick(speaker.id)}
+                className="flex items-center gap-2"
+              >
+                <div
+                  className="h-3 w-3 rounded-full"
+                  style={{ backgroundColor: speaker.color }}
+                />
+                <span>{speaker.name}</span>
+              </DropdownMenuItem>
+            ))
+          ) : (
+            <div className="px-2 py-1.5 text-xs text-muted-foreground">
+              No speakers yet
+            </div>
+          )}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => {
+              setIsSpeakerMenuOpen(false);
+              setIsAddSpeakerOpen(true);
+            }}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Create New Speaker</span>
+          </DropdownMenuItem>
+          {editor.isActive("speaker") && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  setIsSpeakerMenuOpen(false);
+                  handleRemoveSpeaker();
+                }}
+                className="flex items-center gap-2 text-destructive"
+              >
+                <X className="h-4 w-4" />
+                <span>Remove Speaker</span>
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <div className="mx-1 h-6 w-px bg-border" />
+
       {/* Annotation */}
       {hasAnnotation ? (
         <button
@@ -607,6 +741,82 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
           />
         </>
       )}
+
+      {/* Add Speaker Dialog */}
+      <AddSpeakerDialog
+        open={isAddSpeakerOpen}
+        onOpenChange={setIsAddSpeakerOpen}
+        onSpeakerCreated={handleSpeakerCreated}
+      />
+
+      {/* Speaker Visibility Dialog */}
+      <Dialog open={tempSpeakerId !== null} onOpenChange={(open) => !open && handleCancelSpeaker()}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Speaker Settings</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {tempSpeakerId && (
+              <>
+                {/* Speaker Preview */}
+                <div className="space-y-2">
+                  <div className="text-xs text-muted-foreground">Speaker</div>
+                  <div
+                    className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium text-white"
+                    style={{ backgroundColor: speakers.find(s => s.id === tempSpeakerId)?.color }}
+                  >
+                    {faceVisible ? (
+                      <Eye className="h-3 w-3" />
+                    ) : (
+                      <EyeOff className="h-3 w-3" />
+                    )}
+                    <span>{speakers.find(s => s.id === tempSpeakerId)?.name}</span>
+                  </div>
+                </div>
+
+                {/* Face Visibility Toggle */}
+                <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/30">
+                  <div className="flex items-center gap-3">
+                    <div className={`rounded-full p-1.5 ${faceVisible ? 'bg-primary/10' : 'bg-muted'}`}>
+                      {faceVisible ? (
+                        <Eye className="h-3.5 w-3.5 text-primary" />
+                      ) : (
+                        <EyeOff className="h-3.5 w-3.5 text-muted-foreground" />
+                      )}
+                    </div>
+                    <div>
+                      <label htmlFor="face-visible" className="cursor-pointer font-medium text-sm">
+                        Face Visible
+                      </label>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {faceVisible ? 'On camera' : 'Voiceover'}
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    id="face-visible"
+                    checked={faceVisible}
+                    onCheckedChange={setFaceVisible}
+                  />
+                </div>
+
+                {/* Apply Button */}
+                <div className="flex gap-2 justify-end">
+                  <Button
+                    variant="ghost"
+                    onClick={handleCancelSpeaker}
+                  >
+                    Cancel
+                  </Button>
+                  <Button onClick={handleApplySpeaker}>
+                    Apply
+                  </Button>
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -311,6 +311,7 @@ export const create = mutation({
       targetType: args.targetType,
       category: args.category,
       status: "draft",
+      speakers: [], // Initialize with empty speakers array
       lastEditedAt: now,
       createdAt: now,
     });
@@ -422,6 +423,16 @@ export const update = mutation({
   args: {
     scriptId: v.id("scripts"),
     content: v.string(),
+    speakers: v.optional(
+      v.array(
+        v.object({
+          id: v.string(),
+          name: v.string(),
+          color: v.string(),
+          faceVisible: v.boolean(),
+        })
+      )
+    ),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -448,6 +459,7 @@ export const update = mutation({
 
     await ctx.db.patch(args.scriptId, {
       content: args.content,
+      speakers: args.speakers,
       lastEditedAt: Date.now(),
     });
   },

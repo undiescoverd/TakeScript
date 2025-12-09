@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useConvexAuth, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 
@@ -11,22 +11,28 @@ import { api } from "@/convex/_generated/api";
 export function StoreUserEffect() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const storeUser = useMutation(api.users.store);
+  const hasStoredUser = useRef(false);
 
   useEffect(() => {
-    console.log("[StoreUserEffect] Auth state:", { isAuthenticated, isLoading });
-
-    // If user is authenticated with Clerk, ensure they exist in Convex
-    if (isAuthenticated && !isLoading) {
-      console.log("[StoreUserEffect] Attempting to store user...");
+    // Only run once per authentication session
+    if (isAuthenticated && !isLoading && !hasStoredUser.current) {
+      hasStoredUser.current = true;
       storeUser()
         .then(() => {
           console.log("[StoreUserEffect] User stored successfully");
         })
         .catch((error) => {
           console.error("[StoreUserEffect] Failed to store user in Convex:", error);
+          // Reset so it can retry on next auth change
+          hasStoredUser.current = false;
         });
+    }
+
+    // Reset when user signs out
+    if (!isAuthenticated && !isLoading) {
+      hasStoredUser.current = false;
     }
   }, [isAuthenticated, isLoading, storeUser]);
 
-  return null; // This component doesn't render anything
+  return null;
 }

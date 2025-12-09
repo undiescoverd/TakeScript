@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useEditorStore } from "@/store/editor-store";
+import { useSpeakerStore, Speaker } from "@/store/speaker-store";
 
 const AUTOSAVE_DELAY = 2000; // 2 seconds after typing stops (like Google Docs)
 const SAVE_INDICATOR_DELAY = 500; // Show "Saving..." after 500ms of continuous typing
@@ -12,6 +13,7 @@ const SAVE_INDICATOR_DELAY = 500; // Show "Saving..." after 500ms of continuous 
 export function useAutosave(scriptId: Id<"scripts">) {
   const updateScript = useMutation(api.scripts.update);
   const { setIsSaving, setLastSavedAt } = useEditorStore();
+  const { speakers } = useSpeakerStore();
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const savingIndicatorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pendingContentRef = useRef<string | null>(null);
@@ -30,7 +32,8 @@ export function useAutosave(scriptId: Id<"scripts">) {
       try {
         isSavingRef.current = true;
         setIsSaving(true);
-        await updateScript({ scriptId, content });
+        // Save both content and current speakers to Convex
+        await updateScript({ scriptId, content, speakers });
         lastSavedContentRef.current = content;
         setLastSavedAt(Date.now());
         // Notify that save completed
@@ -44,7 +47,7 @@ export function useAutosave(scriptId: Id<"scripts">) {
         setIsSaving(false);
       }
     },
-    [scriptId, updateScript, setIsSaving, setLastSavedAt]
+    [scriptId, updateScript, setIsSaving, setLastSavedAt, speakers]
   );
 
   // Keep save function in ref for event listeners

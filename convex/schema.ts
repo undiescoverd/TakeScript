@@ -55,6 +55,17 @@ export default defineSchema({
     status: v.optional(v.string()), // "draft" | "in-progress" | "complete" | "archived"
     organizationId: v.optional(v.id("organizations")), // Link to organization
     sharedWith: v.optional(v.array(v.id("users"))), // Specific users with access
+    // Speaker data (stored with script for collaboration and reliability)
+    speakers: v.optional(
+      v.array(
+        v.object({
+          id: v.string(),
+          name: v.string(),
+          color: v.string(),
+          faceVisible: v.boolean(),
+        })
+      )
+    ),
   })
     .index("by_user", ["userId"])
     .index("by_user_and_edited", ["userId", "lastEditedAt"])

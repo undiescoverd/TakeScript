@@ -83,7 +83,7 @@ export function TeamManagement() {
     setTimeout(() => setCopiedToken(null), 2000);
   };
 
-  const getRoleBadgeVariant = (role: string) => {
+  const getRoleBadgeVariant = (role: string | undefined) => {
     switch (role) {
       case "owner":
         return "default";
