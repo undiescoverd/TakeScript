@@ -537,3 +537,46 @@ export const remove = mutation({
     await ctx.db.delete(args.scriptId);
   },
 });
+
+// Update speakers for a script
+export const updateSpeakers = mutation({
+  args: {
+    scriptId: v.id("scripts"),
+    speakers: v.array(
+      v.object({
+        id: v.string(),
+        name: v.string(),
+        color: v.string(),
+        defaultVisibility: v.optional(v.string()),
+      })
+    ),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const script = await ctx.db.get(args.scriptId);
+    if (!script) {
+      throw new Error("Script not found");
+    }
+
+    // Verify ownership
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) =>
+        q.eq("tokenIdentifier", identity.tokenIdentifier)
+      )
+      .unique();
+
+    if (!user || script.userId !== user._id) {
+      throw new Error("Not authorized");
+    }
+
+    await ctx.db.patch(args.scriptId, {
+      speakers: args.speakers,
+      lastEditedAt: Date.now(),
+    });
+  },
+});

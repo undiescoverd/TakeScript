@@ -23,6 +23,10 @@ interface EditorState {
   setAnnotationsOpen: (open: boolean) => void;
   toggleAnnotations: () => void;
 
+  speakersOpen: boolean;
+  setSpeakersOpen: (open: boolean) => void;
+  toggleSpeakers: () => void;
+
   selectedAnnotationId: string | null;
   setSelectedAnnotationId: (id: string | null) => void;
 
@@ -64,6 +68,11 @@ export const useEditorStore = create<EditorState>((set) => ({
   setAnnotationsOpen: (annotationsOpen) => set({ annotationsOpen }),
   toggleAnnotations: () =>
     set((state) => ({ annotationsOpen: !state.annotationsOpen })),
+
+  speakersOpen: false,
+  setSpeakersOpen: (speakersOpen) => set({ speakersOpen }),
+  toggleSpeakers: () =>
+    set((state) => ({ speakersOpen: !state.speakersOpen })),
 
   selectedAnnotationId: null,
   setSelectedAnnotationId: (selectedAnnotationId) =>

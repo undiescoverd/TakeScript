@@ -532,6 +532,63 @@
   margin-left: -0.5rem;
 }
 
+/* ===== Speaker Attribution System ===== */
+
+/* Speaker mark span - invisible by default (data stored, not styled) */
+.ProseMirror span.speaker-mark {
+  /* Mark is invisible - paragraph decoration handles display */
+}
+
+/* Paragraph with speaker attribution - colored left border */
+.ProseMirror p[data-paragraph-speaker] {
+  position: relative;
+  border-left: 3px solid var(--speaker-color, #3b82f6);
+  padding-left: 1rem;
+  margin-top: 0.5rem;
+}
+
+/* First paragraph of speaker run - extra margin for label */
+.ProseMirror p[data-show-label="true"] {
+  margin-top: 2.5rem;
+}
+
+.ProseMirror p[data-show-label="true"]:first-child {
+  margin-top: 2rem;
+}
+
+/* CENTERED LABEL using ::before pseudo-element */
+.ProseMirror p[data-show-label="true"]::before {
+  content: attr(data-speaker-name) " - " attr(data-camera-mode);
+  position: absolute;
+  top: -1.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.65rem;
+  font-weight: 600;
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, sans-serif);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 14px;
+  border-radius: 4px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  /* Use speaker color for styling */
+  background: color-mix(in oklch, var(--speaker-color) 20%, transparent);
+  color: var(--speaker-color);
+}
+
+.ProseMirror p[data-show-label="true"]::before:hover {
+  opacity: 0.8;
+}
+
+/* Dark mode adjustments for speaker labels */
+.dark .ProseMirror p[data-show-label="true"]::before {
+  background: color-mix(in oklch, var(--speaker-color) 25%, transparent);
+}
+
+/* ===== End Speaker Attribution System ===== */
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .ProseMirror,

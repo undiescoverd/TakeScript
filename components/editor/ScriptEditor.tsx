@@ -4,9 +4,10 @@ import { useEditor, EditorContent, JSONContent, Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Highlight from "@tiptap/extension-highlight";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { useEditorStore } from "@/store/editor-store";
-import { customExtensions } from "@/lib/tiptap/extensions";
+import { useSpeakerStore, Speaker } from "@/store/speaker-store";
+import { customExtensions, SpeakerMark } from "@/lib/tiptap/extensions";
 import { SlashCommands } from "@/lib/tiptap/slash-commands";
 import { createSlashCommandsRender } from "@/lib/tiptap/suggestion-render";
 import { AnnotationMark } from "@/lib/tiptap/annotation-mark";
@@ -27,7 +28,16 @@ export function ScriptEditor({
   scriptId,
 }: ScriptEditorProps) {
   const { mode } = useEditorStore();
+  const { speakers } = useSpeakerStore();
   const isFirstRender = useRef(true);
+
+  // Create a stable reference to getSpeakers that the extension can use
+  const speakersRef = useRef<Speaker[]>(speakers);
+  useEffect(() => {
+    speakersRef.current = speakers;
+  }, [speakers]);
+
+  const getSpeakers = useMemo(() => () => speakersRef.current, []);
 
   const [editorError, setEditorError] = useState<Error | null>(null);
   const [isTimedOut, setIsTimedOut] = useState(false);
@@ -46,6 +56,9 @@ export function ScriptEditor({
       Highlight,
       ...customExtensions,
       AnnotationMark,
+      SpeakerMark.configure({
+        getSpeakers,
+      }),
       SlashCommands.configure({
         suggestion: {
           render: createSlashCommandsRender,
@@ -84,6 +97,14 @@ export function ScriptEditor({
 
     return () => clearTimeout(timeout);
   }, [editor, editorError]);
+
+  // Force decoration recalculation when speakers change
+  useEffect(() => {
+    if (editor && speakers.length > 0) {
+      // Trigger a transaction to force decoration update
+      editor.view.dispatch(editor.state.tr.setMeta("speakersUpdated", true));
+    }
+  }, [editor, speakers]);
 
   // Update editor content when initialContent changes (e.g., version restore)
   useEffect(() => {

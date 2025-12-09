@@ -22,6 +22,7 @@ import {
   MessageSquare,
   Highlighter,
   Users,
+  UserRoundPlus,
   Check,
   Sparkles,
   CheckCircle,
@@ -52,7 +53,7 @@ export function Topbar({ scriptId, title, content, onSaveNow, onOpenAIChat, onGr
   const [wasSaving, setWasSaving] = useState(false);
   const updateTitle = useMutation(api.scripts.updateTitle);
   const saveVersion = useMutation(api.versions.save);
-  const { isSaving, toggleVersionHistory, toggleComments, toggleAnnotations, lastSavedAt, collaborationEnabled, toggleCollaboration } = useEditorStore();
+  const { isSaving, toggleVersionHistory, toggleComments, toggleAnnotations, toggleSpeakers, speakersOpen, lastSavedAt, collaborationEnabled, toggleCollaboration } = useEditorStore();
   const templatesSaveEnabled = useFeatureFlag("templatesSaveEnabled");
 
   useEffect(() => {
@@ -216,6 +217,15 @@ export function Topbar({ scriptId, title, content, onSaveNow, onOpenAIChat, onGr
 
         <Button variant="ghost" size="icon" onClick={toggleAnnotations} title="Annotations">
           <Highlighter className="h-4 w-4" />
+        </Button>
+
+        <Button
+          variant={speakersOpen ? "default" : "ghost"}
+          size="icon"
+          onClick={toggleSpeakers}
+          title="Speakers"
+        >
+          <UserRoundPlus className="h-4 w-4" />
         </Button>
 
         {flags.aiChatEnabled && onOpenAIChat && (

@@ -227,9 +227,9 @@ export const slashCommandItems: SlashCommandItem[] = [
     },
   },
   {
-    name: "Demonstration",
-    description: "Add a demonstration section.",
-    icon: "Dm",
+    name: "Animation",
+    description: "Add an animation section.",
+    icon: "An",
     command: ({ editor, range, selection }) => {
       editor
         .chain()
@@ -238,7 +238,7 @@ export const slashCommandItems: SlashCommandItem[] = [
         .insertContent({
           type: "demonstration",
           attrs: { id: generateBlockId("demonstration") },
-          content: [{ type: "text", text: "Describe demonstration..." }],
+          content: [{ type: "paragraph", content: [{ type: "text", text: "Describe animation..." }] }],
         })
         .run();
     },
@@ -258,6 +258,48 @@ export const slashCommandItems: SlashCommandItem[] = [
           content: [{ type: "text", text: "Editor note..." }],
         })
         .run();
+    },
+  },
+  // Speaker commands
+  {
+    name: "Speaker",
+    description: "Open speaker menu to assign dialogue.",
+    icon: "Sp",
+    command: ({ editor, range }) => {
+      editor.chain().focus().deleteRange(range).run();
+      // Dispatch custom event to open speaker menu
+      window.dispatchEvent(
+        new CustomEvent("speaker:open-menu", {
+          detail: { editor },
+        })
+      );
+    },
+  },
+  {
+    name: "Remove Speaker",
+    description: "Remove speaker from selection.",
+    icon: "Rs",
+    command: ({ editor, range, selection }) => {
+      editor.chain().focus().deleteRange(range).run();
+      if (selection && !selection.isEmpty) {
+        editor
+          .chain()
+          .focus()
+          .setTextSelection({ from: selection.from, to: selection.to })
+          .unsetSpeaker()
+          .run();
+      } else {
+        // Remove from current paragraph if no selection
+        const { $from } = editor.state.selection;
+        const paragraphStart = $from.start();
+        const paragraphEnd = $from.end();
+        editor
+          .chain()
+          .focus()
+          .setTextSelection({ from: paragraphStart, to: paragraphEnd })
+          .unsetSpeaker()
+          .run();
+      }
     },
   },
 ];

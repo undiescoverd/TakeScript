@@ -5,6 +5,11 @@ import { ScreenRecordingNodeView } from "./ScreenRecordingNodeView";
 import { DemonstrationNodeView } from "./DemonstrationNodeView";
 import { EditorNoteNodeView } from "./EditorNoteNodeView";
 
+// Re-export SpeakerMark for use in components
+export { SpeakerMark } from "./speaker-mark";
+export type { Speaker, CameraMode } from "./speaker-mark";
+export { cameraModeLabels, defaultSpeakerColors } from "./speaker-mark";
+
 // Chapter Block Extension
 export const ChapterBlock = Node.create({
   name: "chapter",
@@ -135,11 +140,12 @@ export const ScreenRecordingBlock = Node.create({
   },
 });
 
-// Demonstration Block Extension
+// Demonstration/Animation Block Extension
+// Supports wrapping block content (lists, paragraphs, etc.) while preserving formatting
 export const DemonstrationBlock = Node.create({
   name: "demonstration",
   group: "block",
-  content: "inline*",
+  content: "block+",
   defining: true,
 
   addAttributes() {

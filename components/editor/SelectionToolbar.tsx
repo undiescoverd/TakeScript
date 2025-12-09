@@ -26,6 +26,7 @@ import {
   Presentation,
   StickyNote,
   ChevronDown,
+  User,
 } from "lucide-react";
 import { getFeatureFlags } from "@/lib/feature-flags";
 import { useMutation } from "convex/react";
@@ -53,6 +54,8 @@ import {
   AnnotationColor,
 } from "@/lib/tiptap/annotation-mark";
 import { generateBlockId } from "@/lib/utils";
+import { useSpeakerStore } from "@/store/speaker-store";
+import { CameraMode, cameraModeLabels } from "@/lib/tiptap/speaker-mark";
 
 interface SelectionToolbarProps {
   editor: Editor;
@@ -89,6 +92,8 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
   const flags = getFeatureFlags();
   const createAnnotation = useMutation(api.annotations.create);
   const { setAnnotationsOpen } = useEditorStore();
+  const { speakers } = useSpeakerStore();
+  const [speakerCameraMode, setSpeakerCameraMode] = useState<CameraMode>("full");
 
   useEffect(() => {
     const updateToolbar = () => {
@@ -313,19 +318,46 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
 
   const insertDemonstration = () => {
     const { from, to } = editor.state.selection;
-    const selectedText = editor.state.doc.textBetween(from, to);
+    const { state } = editor;
 
-    // Use selected text as content if available, otherwise default
-    const content = selectedText.trim() || "Describe demonstration...";
+    // Resolve positions to find block boundaries
+    const $from = state.doc.resolve(from);
+    const $to = state.doc.resolve(to);
+
+    // Find the range of complete blocks that are selected
+    const startBlock = $from.start($from.depth);
+    const endBlock = $to.end($to.depth);
+
+    // Get all nodes in the selection range
+    const selectedContent: any[] = [];
+    state.doc.nodesBetween(startBlock, endBlock, (node, pos, parent) => {
+      // Only collect top-level block nodes within the selection
+      if (parent === state.doc || (parent && parent.type.name === "doc")) {
+        if (pos >= startBlock && pos < endBlock) {
+          selectedContent.push(node.toJSON());
+        }
+        return false; // Don't descend into children
+      }
+      return true;
+    });
+
+    // If we have selected content, wrap it; otherwise create default content
+    const content = selectedContent.length > 0
+      ? selectedContent
+      : [{ type: "paragraph", content: [{ type: "text", text: "Describe animation..." }] }];
 
     editor
       .chain()
       .focus()
-      .deleteSelection()
+      .command(({ tr }) => {
+        // Delete the selected blocks
+        tr.delete(startBlock, endBlock);
+        return true;
+      })
       .insertContent({
         type: "demonstration",
         attrs: { id: generateBlockId("demonstration") },
-        content: [{ type: "text", text: content }],
+        content: content,
       })
       .run();
   };
@@ -348,6 +380,47 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
       })
       .run();
   };
+
+  const handleAssignSpeaker = useCallback((speakerId: string, cameraMode: CameraMode) => {
+    if (!selectionData) {
+      toast.error("Please select some text first");
+      return;
+    }
+
+    const { from, to } = selectionData;
+
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({ from, to })
+      .setSpeaker({ speakerId, cameraMode })
+      .run();
+
+    const speaker = speakers.find(s => s.id === speakerId);
+    toast.success(`Assigned to ${speaker?.name || "speaker"}`);
+    setIsVisible(false);
+    setSelectionData(null);
+  }, [editor, selectionData, speakers]);
+
+  const handleRemoveSpeaker = useCallback(() => {
+    if (!selectionData) {
+      toast.error("Please select some text first");
+      return;
+    }
+
+    const { from, to } = selectionData;
+
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({ from, to })
+      .unsetSpeaker()
+      .run();
+
+    toast.success("Removed speaker attribution");
+    setIsVisible(false);
+    setSelectionData(null);
+  }, [editor, selectionData]);
 
   if (!isVisible) return null;
 
@@ -483,7 +556,7 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
       />
       <ToolbarButton
         icon={<Presentation className="h-4 w-4" />}
-        tooltip="Demonstration"
+        tooltip="Animation"
         onClick={insertDemonstration}
       />
       <ToolbarButton
@@ -491,6 +564,92 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
         tooltip="Editor Note"
         onClick={insertEditorNote}
       />
+
+      <div className="mx-1 h-6 w-px bg-border" />
+
+      {/* Speaker Assignment */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            className={`rounded p-1.5 transition-colors hover:bg-accent flex items-center gap-0.5 ${
+              editor.isActive("speaker") ? "bg-accent text-accent-foreground" : "text-muted-foreground"
+            }`}
+            title="Assign Speaker"
+          >
+            <User className="h-4 w-4" />
+            <ChevronDown className="h-3 w-3" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-72">
+          <DropdownMenuLabel>Assign Speaker</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+
+          {speakers.length === 0 ? (
+            <div className="px-2 py-2 text-sm text-muted-foreground text-center">
+              No speakers yet.
+              <br />
+              <span className="text-xs">Open Speaker Legend to add speakers.</span>
+            </div>
+          ) : (
+            <>
+              {speakers.map((speaker) => (
+                <DropdownMenuItem
+                  key={speaker.id}
+                  onClick={() => handleAssignSpeaker(speaker.id, speakerCameraMode)}
+                  className="flex items-center gap-2"
+                >
+                  <div
+                    className="h-3 w-3 rounded-full border"
+                    style={{ backgroundColor: speaker.color }}
+                  />
+                  <span>{speaker.name}</span>
+                </DropdownMenuItem>
+              ))}
+            </>
+          )}
+
+          <DropdownMenuSeparator />
+
+          {/* Camera Mode Selection */}
+          <div className="px-2 py-1.5">
+            <div className="text-xs text-muted-foreground mb-1">Camera View</div>
+            <div className="flex gap-1">
+              {(["full", "corner", "voiceover"] as CameraMode[]).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setSpeakerCameraMode(mode);
+                  }}
+                  className={`flex-1 px-2 py-1 text-xs rounded ${
+                    speakerCameraMode === mode
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted hover:bg-muted/80"
+                  }`}
+                >
+                  {cameraModeLabels[mode]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {editor.isActive("speaker") && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={handleRemoveSpeaker}
+                className="text-destructive focus:text-destructive"
+              >
+                <X className="mr-2 h-4 w-4" />
+                Remove Speaker
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <div className="mx-1 h-6 w-px bg-border" />
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useQuery, useAction } from "convex/react";
+import { useQuery, useAction, useMutation } from "convex/react";
 import { useCallback, useState, useEffect, useRef, useMemo } from "react";
 import { JSONContent, Editor } from "@tiptap/react";
 import { api } from "@/convex/_generated/api";
@@ -20,8 +20,10 @@ import { AIAssistantPanel } from "@/components/ai/AIAssistantPanel";
 import { GrammarCheckResults } from "@/components/ai/GrammarCheckResults";
 import { ScriptReviewPanel } from "@/components/ai/ScriptReviewPanel";
 import { AIGenerationDialog } from "@/components/ai/AIGenerationDialog";
+import { SpeakerLegend } from "@/components/editor/SpeakerLegend";
 import { getFeatureFlags } from "@/lib/feature-flags";
 import { toast } from "sonner";
+import { useSpeakerStore, Speaker } from "@/store/speaker-store";
 
 interface GrammarCheckResult {
   issues?: Array<{
@@ -55,7 +57,9 @@ export default function ScriptPage() {
   const scriptId = params.id as Id<"scripts">;
   const script = useQuery(api.scripts.get, { scriptId });
   const { scheduleAutosave, saveNow, setOnSaveComplete, getLastSavedContent, initializeLastSaved } = useAutosave(scriptId);
-  const { mode, commentsOpen, setCommentsOpen, annotationsOpen, setAnnotationsOpen, collaborationEnabled } = useEditorStore();
+  const { mode, commentsOpen, setCommentsOpen, annotationsOpen, setAnnotationsOpen, collaborationEnabled, speakersOpen, setSpeakersOpen } = useEditorStore();
+  const { speakers, setSpeakers } = useSpeakerStore();
+  const updateSpeakers = useMutation(api.scripts.updateSpeakers);
   const [editorRef, setEditorRef] = useState<Editor | null>(null);
   
   // Compute initial content from script using useMemo (no effect needed)
@@ -115,6 +119,29 @@ export default function ScriptPage() {
     });
     return () => setOnSaveComplete(null);
   }, [setOnSaveComplete]);
+
+  // Initialize speakers from script data
+  useEffect(() => {
+    if (script?.speakers && Array.isArray(script.speakers)) {
+      setSpeakers(script.speakers as Speaker[]);
+    }
+  }, [script?.speakers, setSpeakers]);
+
+  // Handle speakers change - save to Convex
+  const handleSpeakersChange = useCallback(
+    async (newSpeakers: Speaker[]) => {
+      try {
+        await updateSpeakers({
+          scriptId,
+          speakers: newSpeakers,
+        });
+      } catch (error) {
+        console.error("Failed to save speakers:", error);
+        toast.error("Failed to save speakers");
+      }
+    },
+    [updateSpeakers, scriptId]
+  );
 
   // Initialize localContent and autosave when script first loads
   useEffect(() => {
@@ -448,6 +475,14 @@ export default function ScriptPage() {
           isOpen={annotationsOpen}
           onClose={() => setAnnotationsOpen(false)}
           editor={editorRef}
+        />
+
+        {/* Speaker Legend Panel */}
+        <SpeakerLegend
+          editor={editorRef}
+          isOpen={speakersOpen}
+          onClose={() => setSpeakersOpen(false)}
+          onSpeakersChange={handleSpeakersChange}
         />
 
         {/* AI Assistant Panel */}
