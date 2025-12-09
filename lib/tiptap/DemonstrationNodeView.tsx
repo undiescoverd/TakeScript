@@ -3,38 +3,8 @@
 import { NodeViewWrapper, NodeViewContent, NodeViewProps } from "@tiptap/react";
 import { Play, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { useSpeakerStore } from "@/store/speaker-store";
-import { useEffect, useRef } from "react";
 
 export function DemonstrationNodeView({ editor, getPos, node }: NodeViewProps) {
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const getSpeaker = useSpeakerStore((state) => state.getSpeaker);
-
-  // Apply speaker color to the demonstration block
-  useEffect(() => {
-    if (!wrapperRef.current) return;
-
-    // Find speaker mark in the node's content
-    let speakerId: string | null = null;
-    node.descendants((child) => {
-      const speakerMark = child.marks.find((m) => m.type.name === "speaker");
-      if (speakerMark?.attrs.speakerId) {
-        speakerId = speakerMark.attrs.speakerId;
-      }
-    });
-
-    // Set the CSS variable if a speaker is found
-    if (speakerId) {
-      const speaker = getSpeaker(speakerId);
-      if (speaker) {
-        wrapperRef.current.style.setProperty("--speaker-color", speaker.color);
-      }
-    } else {
-      // Clear the CSS variable if no speaker
-      wrapperRef.current.style.removeProperty("--speaker-color");
-    }
-  }, [node, getSpeaker]);
-
   const handleRemoveBlock = () => {
     const pos = getPos();
     if (typeof pos !== "number") return;
@@ -66,7 +36,7 @@ export function DemonstrationNodeView({ editor, getPos, node }: NodeViewProps) {
   };
 
   return (
-    <NodeViewWrapper className="demonstration-node-view" ref={wrapperRef}>
+    <NodeViewWrapper className="demonstration-node-view">
       <div className="group relative my-4 rounded-lg border-2 border-dashed border-orange-300 bg-orange-50 dark:border-orange-700 dark:bg-orange-950/30 p-4">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400">

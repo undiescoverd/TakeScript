@@ -8,7 +8,6 @@ import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useAutosave } from "@/hooks/use-autosave";
 import { useEditorStore } from "@/store/editor-store";
-import { useSpeakerStore } from "@/store/speaker-store";
 import { ScriptEditor } from "@/components/editor/ScriptEditor";
 import { CollaborativeEditor } from "@/components/editor/CollaborativeEditor";
 import { BeatBoard } from "@/components/editor/BeatBoard";
@@ -57,7 +56,6 @@ export default function ScriptPage() {
   const script = useQuery(api.scripts.get, { scriptId });
   const { scheduleAutosave, saveNow, setOnSaveComplete, getLastSavedContent, initializeLastSaved } = useAutosave(scriptId);
   const { mode, commentsOpen, setCommentsOpen, annotationsOpen, setAnnotationsOpen, collaborationEnabled } = useEditorStore();
-  const { setSpeakers, clearSpeakers } = useSpeakerStore();
   const [editorRef, setEditorRef] = useState<Editor | null>(null);
   
   // Compute initial content from script using useMemo (no effect needed)
@@ -143,26 +141,6 @@ export default function ScriptPage() {
     }
   }, [script, initialContent, initializeLastSaved]);
 
-  // Load speakers from Convex when script loads
-  useEffect(() => {
-    if (script !== undefined && script !== null) {
-      if (script.speakers && Array.isArray(script.speakers)) {
-        console.log(`[Script ${scriptId}] Loading ${script.speakers.length} speakers from Convex`);
-        setSpeakers(script.speakers);
-      } else {
-        console.log(`[Script ${scriptId}] No speakers in script, initializing empty array`);
-        setSpeakers([]);
-      }
-    }
-  }, [script, scriptId, setSpeakers]);
-
-  // Clear speakers when navigating away
-  useEffect(() => {
-    return () => {
-      console.log(`[Script ${scriptId}] Cleaning up - clearing speakers`);
-      clearSpeakers();
-    };
-  }, [scriptId, clearSpeakers]);
 
   // Update local content when script changes (e.g., version restore)
   // BUT only if it's different from what we last saved (to avoid feedback loop)

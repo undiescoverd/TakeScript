@@ -61,15 +61,36 @@ export const ChapterBlock = Node.create({
   addKeyboardShortcuts() {
     return {
       Enter: ({ editor }) => {
-        // Insert a new paragraph after the chapter block and move cursor there
-        const { $from } = editor.state.selection;
-        const endPos = $from.end($from.depth);
+        const { $from, empty } = editor.state.selection;
 
-        return editor
-          .chain()
-          .insertContentAt(endPos + 1, { type: "paragraph" })
-          .focus()
-          .run();
+        // Only handle when selection is collapsed (no text selected)
+        if (!empty) {
+          return false;
+        }
+
+        // Check if we're actually inside a chapter node
+        const chapterNode = $from.node($from.depth - 1);
+        if (chapterNode?.type.name !== "chapter") {
+          return false;
+        }
+
+        // Check if cursor is at the end of the chapter content
+        const isAtEnd = $from.parentOffset === $from.parent.content.size;
+
+        if (isAtEnd) {
+          // Find the position after the chapter block and insert paragraph there
+          const chapterPos = $from.before($from.depth - 1);
+          const chapterEndPos = chapterPos + chapterNode.nodeSize;
+
+          return editor
+            .chain()
+            .insertContentAt(chapterEndPos, { type: "paragraph" })
+            .focus()
+            .run();
+        }
+
+        // Allow normal Enter behavior (soft break or default) inside chapter content
+        return false;
       },
     };
   },

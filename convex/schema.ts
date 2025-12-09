@@ -62,7 +62,9 @@ export default defineSchema({
           id: v.string(),
           name: v.string(),
           color: v.string(),
-          faceVisible: v.boolean(),
+          // Migration: old data has faceVisible (boolean), new data has defaultVisibility (string)
+          faceVisible: v.optional(v.boolean()), // Deprecated - for migration only
+          defaultVisibility: v.optional(v.string()), // "oncamera" | "corner" | "voiceover"
         })
       )
     ),

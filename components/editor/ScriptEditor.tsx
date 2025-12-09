@@ -4,19 +4,14 @@ import { useEditor, EditorContent, JSONContent, Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Highlight from "@tiptap/extension-highlight";
-import Underline from "@tiptap/extension-underline";
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useEditorStore } from "@/store/editor-store";
 import { customExtensions } from "@/lib/tiptap/extensions";
 import { SlashCommands } from "@/lib/tiptap/slash-commands";
 import { createSlashCommandsRender } from "@/lib/tiptap/suggestion-render";
 import { AnnotationMark } from "@/lib/tiptap/annotation-mark";
-import { SpeakerMark, onSpeakerLabelClick, updateSpeakersInEditor } from "@/lib/tiptap/speaker-mark";
 import { SelectionToolbar } from "@/components/editor/SelectionToolbar";
-import { SpeakerEditDialog } from "@/components/editor/SpeakerEditDialog";
 import { Id } from "@/convex/_generated/dataModel";
-import { useSpeakerStore } from "@/store/speaker-store";
-import { toast } from "sonner";
 
 interface ScriptEditorProps {
   initialContent: JSONContent;
@@ -34,19 +29,6 @@ export function ScriptEditor({
   const { mode } = useEditorStore();
   const isFirstRender = useRef(true);
 
-  // Get speakers directly from store - no useShallow needed since we're doing our own comparison
-  const speakers = useSpeakerStore((state) => state.speakers);
-
-  // Track the last speakers we sent to the editor to prevent unnecessary updates
-  const lastSpeakersRef = useRef<string>("");
-
-  // Speaker edit dialog state
-  const [selectedSpeaker, setSelectedSpeaker] = useState<{
-    speakerId: string;
-    position: number;
-    faceVisible: boolean;
-  } | null>(null);
-
   const [editorError, setEditorError] = useState<Error | null>(null);
   const [isTimedOut, setIsTimedOut] = useState(false);
 
@@ -62,10 +44,8 @@ export function ScriptEditor({
         placeholder: "Type '/' for commands or select text for formatting...",
       }),
       Highlight,
-      Underline,
       ...customExtensions,
       AnnotationMark,
-      SpeakerMark,
       SlashCommands.configure({
         suggestion: {
           render: createSlashCommandsRender,
@@ -140,163 +120,6 @@ export function ScriptEditor({
     }
   }, [editor, onEditorReady]);
 
-  // Set up speaker label click handler (uses event delegation in ProseMirror plugin)
-  useEffect(() => {
-    if (!editor) return;
-
-    onSpeakerLabelClick((speakerId, position, faceVisible) => {
-      setSelectedSpeaker({ speakerId, position, faceVisible });
-    });
-
-    return () => {
-      onSpeakerLabelClick(null);
-    };
-  }, [editor]);
-
-  // SINGLE unified effect for syncing speakers to the editor plugin
-  // This replaces the previous two-effect approach that caused race conditions
-  useEffect(() => {
-    if (!editor || editor.isDestroyed) return;
-
-    // Serialize for comparison to prevent unnecessary updates
-    const speakersKey = JSON.stringify(
-      speakers.map(s => ({ id: s.id, name: s.name, color: s.color, faceVisible: s.faceVisible }))
-    );
-
-    // Skip if speakers haven't actually changed
-    if (speakersKey === lastSpeakersRef.current) {
-      return;
-    }
-
-    lastSpeakersRef.current = speakersKey;
-
-    // Update the editor plugin state directly with the speakers array
-    // This is atomic - the speakers are passed directly to decoration creation
-    updateSpeakersInEditor(editor, speakers);
-  }, [editor, speakers]);
-
-  // Set up callback to remove speaker marks when a speaker is deleted
-  useEffect(() => {
-    if (!editor) return;
-
-    const setOnSpeakerDeleted = useSpeakerStore.getState().setOnSpeakerDeleted;
-
-    setOnSpeakerDeleted((deletedSpeakerId: string) => {
-      const { doc, tr } = editor.state;
-      const speakerMarkType = editor.schema.marks.speaker;
-      let transaction = tr;
-
-      doc.descendants((node, pos) => {
-        if (node.isText && node.marks.length > 0) {
-          node.marks.forEach((mark) => {
-            if (mark.type === speakerMarkType && mark.attrs.speakerId === deletedSpeakerId) {
-              const from = pos;
-              const to = pos + node.nodeSize;
-              transaction = transaction.removeMark(from, to, speakerMarkType);
-            }
-          });
-        }
-      });
-
-      if (transaction.docChanged) {
-        editor.view.dispatch(transaction);
-      }
-    });
-
-    return () => {
-      useSpeakerStore.getState().setOnSpeakerDeleted(() => {});
-    };
-  }, [editor]);
-
-  // Helper function to get speaker mark at current selection
-  const getSpeakerAtSelection = useCallback((editor: Editor): string | null => {
-    const { from, to } = editor.state.selection;
-    const speakerMarkType = editor.schema.marks.speaker;
-    let speakerId: string | null = null;
-
-    editor.state.doc.nodesBetween(from, to, (node) => {
-      if (node.isText && node.marks.length > 0) {
-        const speakerMark = node.marks.find((m) => m.type === speakerMarkType);
-        if (speakerMark) {
-          speakerId = speakerMark.attrs.speakerId;
-          return false;
-        }
-      }
-    });
-
-    return speakerId;
-  }, []);
-
-  // Keyboard shortcuts for speaker assignment (Cmd+1-4) and removal (Cmd+`)
-  useEffect(() => {
-    if (!editor) return;
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const isCmdOrCtrl = event.metaKey || event.ctrlKey;
-
-      // Handle Cmd+` (backtick) - Remove speaker
-      if (isCmdOrCtrl && event.key === "`") {
-        event.preventDefault();
-
-        const { from, to } = editor.state.selection;
-        if (from === to) {
-          toast.error("Please select text first");
-          return;
-        }
-
-        const currentSpeakerId = getSpeakerAtSelection(editor);
-        if (!currentSpeakerId) {
-          toast.info("No speaker assigned to this selection");
-          return;
-        }
-
-        const speaker = speakers.find((s) => s.id === currentSpeakerId);
-        editor.chain().focus().setTextSelection({ from, to }).unsetSpeaker().run();
-        toast.success(`Removed ${speaker?.name || "speaker"}`);
-        return;
-      }
-
-      // Handle Cmd+1 through Cmd+4 - Toggle/Swap speaker
-      const number = parseInt(event.key);
-      if (isCmdOrCtrl && number >= 1 && number <= 4) {
-        event.preventDefault();
-
-        const { from, to } = editor.state.selection;
-        if (from === to) {
-          toast.error("Please select some text first");
-          return;
-        }
-
-        const speaker = speakers[number - 1];
-        if (!speaker) {
-          toast.error(`No speaker assigned to Cmd+${number}`);
-          return;
-        }
-
-        const currentSpeakerId = getSpeakerAtSelection(editor);
-
-        if (!currentSpeakerId) {
-          editor.chain().focus().setTextSelection({ from, to }).setSpeaker(speaker.id).run();
-          toast.success(`Assigned to ${speaker.name}`);
-        } else if (currentSpeakerId === speaker.id) {
-          editor.chain().focus().setTextSelection({ from, to }).unsetSpeaker().run();
-          toast.success(`Removed ${speaker.name}`);
-        } else {
-          const previousSpeaker = speakers.find((s) => s.id === currentSpeakerId);
-          editor.chain().focus().setTextSelection({ from, to }).setSpeaker(speaker.id).run();
-          toast.success(`Changed from ${previousSpeaker?.name || "Unknown"} to ${speaker.name}`);
-        }
-      }
-    };
-
-    const editorElement = editor.view.dom;
-    editorElement.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      editorElement.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [editor, speakers, getSpeakerAtSelection]);
-
   // Show error state if editor failed to initialize
   if (editorError) {
     return (
@@ -341,21 +164,6 @@ export function ScriptEditor({
     <div className="relative h-full overflow-auto bg-background" data-mode={mode}>
       <EditorContent editor={editor} />
       <SelectionToolbar editor={editor} scriptId={scriptId} />
-
-      {/* Speaker Edit Dialog */}
-      {selectedSpeaker && (
-        <SpeakerEditDialog
-          editor={editor}
-          speakerId={selectedSpeaker.speakerId}
-          position={selectedSpeaker.position}
-          open={!!selectedSpeaker}
-          onOpenChange={(open) => {
-            if (!open) {
-              setSelectedSpeaker(null);
-            }
-          }}
-        />
-      )}
     </div>
   );
 }
