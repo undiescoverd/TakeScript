@@ -472,10 +472,6 @@
   z-index: 10;
 }
 
-/* Add VO suffix for voiceover (face not visible) */
-.ProseMirror p.has-speaker.has-speaker-new[data-face-visible="false"]::before {
-  content: attr(data-speaker-name) " (VO)";
-}
 
 /* Hide paragraph speaker border when inside demonstration blocks - the block border shows instead */
 .demonstration-content p.has-speaker {

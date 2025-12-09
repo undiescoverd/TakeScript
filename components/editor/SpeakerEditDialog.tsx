@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Video, VideoOff } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +8,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { useSpeakerStore } from "@/store/speaker-store";
 import { Editor } from "@tiptap/react";
@@ -32,20 +30,15 @@ export function SpeakerEditDialog({
   const speakers = useSpeakerStore((state) => state.speakers);
   const getSpeaker = useSpeakerStore((state) => state.getSpeaker);
 
-  const currentSpeaker = getSpeaker(speakerId);
-
   const [selectedSpeakerId, setSelectedSpeakerId] = useState(speakerId);
-  const [faceVisible, setFaceVisible] = useState(currentSpeaker?.faceVisible ?? true);
 
   // Update state when speakerId changes
   useEffect(() => {
-    const speaker = getSpeaker(speakerId);
     setSelectedSpeakerId(speakerId);
-    setFaceVisible(speaker?.faceVisible ?? true);
-  }, [speakerId, getSpeaker]);
+  }, [speakerId]);
 
   const handleApply = () => {
-    updateParagraphSpeaker(editor, position, selectedSpeakerId, faceVisible);
+    updateParagraphSpeaker(editor, position, selectedSpeakerId);
     onOpenChange(false);
   };
 
@@ -65,13 +58,7 @@ export function SpeakerEditDialog({
             <select
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               value={selectedSpeakerId}
-              onChange={(e) => {
-                setSelectedSpeakerId(e.target.value);
-                const speaker = getSpeaker(e.target.value);
-                if (speaker) {
-                  setFaceVisible(speaker.faceVisible);
-                }
-              }}
+              onChange={(e) => setSelectedSpeakerId(e.target.value)}
             >
               {speakers.map((speaker) => (
                 <option key={speaker.id} value={speaker.id}>
@@ -93,37 +80,8 @@ export function SpeakerEditDialog({
                 >
                   {selectedSpeaker.name}
                 </span>
-                {!faceVisible && (
-                  <span className="text-xs text-muted-foreground italic">(VO)</span>
-                )}
               </div>
             )}
-          </div>
-
-          {/* On Camera / Voiceover Toggle */}
-          <div className="flex items-center justify-between rounded-lg border p-3 bg-muted/30">
-            <div className="flex items-center gap-3">
-              <div className={`rounded-full p-1.5 ${faceVisible ? 'bg-primary/10' : 'bg-muted'}`}>
-                {faceVisible ? (
-                  <Video className="h-3.5 w-3.5 text-primary" />
-                ) : (
-                  <VideoOff className="h-3.5 w-3.5 text-muted-foreground" />
-                )}
-              </div>
-              <div>
-                <Label htmlFor="face-visible-edit" className="cursor-pointer font-medium text-sm">
-                  On Camera
-                </Label>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {faceVisible ? 'Speaker is visible' : 'Voiceover only'}
-                </p>
-              </div>
-            </div>
-            <Switch
-              id="face-visible-edit"
-              checked={faceVisible}
-              onCheckedChange={setFaceVisible}
-            />
           </div>
 
           {/* Apply Button */}
@@ -144,8 +102,7 @@ export function SpeakerEditDialog({
 function updateParagraphSpeaker(
   editor: Editor,
   position: number,
-  newSpeakerId: string,
-  faceVisible: boolean
+  newSpeakerId: string
 ) {
   try {
     const { doc } = editor.state;
@@ -186,7 +143,7 @@ function updateParagraphSpeaker(
       .focus()
       .setTextSelection({ from, to })
       .unsetMark("speaker")
-      .setMark("speaker", { speakerId: newSpeakerId, faceVisible })
+      .setMark("speaker", { speakerId: newSpeakerId })
       .run();
 
   } catch (error) {
