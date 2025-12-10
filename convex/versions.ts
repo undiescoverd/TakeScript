@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, action } from "./_generated/server";
+import { api } from "./_generated/api";
 
 export const save = mutation({
   args: {
@@ -99,7 +100,21 @@ export const list = query({
       .collect();
 
     // Sort by version number descending (newest first)
-    return versions.sort((a, b) => b.versionNumber - a.versionNumber);
+    // Return only metadata - content fetched separately via loadVersionContent action
+    return versions
+      .sort((a, b) => b.versionNumber - a.versionNumber)
+      .map(v => ({
+        _id: v._id,
+        _creationTime: v._creationTime,
+        scriptId: v.scriptId,
+        versionNumber: v.versionNumber,
+        changedBy: v.changedBy,
+        changeNote: v.changeNote,
+        createdAt: v.createdAt,
+        contentUrl: v.contentUrl,
+        contentSize: v.contentSize,
+        // Exclude content field to save bandwidth
+      }));
   },
 });
 
@@ -195,5 +210,32 @@ export const restore = mutation({
       content: version.content,
       lastEditedAt: Date.now(),
     });
+  },
+});
+
+// Action to load version content from R2 (called when user views a version)
+export const loadVersionContent = action({
+  args: { versionId: v.id("scriptVersions") },
+  handler: async (ctx, args) => {
+    const version = await ctx.runQuery(api.versions.get, { versionId: args.versionId });
+    if (!version) {
+      return null;
+    }
+
+    // If content is in R2, fetch it
+    if (version.contentUrl && (!version.content || version.content.length === 0)) {
+      try {
+        const r2Result = await ctx.runAction(api.r2.downloadContent, {
+          r2Url: version.contentUrl,
+        });
+        if (r2Result.success && r2Result.content) {
+          return { ...version, content: r2Result.content };
+        }
+      } catch (error) {
+        console.error("Failed to load version content from R2:", error);
+      }
+    }
+
+    return version;
   },
 });
