@@ -322,7 +322,19 @@ export const checkGrammarAndStyle = action({
       "Analyze the text for grammar, spelling, style, tone, and clarity issues."
     );
 
-    const prompt = `Analyze this text and provide structured feedback in JSON format:
+    const prompt = `You are a professional editor for tutorial scripts. Analyze this text thoroughly and provide detailed feedback in JSON format.
+
+Check for these specific issues:
+1. GRAMMAR: Subject-verb agreement, tense consistency, pronoun errors, sentence fragments, run-ons
+2. SPELLING: Misspellings, typos, commonly confused words (their/there/they're, your/you're, its/it's)
+3. STYLE: Passive voice, wordiness, weak verbs, jargon without explanation, overly complex sentences
+4. TONE: Inconsistent tone, too formal/informal, condescending language, unclear audience level
+5. CLARITY: Ambiguous pronouns, unclear antecedents, confusing sentence structure, missing transitions
+6. TUTORIAL-SPECIFIC: Missing step numbers, unclear instructions, assumptions about prior knowledge
+
+Be thorough and flag issues even if minor. Tutorial scripts need to be crystal clear.
+
+Return JSON in this exact format:
 {
   "issues": [
     {
@@ -338,10 +350,12 @@ export const checkGrammarAndStyle = action({
   "summary": "Brief overall assessment"
 }
 
-IMPORTANT:
-- Include the exact problematic text in "originalText" field
-- Keep originalText concise (15-50 characters)
-- If the same phrase appears multiple times in the text, include surrounding context
+CRITICAL REQUIREMENTS:
+- Include the EXACT problematic text in "originalText" field (verbatim from the input)
+- Keep originalText between 15-50 characters
+- If the same phrase appears multiple times, include surrounding context
+- Be thorough - flag all issues, even minor ones
+- For tutorial scripts, prioritize clarity and precision
 
 TEXT TO ANALYZE:
 ${textToCheck.slice(0, 8000)}`;
