@@ -1,38 +1,16 @@
 import { v } from "convex/values";
-import { mutation, query, action } from "./_generated/server";
-import { api } from "./_generated/api";
+import { mutation, query, action, internalMutation } from "./_generated/server";
+import { api, internal } from "./_generated/api";
 
-export const save = mutation({
+// Internal mutation for saving version (called by action after R2 fetch)
+export const saveInternal = internalMutation({
   args: {
     scriptId: v.id("scripts"),
+    userId: v.id("users"),
+    content: v.string(),
     changeNote: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) =>
-        q.eq("tokenIdentifier", identity.tokenIdentifier)
-      )
-      .unique();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    const script = await ctx.db.get(args.scriptId);
-    if (!script) {
-      throw new Error("Script not found");
-    }
-
-    if (script.userId !== user._id) {
-      throw new Error("Not authorized");
-    }
-
     // Get the latest version number
     const versions = await ctx.db
       .query("scriptVersions")
@@ -48,8 +26,8 @@ export const save = mutation({
     const versionId = await ctx.db.insert("scriptVersions", {
       scriptId: args.scriptId,
       versionNumber: latestVersion + 1,
-      content: script.content,
-      changedBy: user._id,
+      content: args.content,
+      changedBy: args.userId,
       changeNote: args.changeNote,
       createdAt: Date.now(),
     });
@@ -57,9 +35,8 @@ export const save = mutation({
     // Auto-cleanup: Keep only last 20 versions to save storage
     const MAX_VERSIONS = 20;
     if (versions.length >= MAX_VERSIONS) {
-      // Sort by version number and delete oldest ones
       const sortedVersions = versions.sort((a, b) => b.versionNumber - a.versionNumber);
-      const versionsToDelete = sortedVersions.slice(MAX_VERSIONS - 1); // Keep 19, new one makes 20
+      const versionsToDelete = sortedVersions.slice(MAX_VERSIONS - 1);
 
       for (const oldVersion of versionsToDelete) {
         await ctx.db.delete(oldVersion._id);
@@ -67,6 +44,50 @@ export const save = mutation({
     }
 
     return versionId;
+  },
+});
+
+// Public action that fetches content from R2 if needed, then saves version
+export const save = action({
+  args: {
+    scriptId: v.id("scripts"),
+    changeNote: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    // Fetch script with content from R2 if needed
+    const script = await ctx.runAction(api.scripts.loadWithContent, {
+      scriptId: args.scriptId,
+    });
+
+    if (!script) {
+      throw new Error("Script not found");
+    }
+
+    // Get user
+    const user = await ctx.runQuery(api.users.getByToken, {
+      tokenIdentifier: identity.tokenIdentifier,
+    });
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    if (script.userId !== user._id) {
+      throw new Error("Not authorized");
+    }
+
+    // Save version with fetched content
+    return await ctx.runMutation(internal.versions.saveInternal, {
+      scriptId: args.scriptId,
+      userId: user._id,
+      content: script.content || "",
+      changeNote: args.changeNote,
+    });
   },
 });
 
@@ -152,43 +173,20 @@ export const get = query({
   },
 });
 
-export const restore = mutation({
-  args: { versionId: v.id("scriptVersions") },
+// Internal mutation for restoring a version (called by action after R2 fetch)
+export const restoreInternal = internalMutation({
+  args: {
+    scriptId: v.id("scripts"),
+    userId: v.id("users"),
+    currentContent: v.string(),
+    versionContent: v.string(),
+    versionNumber: v.number(),
+  },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-
-    const user = await ctx.db
-      .query("users")
-      .withIndex("by_token", (q) =>
-        q.eq("tokenIdentifier", identity.tokenIdentifier)
-      )
-      .unique();
-
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    const version = await ctx.db.get(args.versionId);
-    if (!version) {
-      throw new Error("Version not found");
-    }
-
-    const script = await ctx.db.get(version.scriptId);
-    if (!script) {
-      throw new Error("Script not found");
-    }
-
-    if (script.userId !== user._id) {
-      throw new Error("Not authorized");
-    }
-
     // Save current state as a new version before restoring
     const versions = await ctx.db
       .query("scriptVersions")
-      .withIndex("by_script", (q) => q.eq("scriptId", script._id))
+      .withIndex("by_script", (q) => q.eq("scriptId", args.scriptId))
       .collect();
 
     const latestVersion = versions.reduce(
@@ -197,18 +195,69 @@ export const restore = mutation({
     );
 
     await ctx.db.insert("scriptVersions", {
-      scriptId: script._id,
+      scriptId: args.scriptId,
       versionNumber: latestVersion + 1,
-      content: script.content,
-      changedBy: user._id,
-      changeNote: `Auto-saved before restoring to v${version.versionNumber}`,
+      content: args.currentContent,
+      changedBy: args.userId,
+      changeNote: `Auto-saved before restoring to v${args.versionNumber}`,
       createdAt: Date.now(),
     });
 
     // Restore the old version
-    await ctx.db.patch(script._id, {
-      content: version.content,
+    await ctx.db.patch(args.scriptId, {
+      content: args.versionContent,
       lastEditedAt: Date.now(),
+    });
+  },
+});
+
+// Public action that fetches content from R2 if needed, then restores version
+export const restore = action({
+  args: { versionId: v.id("scriptVersions") },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    // Get user
+    const user = await ctx.runQuery(api.users.getByToken, {
+      tokenIdentifier: identity.tokenIdentifier,
+    });
+
+    if (!user) {
+      throw new Error("User not found");
+    }
+
+    // Get version with content from R2 if needed
+    const version = await ctx.runAction(api.versions.loadVersionContent, {
+      versionId: args.versionId,
+    });
+
+    if (!version) {
+      throw new Error("Version not found");
+    }
+
+    // Get current script with content from R2 if needed
+    const script = await ctx.runAction(api.scripts.loadWithContent, {
+      scriptId: version.scriptId,
+    });
+
+    if (!script) {
+      throw new Error("Script not found");
+    }
+
+    if (script.userId !== user._id) {
+      throw new Error("Not authorized");
+    }
+
+    // Restore with fetched content
+    await ctx.runMutation(internal.versions.restoreInternal, {
+      scriptId: version.scriptId,
+      userId: user._id,
+      currentContent: script.content || "",
+      versionContent: version.content || "",
+      versionNumber: version.versionNumber,
     });
   },
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation } from "convex/react";
+import { useQuery, useAction } from "convex/react";
 import { useState } from "react";
 import { JSONContent } from "@tiptap/react";
 import { api } from "@/convex/_generated/api";
@@ -26,7 +26,7 @@ export function VersionHistory({ scriptId }: VersionHistoryProps) {
   const { versionHistoryOpen, setVersionHistoryOpen } = useEditorStore();
   // Only subscribe to query when panel is open - saves bandwidth
   const versions = useQuery(api.versions.list, versionHistoryOpen ? { scriptId } : "skip");
-  const restoreVersion = useMutation(api.versions.restore);
+  const restoreVersion = useAction(api.versions.restore);
   const [viewingVersion, setViewingVersion] = useState<string | null>(null);
   const [viewingContent, setViewingContent] = useState<string>("");
 

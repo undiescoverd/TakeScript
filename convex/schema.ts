@@ -48,6 +48,7 @@ export default defineSchema({
     contentUrl: v.optional(v.string()), // R2 URL: r2://bucket/key
     contentSize: v.optional(v.number()), // Size in bytes for monitoring
     contentHash: v.optional(v.string()), // SHA-256 hash for cache validation
+    wordCount: v.optional(v.number()), // Cached word count for analytics (updated on save)
     lastEditedAt: v.number(),
     createdAt: v.number(),
     // New fields for Phase 2 (all optional for backward compatibility)

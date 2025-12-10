@@ -50,9 +50,10 @@ export const getUserStats = query({
       .withIndex("by_user", (q) => q.eq("userId", user._id))
       .collect();
 
-    // Calculate total word count across all scripts
+    // Use cached word count (falls back to calculation if not cached)
     const totalWordCount = scripts.reduce((acc, script) => {
-      const wordCount = calculateWordCount(script.content);
+      // Prefer cached wordCount, fallback to calculation for old scripts
+      const wordCount = script.wordCount ?? calculateWordCount(script.content);
       return acc + wordCount;
     }, 0);
 

@@ -2,6 +2,27 @@ import { v } from "convex/values";
 import { mutation, query, action, internalMutation } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 
+// Helper function to calculate word count from Tiptap JSON content
+function calculateWordCount(content: string): number {
+  try {
+    const doc = JSON.parse(content);
+    const text = extractTextFromNode(doc);
+    return text.split(/\s+/).filter(Boolean).length;
+  } catch {
+    return 0;
+  }
+}
+
+// Recursively extract text from Tiptap JSON nodes
+function extractTextFromNode(node: any): string {
+  if (!node) return "";
+  if (node.text) return node.text;
+  if (Array.isArray(node.content)) {
+    return node.content.map(extractTextFromNode).join(" ");
+  }
+  return "";
+}
+
 // Helper function to generate unique IDs for blocks
 function generateBlockId(blockType: string): string {
   const timestamp = Date.now();
@@ -494,8 +515,12 @@ export const update = mutation({
       throw new Error("Not authorized");
     }
 
+    // Calculate word count for caching (avoids expensive recalculation in analytics)
+    const wordCount = calculateWordCount(args.content);
+
     await ctx.db.patch(args.scriptId, {
       content: args.content,
+      wordCount,
       lastEditedAt: Date.now(),
     });
   },

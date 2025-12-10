@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation } from "convex/react";
+import { useMutation, useAction } from "convex/react";
 import { UserButton } from "@clerk/nextjs";
 import { JSONContent } from "@tiptap/react";
 import { api } from "@/convex/_generated/api";
@@ -54,7 +54,7 @@ export function Topbar({ scriptId, title, content, onSaveNow, onOpenAIChat, onGr
   const [showSavedMessage, setShowSavedMessage] = useState(false);
   const [wasSaving, setWasSaving] = useState(false);
   const updateTitle = useMutation(api.scripts.updateTitle);
-  const saveVersion = useMutation(api.versions.save);
+  const saveVersion = useAction(api.versions.save);
   const { isSaving, toggleVersionHistory, toggleComments, toggleAnnotations, toggleSpeakers, speakersOpen, lastSavedAt, collaborationEnabled, toggleCollaboration, viewMode, setViewMode } = useEditorStore();
   const templatesSaveEnabled = useFeatureFlag("templatesSaveEnabled");
 

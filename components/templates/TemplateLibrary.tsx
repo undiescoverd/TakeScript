@@ -19,9 +19,14 @@ import { TemplateLibraryCard } from "./TemplateLibraryCard";
 import { EditTemplateDialog } from "./EditTemplateDialog";
 import { toast } from "sonner";
 
-export function TemplateLibrary() {
+interface TemplateLibraryProps {
+  isActive?: boolean;
+}
+
+export function TemplateLibrary({ isActive = true }: TemplateLibraryProps) {
   const router = useRouter();
-  const templates = useQuery(api.templates.list);
+  // Only subscribe to query when tab is active - saves bandwidth
+  const templates = useQuery(api.templates.list, isActive ? {} : "skip");
   const createScript = useMutation(api.scripts.create);
 
   const [searchQuery, setSearchQuery] = useState("");

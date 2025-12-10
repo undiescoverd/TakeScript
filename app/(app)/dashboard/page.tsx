@@ -22,6 +22,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const createScript = useMutation(api.scripts.create);
   const [isCreatingBlank, setIsCreatingBlank] = useState(false);
+  const [activeTab, setActiveTab] = useState("scripts");
 
   const handleCreateBlankScript = async () => {
     setIsCreatingBlank(true);
@@ -92,7 +93,7 @@ export default function DashboardPage() {
         )}
 
         {templatesEnabled ? (
-          <Tabs defaultValue="scripts" className="space-y-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
             <TabsList>
               <TabsTrigger value="scripts" className="gap-2">
                 <FileText className="h-4 w-4" />
@@ -138,7 +139,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <TemplateLibrary />
+              <TemplateLibrary isActive={activeTab === "templates"} />
             </TabsContent>
           </Tabs>
         ) : (
