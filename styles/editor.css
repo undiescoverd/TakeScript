@@ -582,14 +582,13 @@
   margin-top: 3rem;
 }
 
-/* SPEAKER LABEL (LEFT OF CENTER) using ::before pseudo-element */
+/* SPEAKER LABEL (LEFT-ALIGNED) using ::before pseudo-element */
 .ProseMirror p[data-show-speaker-label="true"]::before {
   content: attr(data-speaker-name);
   position: absolute;
   top: -1.75rem;
-  /* Center-split: offset left by half of (border 3px + padding 1rem) to align with true page center */
-  left: calc(50% - 0.5rem - 1.5px);
-  transform: translateX(calc(-100% - 0.5rem));
+  /* Left-aligned with the text content (after the border + padding) */
+  left: 0;
   font-size: 0.65rem;
   font-weight: 600;
   font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, sans-serif);
@@ -605,14 +604,13 @@
   color: var(--speaker-color);
 }
 
-/* CAMERA LABEL (RIGHT OF CENTER) using ::after pseudo-element */
+/* CAMERA LABEL (NEXT TO SPEAKER) using ::after pseudo-element */
 .ProseMirror p[data-show-camera-label="true"]::after {
   content: attr(data-camera-mode);
   position: absolute;
   top: -1.75rem;
-  /* Center-split: offset left by half of (border 3px + padding 1rem) to align with true page center */
-  left: calc(50% - 0.5rem - 1.5px);
-  transform: translateX(0.5rem);
+  /* Position after the speaker label - use left auto and calculate based on speaker label */
+  left: var(--camera-label-left, 5rem);
   font-size: 0.65rem;
   font-weight: 600;
   font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, sans-serif);

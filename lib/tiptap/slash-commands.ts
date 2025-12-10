@@ -58,12 +58,11 @@ function wrapSelectionInBlock(
 
   // Collect all top-level blocks in the range
   const blocks: PMNode[] = [];
-  let currentPos = startBlockPos;
 
   doc.nodesBetween(startBlockPos, endBlockPos, (node, pos) => {
     const $pos = doc.resolve(pos);
-    // Only collect direct children of the document (depth 1)
-    if ($pos.depth === 1 && node.isBlock) {
+    // Only collect direct children of the document (depth 0 means position is at doc level)
+    if ($pos.depth === 0 && node.isBlock) {
       blocks.push(node);
       return false; // Don't descend into children
     }
@@ -299,7 +298,7 @@ export const slashCommandItems: SlashCommandItem[] = [
               title: selectedText || "New Chapter",
               id: generateBlockId("chapter"),
             },
-            content: [{ type: "paragraph", content: [{ type: "text", text: "" }] }],
+            content: [{ type: "paragraph" }],
           })
           .run();
       } else {
@@ -314,7 +313,7 @@ export const slashCommandItems: SlashCommandItem[] = [
               title: "New Chapter",
               id: generateBlockId("chapter"),
             },
-            content: [{ type: "paragraph", content: [{ type: "text", text: "" }] }],
+            content: [{ type: "paragraph" }],
           })
           .run();
       }

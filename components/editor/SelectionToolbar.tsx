@@ -329,7 +329,7 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
           title: selectedText || "New Chapter",
           id: generateBlockId("chapter"),
         },
-        content: [{ type: "paragraph", content: [{ type: "text", text: "" }] }],
+        content: [{ type: "paragraph" }],
       })
       .run();
   };

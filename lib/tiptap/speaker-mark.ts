@@ -125,12 +125,14 @@ function buildDecorations(
 
   doc.descendants((node, pos) => {
     // Track when we see a block type and where it ends
+    // We still descend into blocks to decorate their inner paragraphs
     if (BLOCK_TYPES.has(node.type.name)) {
       lastBlockEndPos = pos + node.nodeSize;
-      // Reset speaker tracking after a block
+      // Reset speaker tracking when entering a block (each block is its own context)
       prevSpeakerId = null;
       prevCameraMode = null;
-      return false; // Don't descend into blocks - their content has its own context
+      // Continue descending to process paragraphs inside the block
+      return true;
     }
 
     if (node.type.name === "paragraph") {
@@ -150,10 +152,16 @@ function buildDecorations(
         // Show both labels when EITHER changes OR when following a block
         const showLabels = speakerChanged || cameraChanged || isDirectlyAfterBlock;
 
+        const speakerName = speaker?.name.toUpperCase() || "UNKNOWN";
+        // Calculate camera label left position based on speaker name length
+        // Each character is approximately 0.45rem in uppercase with letter-spacing
+        // Plus padding (14px * 2 = 28px = ~1.75rem) and gap (~0.5rem)
+        const speakerLabelWidth = speakerName.length * 0.45 + 1.75 + 0.5;
+
         const attrs: Record<string, string> = {
           "data-paragraph-speaker": speakerId,
-          "data-speaker-name": speaker?.name.toUpperCase() || "UNKNOWN",
-          style: `--speaker-color: ${speaker?.color || "#3b82f6"}`,
+          "data-speaker-name": speakerName,
+          style: `--speaker-color: ${speaker?.color || "#3b82f6"}; --camera-label-left: ${speakerLabelWidth}rem`,
         };
 
         // Show speaker label when needed
@@ -169,7 +177,7 @@ function buildDecorations(
         // Only add camera attributes if camera mode is assigned
         if (cameraMode !== null) {
           attrs["data-camera-mode"] = cameraModeLabels[cameraMode];
-          // Append camera color CSS variable to existing style
+          // Append camera color CSS variable to existing style (camera-label-left already set above)
           attrs.style = `${attrs.style}; --camera-color: ${cameraModeColors[cameraMode]}`;
           // Show camera label when needed (and camera is assigned)
           if (showLabels) {
