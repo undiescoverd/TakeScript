@@ -20,6 +20,25 @@ import { useEditorStore } from "@/store/editor-store";
 import { annotationColors, AnnotationColor } from "@/lib/tiptap/annotation-mark";
 import { Editor } from "@tiptap/react";
 
+interface Annotation {
+  _id: Id<"annotations">;
+  scriptId: Id<"scripts">;
+  userId: Id<"users">;
+  content: string;
+  selectedText: string;
+  from: number;
+  to: number;
+  color: string;
+  resolved: boolean;
+  createdAt: number;
+  updatedAt: number;
+  user: {
+    name: string;
+    avatar?: string;
+    email: string;
+  } | null;
+}
+
 interface AnnotationsPanelProps {
   scriptId: Id<"scripts">;
   isOpen: boolean;
@@ -278,8 +297,8 @@ export function AnnotationsPanel({
   if (!isOpen) return null;
 
   const unresolvedAnnotations =
-    annotations?.filter((a) => !a.resolved) || [];
-  const resolvedAnnotations = annotations?.filter((a) => a.resolved) || [];
+    annotations?.filter((a: Annotation) => !a.resolved) || [];
+  const resolvedAnnotations = annotations?.filter((a: Annotation) => a.resolved) || [];
 
   return (
     <div className="flex w-80 flex-col border-l bg-card">
@@ -326,7 +345,7 @@ export function AnnotationsPanel({
         ) : (
           <div className="space-y-3">
             {/* Unresolved Annotations */}
-            {unresolvedAnnotations.map((annotation) => (
+            {unresolvedAnnotations.map((annotation: Annotation) => (
               <AnnotationCard
                 key={annotation._id}
                 annotation={annotation}
@@ -369,7 +388,7 @@ export function AnnotationsPanel({
 
                 {showResolved && (
                   <div className="mt-2 space-y-3">
-                    {resolvedAnnotations.map((annotation) => (
+                    {resolvedAnnotations.map((annotation: Annotation) => (
                       <AnnotationCard
                         key={annotation._id}
                         annotation={annotation}

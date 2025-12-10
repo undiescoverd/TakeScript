@@ -10,6 +10,40 @@ import { action, internalMutation, internalQuery } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 
+// Return types for migration actions
+type MigrateResult = {
+  success: boolean;
+  url?: string;
+  size?: number;
+  error?: string;
+};
+
+type MigrateAllResult = {
+  success: boolean;
+  message: string;
+  migrated: number;
+  failed: number;
+  errors?: Array<{ scriptId: string; title: string; error: string }>;
+};
+
+type ClearResult = {
+  success: boolean;
+  message: string;
+  cleared: number;
+  failed: number;
+};
+
+type MigrationStatusResult = {
+  needsMigration: number;
+  migratedButNotCleared: number;
+  convexStorageUsed: number;
+  potentialSavings: number;
+  scripts: {
+    toMigrate: Array<{ id: string; title: string; size: number }>;
+    migrated: Array<{ id: string; title: string; size: number }>;
+  };
+};
+
 // Get all scripts that need migration (have content but no contentUrl)
 export const getScriptsToMigrate = internalQuery({
   args: {},
@@ -74,7 +108,7 @@ export const clearMigratedContent = internalMutation({
 // Migrate a single script to R2
 export const migrateScript = action({
   args: { scriptId: v.id("scripts") },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<MigrateResult> => {
     // Get script content
     const script = await ctx.runQuery(internal.migration.getScriptContent, {
       scriptId: args.scriptId,
@@ -112,7 +146,7 @@ export const migrateScript = action({
 // Migrate all scripts to R2 (main migration function)
 export const migrateAllScripts = action({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<MigrateAllResult> => {
     console.log("Starting R2 migration...");
 
     // Get all scripts needing migration
@@ -179,7 +213,7 @@ export const migrateAllScripts = action({
 // Clear all migrated content (run after verifying migration worked)
 export const clearAllMigratedContent = action({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<ClearResult> => {
     console.log("Clearing migrated content from Convex...");
 
     // Get all scripts that have been migrated (have contentUrl)
@@ -231,7 +265,7 @@ export const getMigratedScripts = internalQuery({
 // Get migration status
 export const getMigrationStatus = action({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<MigrationStatusResult> => {
     const toMigrate = await ctx.runQuery(internal.migration.getScriptsToMigrate, {});
     const migrated = await ctx.runQuery(internal.migration.getMigratedScripts, {});
 
@@ -299,7 +333,7 @@ export const updateVersionWithR2 = internalMutation({
 
 export const migrateVersion = action({
   args: { versionId: v.id("scriptVersions") },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<MigrateResult> => {
     const version = await ctx.runQuery(internal.migration.getVersionContent, {
       versionId: args.versionId,
     });
@@ -330,7 +364,7 @@ export const migrateVersion = action({
 
 export const migrateAllVersions = action({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<MigrateAllResult> => {
     console.log("Starting versions migration...");
 
     const versions = await ctx.runQuery(internal.migration.getVersionsToMigrate, {});
@@ -399,7 +433,7 @@ export const clearVersionContent = internalMutation({
 // Clear all migrated version content
 export const clearAllMigratedVersions = action({
   args: {},
-  handler: async (ctx) => {
+  handler: async (ctx): Promise<ClearResult> => {
     console.log("Clearing migrated version content from Convex...");
 
     const versions = await ctx.runQuery(internal.migration.getMigratedVersions, {});

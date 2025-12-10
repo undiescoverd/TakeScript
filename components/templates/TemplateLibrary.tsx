@@ -19,6 +19,18 @@ import { TemplateLibraryCard } from "./TemplateLibraryCard";
 import { EditTemplateDialog } from "./EditTemplateDialog";
 import { toast } from "sonner";
 
+interface Template {
+  _id: Id<"templates">;
+  name: string;
+  description?: string;
+  content: string;
+  userId?: Id<"users">;
+  category?: string;
+  isSystem: boolean;
+  createdAt: number;
+  lastUsedAt?: number;
+}
+
 interface TemplateLibraryProps {
   isActive?: boolean;
 }
@@ -37,7 +49,7 @@ export function TemplateLibrary({ isActive = true }: TemplateLibraryProps) {
   const categories = useMemo(() => {
     if (!templates) return [];
     const uniqueCategories = new Set<string>();
-    templates.forEach((template) => {
+    templates.forEach((template: Template) => {
       if (template.category) {
         uniqueCategories.add(template.category);
       }
@@ -49,7 +61,7 @@ export function TemplateLibrary({ isActive = true }: TemplateLibraryProps) {
   const filteredTemplates = useMemo(() => {
     if (!templates) return [];
 
-    return templates.filter((template) => {
+    return templates.filter((template: Template) => {
       const matchesSearch =
         searchQuery.trim() === "" ||
         template.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -66,12 +78,12 @@ export function TemplateLibrary({ isActive = true }: TemplateLibraryProps) {
 
   // Separate user and system templates
   const userTemplates = useMemo(
-    () => filteredTemplates.filter((t) => !t.isSystem),
+    () => filteredTemplates.filter((t: Template) => !t.isSystem),
     [filteredTemplates]
   );
 
   const systemTemplates = useMemo(
-    () => filteredTemplates.filter((t) => t.isSystem),
+    () => filteredTemplates.filter((t: Template) => t.isSystem),
     [filteredTemplates]
   );
 
@@ -141,7 +153,7 @@ export function TemplateLibrary({ isActive = true }: TemplateLibraryProps) {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {userTemplates.map((template) => (
+            {userTemplates.map((template: Template) => (
               <TemplateLibraryCard
                 key={template._id}
                 templateId={template._id}
@@ -172,7 +184,7 @@ export function TemplateLibrary({ isActive = true }: TemplateLibraryProps) {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {systemTemplates.map((template) => (
+            {systemTemplates.map((template: Template) => (
               <TemplateLibraryCard
                 key={template._id}
                 templateId={template._id}

@@ -1,6 +1,22 @@
 import { v } from "convex/values";
 import { mutation, query, action, internalMutation } from "./_generated/server";
 import { api, internal } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
+
+// Return types for actions
+type SaveResult = Id<"scriptVersions">;
+type VersionWithContent = {
+  _id: Id<"scriptVersions">;
+  _creationTime: number;
+  scriptId: Id<"scripts">;
+  versionNumber: number;
+  content: string;
+  contentUrl?: string;
+  contentSize?: number;
+  changedBy: Id<"users">;
+  changeNote?: string;
+  createdAt: number;
+} | null;
 
 // Internal mutation for saving version (called by action after R2 fetch)
 export const saveInternal = internalMutation({
@@ -53,7 +69,7 @@ export const save = action({
     scriptId: v.id("scripts"),
     changeNote: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<SaveResult> => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
@@ -214,7 +230,7 @@ export const restoreInternal = internalMutation({
 // Public action that fetches content from R2 if needed, then restores version
 export const restore = action({
   args: { versionId: v.id("scriptVersions") },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<void> => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
@@ -265,7 +281,7 @@ export const restore = action({
 // Action to load version content from R2 (called when user views a version)
 export const loadVersionContent = action({
   args: { versionId: v.id("scriptVersions") },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<VersionWithContent> => {
     const version = await ctx.runQuery(api.versions.get, { versionId: args.versionId });
     if (!version) {
       return null;

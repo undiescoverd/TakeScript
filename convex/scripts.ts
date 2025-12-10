@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query, action, internalMutation } from "./_generated/server";
 import { api, internal } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
 
 // Helper function to calculate word count from Tiptap JSON content
 function calculateWordCount(content: string): number {
@@ -440,10 +441,31 @@ export const get = query({
   },
 });
 
+// Return type for loadWithContent action
+type ScriptWithContent = {
+  _id: Id<"scripts">;
+  _creationTime: number;
+  title: string;
+  userId: Id<"users">;
+  content: string;
+  contentUrl?: string;
+  contentSize?: number;
+  contentHash?: string;
+  wordCount?: number;
+  lastEditedAt: number;
+  createdAt: number;
+  templateType?: string;
+  targetLength?: number;
+  targetType?: string;
+  category?: string;
+  status?: string;
+  organizationId?: Id<"organizations">;
+} | null;
+
 // Action to load script with content from R2
 export const loadWithContent = action({
   args: { scriptId: v.id("scripts") },
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<ScriptWithContent> => {
     const script = await ctx.runQuery(api.scripts.get, { scriptId: args.scriptId });
     if (!script) {
       return null;

@@ -10,6 +10,21 @@ import { MessageSquare, X, Check, Trash2, Send } from "lucide-react";
 import { formatDistanceToNow } from "@/lib/utils";
 import { toast } from "sonner";
 
+interface Comment {
+  _id: Id<"comments">;
+  scriptId: Id<"scripts">;
+  userId: Id<"users">;
+  content: string;
+  position: string;
+  resolved: boolean;
+  createdAt: number;
+  user: {
+    name: string;
+    avatar?: string;
+    email: string;
+  } | null;
+}
+
 interface CommentsPanelProps {
   scriptId: Id<"scripts">;
   isOpen: boolean;
@@ -122,7 +137,7 @@ export function CommentsPanel({
           </div>
         ) : (
           <div className="space-y-3">
-            {comments.map((comment) => (
+            {comments.map((comment: Comment) => (
               <div
                 key={comment._id}
                 className={`rounded-lg border p-3 ${

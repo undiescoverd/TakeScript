@@ -2,6 +2,7 @@
 
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { Doc } from "@/convex/_generated/dataModel";
 import { ScriptCard } from "./ScriptCard";
 import { FileText } from "lucide-react";
 
@@ -37,7 +38,7 @@ export function ScriptGrid() {
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {scripts.map((script) => (
+      {scripts.map((script: Doc<"scripts">) => (
         <ScriptCard key={script._id} script={script} />
       ))}
     </div>

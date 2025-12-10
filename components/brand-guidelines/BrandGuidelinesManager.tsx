@@ -11,6 +11,19 @@ import { UploadGuidelinesDialog } from "./UploadGuidelinesDialog";
 import { toast } from "sonner";
 import type { Id } from "@/convex/_generated/dataModel";
 
+interface BrandGuideline {
+  _id: Id<"brandGuidelines">;
+  organizationId: Id<"organizations">;
+  name: string;
+  content: string;
+  fileUrl?: string;
+  fileType: string;
+  uploadedBy: Id<"users">;
+  isActive: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export function BrandGuidelinesManager() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<Id<"brandGuidelines"> | null>(null);
@@ -71,7 +84,7 @@ export function BrandGuidelinesManager() {
         </Card>
       ) : (
         <div className="space-y-4">
-          {guidelines.map((guideline) => (
+          {guidelines.map((guideline: BrandGuideline) => (
             <Card key={guideline._id} className="p-4">
               <div className="flex items-start justify-between">
                 <div className="flex-1">

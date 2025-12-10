@@ -18,6 +18,19 @@ import {
 import { X, History } from "lucide-react";
 import { toast } from "sonner";
 
+interface Version {
+  _id: Id<"scriptVersions">;
+  _creationTime: number;
+  scriptId: Id<"scripts">;
+  versionNumber: number;
+  content: string;
+  contentUrl?: string;
+  contentSize?: number;
+  changedBy: Id<"users">;
+  changeNote?: string;
+  createdAt: number;
+}
+
 interface VersionHistoryProps {
   scriptId: Id<"scripts">;
 }
@@ -83,7 +96,7 @@ export function VersionHistory({ scriptId }: VersionHistoryProps) {
             </div>
           ) : (
             <div className="space-y-3">
-              {versions.map((version) => (
+              {versions.map((version: Version) => (
                 <VersionCard
                   key={version._id}
                   version={version}

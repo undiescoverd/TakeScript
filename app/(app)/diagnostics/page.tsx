@@ -9,6 +9,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, CheckCircle, XCircle, Wrench } from "lucide-react";
 
+interface ScriptHealth {
+  id: Id<"scripts">;
+  title: string;
+  contentStatus: string;
+  contentError: string | null;
+  contentLength: number;
+  lastEditedAt: string;
+}
+
 export default function DiagnosticsPage() {
   const scriptsHealth = useQuery(api.diagnostics.listAllScriptsHealth);
   const [selectedScriptId, setSelectedScriptId] = useState<Id<"scripts"> | null>(null);
@@ -74,7 +83,7 @@ export default function DiagnosticsPage() {
       </div>
 
       <div className="grid gap-4">
-        {scriptsHealth.map((script) => (
+        {scriptsHealth.map((script: ScriptHealth) => (
           <Card key={script.id} className={script.contentStatus !== "ok" ? "border-destructive" : ""}>
             <CardHeader>
               <div className="flex items-center justify-between">

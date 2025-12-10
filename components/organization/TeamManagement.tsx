@@ -19,6 +19,28 @@ import { useState } from "react";
 import { toast } from "sonner";
 import type { Id } from "@/convex/_generated/dataModel";
 
+interface Invitation {
+  _id: Id<"organizationInvitations">;
+  organizationId: Id<"organizations">;
+  email: string;
+  role: string;
+  token: string;
+  invitedBy: Id<"users">;
+  status: string;
+  expiresAt: number;
+  createdAt: number;
+}
+
+interface Member {
+  _id: Id<"users">;
+  email: string;
+  name: string;
+  avatar?: string;
+  tokenIdentifier: string;
+  organizationId?: Id<"organizations">;
+  role?: string;
+}
+
 export function TeamManagement() {
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<"admin" | "member" | "viewer">("member");
@@ -144,7 +166,7 @@ export function TeamManagement() {
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">Pending Invitations</h3>
           <div className="space-y-3">
-            {invitations.map((invitation) => (
+            {invitations.map((invitation: Invitation) => (
               <div
                 key={invitation._id}
                 className="flex items-center justify-between p-3 bg-muted rounded-md"
@@ -196,7 +218,7 @@ export function TeamManagement() {
           <p className="text-muted-foreground">No team members yet</p>
         ) : (
           <div className="space-y-3">
-            {members.map((member) => (
+            {members.map((member: Member) => (
               <div
                 key={member._id}
                 className="flex items-center justify-between p-3 bg-muted rounded-md"
