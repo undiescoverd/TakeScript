@@ -24,7 +24,8 @@ interface VersionHistoryProps {
 
 export function VersionHistory({ scriptId }: VersionHistoryProps) {
   const { versionHistoryOpen, setVersionHistoryOpen } = useEditorStore();
-  const versions = useQuery(api.versions.list, { scriptId });
+  // Only subscribe to query when panel is open - saves bandwidth
+  const versions = useQuery(api.versions.list, versionHistoryOpen ? { scriptId } : "skip");
   const restoreVersion = useMutation(api.versions.restore);
   const [viewingVersion, setViewingVersion] = useState<string | null>(null);
   const [viewingContent, setViewingContent] = useState<string>("");

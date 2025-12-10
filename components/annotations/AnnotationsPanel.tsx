@@ -33,7 +33,8 @@ export function AnnotationsPanel({
   onClose,
   editor,
 }: AnnotationsPanelProps) {
-  const annotations = useQuery(api.annotations.list, { scriptId });
+  // Only subscribe to query when panel is open - saves bandwidth
+  const annotations = useQuery(api.annotations.list, isOpen ? { scriptId } : "skip");
   const updateAnnotation = useMutation(api.annotations.update);
   const toggleResolve = useMutation(api.annotations.toggleResolve);
   const removeAnnotation = useMutation(api.annotations.remove);
