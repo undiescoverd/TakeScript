@@ -25,18 +25,13 @@ export function ChapterNodeView({ node, updateAttributes, editor, getPos }: Node
   const handleSave = () => {
     const pos = getPos();
     if (typeof pos === "number") {
+      // Use editor chain to update attributes - more reliable than direct updateAttributes
       editor
         .chain()
         .focus()
         .command(({ tr, state }) => {
           const node = state.doc.nodeAt(pos);
           if (node && node.type.name === "chapter") {
-            // Ensure the node has valid content before updating
-            // If empty, add a default paragraph
-            if (node.content.size === 0) {
-              const paragraph = state.schema.nodes.paragraph.create();
-              tr.replaceWith(pos + 1, pos + 1, paragraph);
-            }
             tr.setNodeMarkup(pos, undefined, {
               ...node.attrs,
               title,
@@ -47,17 +42,11 @@ export function ChapterNodeView({ node, updateAttributes, editor, getPos }: Node
         })
         .run();
     } else {
-      // Fallback to direct update if position is unavailable
+      // Fallback: try direct updateAttributes with error handling
       try {
         updateAttributes({ title, duration: duration || null });
       } catch (error) {
         console.error("Failed to update chapter attributes:", error);
-        // If update fails, try using editor chain as fallback
-        editor
-          .chain()
-          .focus()
-          .updateAttributes("chapter", { title, duration: duration || null })
-          .run();
       }
     }
     setIsEditing(false);
