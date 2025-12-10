@@ -456,6 +456,11 @@ export default function ScriptPage() {
 
   return (
     <div className="flex h-screen flex-col bg-background" data-mode={mode} data-view-mode={viewMode}>
+      {/* Hover Zone for Topbar (Focus Mode only) */}
+      {viewMode === "focus" && (
+        <div className="topbar-hover-zone fixed top-0 left-0 right-0 h-12 z-40 pointer-events-none" />
+      )}
+
       {/* Topbar */}
       <Topbar
         scriptId={scriptId}
