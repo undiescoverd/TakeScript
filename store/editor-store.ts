@@ -1,6 +1,15 @@
 import { create } from "zustand";
 
 type EditorMode = "editing" | "recording";
+type ViewMode = "focus" | "edit";
+
+interface SavedPanelStates {
+  sidebarOpen: boolean;
+  versionHistoryOpen: boolean;
+  commentsOpen: boolean;
+  annotationsOpen: boolean;
+  speakersOpen: boolean;
+}
 
 interface EditorState {
   mode: EditorMode;
@@ -40,6 +49,12 @@ interface EditorState {
   collaborationEnabled: boolean;
   setCollaborationEnabled: (enabled: boolean) => void;
   toggleCollaboration: () => void;
+
+  // View Mode (Focus vs Edit)
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
+  toggleViewMode: () => void;
+  savedPanelStates: SavedPanelStates | null;
 }
 
 export const useEditorStore = create<EditorState>((set) => ({
@@ -89,4 +104,85 @@ export const useEditorStore = create<EditorState>((set) => ({
   setCollaborationEnabled: (collaborationEnabled) => set({ collaborationEnabled }),
   toggleCollaboration: () =>
     set((state) => ({ collaborationEnabled: !state.collaborationEnabled })),
+
+  // View Mode - defaults to "edit" (full UI)
+  viewMode: "edit",
+  savedPanelStates: null,
+  setViewMode: (viewMode) =>
+    set((state) => {
+      // Entering Focus Mode
+      if (viewMode === "focus") {
+        // Save current panel states
+        const savedPanelStates: SavedPanelStates = {
+          sidebarOpen: state.sidebarOpen,
+          versionHistoryOpen: state.versionHistoryOpen,
+          commentsOpen: state.commentsOpen,
+          annotationsOpen: state.annotationsOpen,
+          speakersOpen: state.speakersOpen,
+        };
+
+        // Close all panels
+        return {
+          viewMode,
+          savedPanelStates,
+          sidebarOpen: false,
+          versionHistoryOpen: false,
+          commentsOpen: false,
+          annotationsOpen: false,
+          speakersOpen: false,
+        };
+      }
+
+      // Exiting Focus Mode - restore panel states
+      if (viewMode === "edit" && state.savedPanelStates) {
+        const { savedPanelStates } = state;
+        return {
+          viewMode,
+          savedPanelStates: null,
+          sidebarOpen: savedPanelStates.sidebarOpen,
+          versionHistoryOpen: savedPanelStates.versionHistoryOpen,
+          commentsOpen: savedPanelStates.commentsOpen,
+          annotationsOpen: savedPanelStates.annotationsOpen,
+          speakersOpen: savedPanelStates.speakersOpen,
+        };
+      }
+
+      // Default case (shouldn't normally hit this)
+      return { viewMode };
+    }),
+  toggleViewMode: () =>
+    set((state) => {
+      const newMode: ViewMode = state.viewMode === "focus" ? "edit" : "focus";
+      // Call setViewMode logic by returning the same state transformation
+      if (newMode === "focus") {
+        const savedPanelStates: SavedPanelStates = {
+          sidebarOpen: state.sidebarOpen,
+          versionHistoryOpen: state.versionHistoryOpen,
+          commentsOpen: state.commentsOpen,
+          annotationsOpen: state.annotationsOpen,
+          speakersOpen: state.speakersOpen,
+        };
+        return {
+          viewMode: newMode,
+          savedPanelStates,
+          sidebarOpen: false,
+          versionHistoryOpen: false,
+          commentsOpen: false,
+          annotationsOpen: false,
+          speakersOpen: false,
+        };
+      } else if (state.savedPanelStates) {
+        const { savedPanelStates } = state;
+        return {
+          viewMode: newMode,
+          savedPanelStates: null,
+          sidebarOpen: savedPanelStates.sidebarOpen,
+          versionHistoryOpen: savedPanelStates.versionHistoryOpen,
+          commentsOpen: savedPanelStates.commentsOpen,
+          annotationsOpen: savedPanelStates.annotationsOpen,
+          speakersOpen: savedPanelStates.speakersOpen,
+        };
+      }
+      return { viewMode: newMode };
+    }),
 }));
