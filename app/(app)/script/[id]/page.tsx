@@ -257,14 +257,31 @@ export default function ScriptPage() {
     if (!flags.aiGrammarCheckEnabled) return;
 
     try {
+      // Clear previous highlights
+      if (editorRef) {
+        editorRef.chain().focus().unsetMark("grammarHighlight").run();
+      }
+
       toast.info("Checking grammar and style...");
       const result = await checkGrammar({ scriptId });
-      setGrammarCheckResults(result);
+
+      // Validate issues have originalText
+      const validIssues = result.issues?.filter(
+        issue => issue.originalText && issue.originalText.trim() !== ""
+      ) || [];
+
+      setGrammarCheckResults({ ...result, issues: validIssues });
+
+      if (validIssues.length === 0 && result.issues && result.issues.length > 0) {
+        toast.warning("Some suggestions couldn't be located in the text");
+      } else if (validIssues.length === 0) {
+        toast.success("No issues found!");
+      }
     } catch (error) {
       console.error("Grammar check error:", error);
       toast.error("Failed to check grammar. Please try again.");
     }
-  }, [flags.aiGrammarCheckEnabled, checkGrammar, scriptId]);
+  }, [flags.aiGrammarCheckEnabled, checkGrammar, scriptId, editorRef]);
 
   const handleScriptReview = useCallback(async () => {
     if (!flags.aiReviewEnabled) return;
@@ -539,7 +556,14 @@ export default function ScriptPage() {
             issues={grammarCheckResults.issues || []}
             overallScore={grammarCheckResults.overallScore || 0}
             summary={grammarCheckResults.summary || ""}
-            onClose={() => setGrammarCheckResults(null)}
+            editor={editorRef}
+            onClose={() => {
+              // Clear highlights on close
+              if (editorRef) {
+                editorRef.chain().focus().unsetMark("grammarHighlight").run();
+              }
+              setGrammarCheckResults(null);
+            }}
           />
         )}
 

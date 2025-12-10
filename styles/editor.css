@@ -754,3 +754,32 @@
   color: hsl(var(--secondary-foreground));
   border-color: transparent;
 }
+
+/* Grammar Highlight Styles */
+.grammar-highlight {
+  cursor: pointer;
+  text-decoration: underline wavy;
+  text-decoration-thickness: 2px;
+  transition: background-color 0.2s;
+}
+
+.grammar-highlight:hover {
+  background-color: rgba(255, 255, 0, 0.1);
+}
+
+/* Grammar & Spelling - Red wavy underline */
+.grammar-highlight-grammar,
+.grammar-highlight-spelling {
+  text-decoration-color: #ef4444;
+}
+
+/* Style & Clarity - Blue wavy underline */
+.grammar-highlight-style,
+.grammar-highlight-clarity {
+  text-decoration-color: #3b82f6;
+}
+
+/* Tone - Purple wavy underline */
+.grammar-highlight-tone {
+  text-decoration-color: #a855f7;
+}

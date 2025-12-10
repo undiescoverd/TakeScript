@@ -329,12 +329,19 @@ export const checkGrammarAndStyle = action({
       "type": "grammar" | "spelling" | "style" | "tone" | "clarity",
       "message": "Brief description of the issue",
       "suggestion": "Suggested fix",
-      "severity": "low" | "medium" | "high"
+      "severity": "low" | "medium" | "high",
+      "originalText": "The exact problematic text (15-50 characters)",
+      "context": "Optional: ~50 characters before and after for disambiguation"
     }
   ],
   "overallScore": 1-10,
   "summary": "Brief overall assessment"
 }
+
+IMPORTANT:
+- Include the exact problematic text in "originalText" field
+- Keep originalText concise (15-50 characters)
+- If the same phrase appears multiple times in the text, include surrounding context
 
 TEXT TO ANALYZE:
 ${textToCheck.slice(0, 8000)}`;

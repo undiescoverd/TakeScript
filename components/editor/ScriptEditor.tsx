@@ -11,6 +11,7 @@ import { customExtensions, SpeakerMark } from "@/lib/tiptap/extensions";
 import { SlashCommands } from "@/lib/tiptap/slash-commands";
 import { createSlashCommandsRender } from "@/lib/tiptap/suggestion-render";
 import { AnnotationMark } from "@/lib/tiptap/annotation-mark";
+import { GrammarHighlightMark } from "@/lib/tiptap/grammar-highlight-mark";
 import { SelectionToolbar } from "@/components/editor/SelectionToolbar";
 import { Id } from "@/convex/_generated/dataModel";
 
@@ -67,6 +68,7 @@ export function ScriptEditor({
       AnnotationMark.configure({
         onAnnotationClick: handleAnnotationClick,
       }),
+      GrammarHighlightMark,
       SpeakerMark.configure({
         getSpeakers,
       }),
