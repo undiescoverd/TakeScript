@@ -160,20 +160,6 @@ function ContentRenderer({ node }: { node: JSONContent }) {
         </div>
       );
 
-    case "editorNote":
-      return (
-        <div className="my-3 rounded-lg bg-yellow-50 p-3 dark:bg-yellow-950/30">
-          <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-yellow-800 dark:text-yellow-200">
-            📝 Editor Note
-          </div>
-          <div className="text-sm text-yellow-900 dark:text-yellow-100">
-            {node.content?.map((child, index) => (
-              <ContentRenderer key={index} node={child} />
-            ))}
-          </div>
-        </div>
-      );
-
     case "bulletList":
       return (
         <ul className="mb-4 ml-6 list-disc space-y-1">

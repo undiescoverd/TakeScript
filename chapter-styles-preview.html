@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chapter Style Options - TakeScript</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a0a;
+      color: #fafafa;
+      padding: 2rem;
+      line-height: 1.6;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 2rem;
+      color: #a1a1aa;
+      font-weight: 400;
+      font-size: 1.25rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+      gap: 2rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .option-card {
+      background: #18181b;
+      border: 1px solid #27272a;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .option-header {
+      background: #27272a;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid #3f3f46;
+    }
+
+    .option-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #fafafa;
+    }
+
+    .option-description {
+      font-size: 0.875rem;
+      color: #a1a1aa;
+      margin-top: 0.25rem;
+    }
+
+    .option-preview {
+      padding: 2rem;
+      min-height: 300px;
+    }
+
+    /* Simulated editor content */
+    .editor-content {
+      font-family: "Courier Prime", "Courier New", monospace;
+      font-size: 14px;
+      line-height: 2;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .editor-content p {
+      margin: 0.5rem 0;
+      color: #d4d4d8;
+    }
+
+    /* Current Style (for reference) */
+    .chapter-current {
+      font-size: 14pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin: 2rem 0 1rem 0;
+      border-left: 4px solid #3b82f6;
+      padding-left: 1rem;
+      color: #3b82f6;
+    }
+
+    /* ========================================
+       OPTION 1: Center + Solid Background
+       ======================================== */
+    .chapter-option1 {
+      text-align: center;
+      font-size: 14pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin: 2rem 0 1rem 0;
+      padding: 0.75rem 1.5rem;
+      background: #3b82f6;
+      color: #ffffff;
+      border-radius: 4px;
+      letter-spacing: 0.05em;
+    }
+
+    .chapter-option1 .duration {
+      font-size: 10pt;
+      font-weight: normal;
+      opacity: 0.8;
+      margin-top: 0.25rem;
+      text-transform: none;
+      letter-spacing: normal;
+    }
+
+    /* ========================================
+       OPTION 2: Full-Width Banner
+       ======================================== */
+    .chapter-option2 {
+      text-align: center;
+      font-size: 14pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin: 2rem -2rem 1rem -2rem;
+      padding: 1rem 2rem;
+      background: linear-gradient(90deg, transparent 0%, #3b82f6 15%, #3b82f6 85%, transparent 100%);
+      color: #ffffff;
+      letter-spacing: 0.1em;
+      position: relative;
+    }
+
+    .chapter-option2::before,
+    .chapter-option2::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      width: 10%;
+      height: 1px;
+      background: #3b82f6;
+    }
+
+    .chapter-option2::before { left: 2%; }
+    .chapter-option2::after { right: 2%; }
+
+    .chapter-option2 .duration {
+      font-size: 10pt;
+      font-weight: normal;
+      opacity: 0.8;
+      margin-top: 0.25rem;
+      text-transform: none;
+      letter-spacing: normal;
+    }
+
+    /* ========================================
+       OPTION 3: Cinematic Slug-Line Style
+       ======================================== */
+    .chapter-option3 {
+      text-align: center;
+      font-size: 14pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin: 2.5rem 0 1.5rem 0;
+      padding: 0.5rem 0;
+      color: #fafafa;
+      letter-spacing: 0.15em;
+      position: relative;
+    }
+
+    .chapter-option3::before,
+    .chapter-option3::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 60%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #52525b 20%, #52525b 80%, transparent);
+    }
+
+    .chapter-option3::before { top: 0; }
+    .chapter-option3::after { bottom: 0; }
+
+    .chapter-option3 .duration {
+      font-size: 10pt;
+      font-weight: normal;
+      color: #71717a;
+      margin-top: 0.25rem;
+      text-transform: none;
+      letter-spacing: normal;
+    }
+
+    /* ========================================
+       OPTION 4: Card/Badge Style
+       ======================================== */
+    .chapter-option4-wrapper {
+      display: flex;
+      justify-content: center;
+      margin: 2rem 0 1rem 0;
+    }
+
+    .chapter-option4 {
+      display: inline-block;
+      text-align: center;
+      font-size: 12pt;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 0.5rem 2rem;
+      background: #27272a;
+      color: #fafafa;
+      border-radius: 9999px;
+      letter-spacing: 0.08em;
+      border: 1px solid #3f3f46;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .chapter-option4 .duration {
+      font-size: 9pt;
+      font-weight: normal;
+      color: #a1a1aa;
+      margin-left: 0.75rem;
+      text-transform: none;
+      letter-spacing: normal;
+    }
+
+    /* ========================================
+       OPTION 5: Accent Bar + Center (Hybrid)
+       ======================================== */
+    .chapter-option5 {
+      text-align: center;
+      font-size: 14pt;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin: 2rem 0 1rem 0;
+      padding: 0.75rem 1.5rem;
+      background: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
+      border-left: 4px solid #3b82f6;
+      border-right: 4px solid #3b82f6;
+      letter-spacing: 0.05em;
+    }
+
+    .chapter-option5 .duration {
+      font-size: 10pt;
+      font-weight: normal;
+      color: #71717a;
+      margin-top: 0.25rem;
+      text-transform: none;
+      letter-spacing: normal;
+    }
+
+    /* ========================================
+       OPTION 6: Minimalist Divider
+       ======================================== */
+    .chapter-option6 {
+      text-align: center;
+      font-size: 11pt;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin: 2.5rem 0 1.5rem 0;
+      padding: 0;
+      color: #a1a1aa;
+      letter-spacing: 0.2em;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .chapter-option6::before,
+    .chapter-option6::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: #3f3f46;
+    }
+
+    .chapter-option6 .duration {
+      font-size: 9pt;
+      font-weight: normal;
+      color: #71717a;
+      margin-left: 0.5rem;
+      text-transform: none;
+      letter-spacing: normal;
+    }
+
+    /* Vote section */
+    .vote-section {
+      max-width: 800px;
+      margin: 3rem auto;
+      text-align: center;
+      padding: 2rem;
+      background: #18181b;
+      border: 1px solid #27272a;
+      border-radius: 12px;
+    }
+
+    .vote-section h2 {
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+      color: #fafafa;
+    }
+
+    .vote-section p {
+      color: #a1a1aa;
+      font-size: 0.875rem;
+    }
+
+    .vote-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      justify-content: center;
+      margin-top: 1.5rem;
+    }
+
+    .vote-btn {
+      padding: 0.75rem 1.5rem;
+      background: #27272a;
+      border: 1px solid #3f3f46;
+      border-radius: 8px;
+      color: #fafafa;
+      font-size: 0.875rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .vote-btn:hover {
+      background: #3b82f6;
+      border-color: #3b82f6;
+    }
+  </style>
+</head>
+<body>
+  <h1>Chapter Style Options for TakeScript</h1>
+
+  <div class="options-grid">
+    <!-- Option 1: Center + Solid Background -->
+    <div class="option-card">
+      <div class="option-header">
+        <div class="option-title">Option 1: Center + Solid Background</div>
+        <div class="option-description">Clean, bold, high visibility. Great for quick scanning.</div>
+      </div>
+      <div class="option-preview">
+        <div class="editor-content">
+          <p>Welcome to our tutorial on building your first API. In this section, we'll cover the basics.</p>
+
+          <div class="chapter-option1">
+            Getting Started
+            <div class="duration">2m 30s</div>
+          </div>
+
+          <p>First, let's set up our development environment. You'll need Node.js installed on your machine.</p>
+          <p>Open your terminal and run the following command to verify your installation.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option 2: Full-Width Banner -->
+    <div class="option-card">
+      <div class="option-header">
+        <div class="option-title">Option 2: Full-Width Banner</div>
+        <div class="option-description">Dramatic visual break. Strong section separation.</div>
+      </div>
+      <div class="option-preview">
+        <div class="editor-content">
+          <p>Welcome to our tutorial on building your first API. In this section, we'll cover the basics.</p>
+
+          <div class="chapter-option2">
+            Getting Started
+            <div class="duration">2m 30s</div>
+          </div>
+
+          <p>First, let's set up our development environment. You'll need Node.js installed on your machine.</p>
+          <p>Open your terminal and run the following command to verify your installation.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option 3: Cinematic Slug-Line -->
+    <div class="option-card">
+      <div class="option-header">
+        <div class="option-title">Option 3: Cinematic Slug-Line</div>
+        <div class="option-description">Traditional screenplay aesthetic. Elegant and professional.</div>
+      </div>
+      <div class="option-preview">
+        <div class="editor-content">
+          <p>Welcome to our tutorial on building your first API. In this section, we'll cover the basics.</p>
+
+          <div class="chapter-option3">
+            Getting Started
+            <div class="duration">2m 30s</div>
+          </div>
+
+          <p>First, let's set up our development environment. You'll need Node.js installed on your machine.</p>
+          <p>Open your terminal and run the following command to verify your installation.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option 4: Card/Badge Style -->
+    <div class="option-card">
+      <div class="option-header">
+        <div class="option-title">Option 4: Card/Badge Style</div>
+        <div class="option-description">Modern floating pill. Compact and stylish.</div>
+      </div>
+      <div class="option-preview">
+        <div class="editor-content">
+          <p>Welcome to our tutorial on building your first API. In this section, we'll cover the basics.</p>
+
+          <div class="chapter-option4-wrapper">
+            <div class="chapter-option4">
+              Getting Started
+              <span class="duration">2m 30s</span>
+            </div>
+          </div>
+
+          <p>First, let's set up our development environment. You'll need Node.js installed on your machine.</p>
+          <p>Open your terminal and run the following command to verify your installation.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option 5: Accent Bar + Center (Hybrid) -->
+    <div class="option-card">
+      <div class="option-header">
+        <div class="option-title">Option 5: Accent Borders + Background</div>
+        <div class="option-description">Keeps the left border feel but adds center alignment and background.</div>
+      </div>
+      <div class="option-preview">
+        <div class="editor-content">
+          <p>Welcome to our tutorial on building your first API. In this section, we'll cover the basics.</p>
+
+          <div class="chapter-option5">
+            Getting Started
+            <div class="duration">2m 30s</div>
+          </div>
+
+          <p>First, let's set up our development environment. You'll need Node.js installed on your machine.</p>
+          <p>Open your terminal and run the following command to verify your installation.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option 6: Minimalist Divider -->
+    <div class="option-card">
+      <div class="option-header">
+        <div class="option-title">Option 6: Minimalist Divider</div>
+        <div class="option-description">Subtle but effective. Lines draw the eye to the title.</div>
+      </div>
+      <div class="option-preview">
+        <div class="editor-content">
+          <p>Welcome to our tutorial on building your first API. In this section, we'll cover the basics.</p>
+
+          <div class="chapter-option6">
+            Getting Started
+            <span class="duration">(2m 30s)</span>
+          </div>
+
+          <p>First, let's set up our development environment. You'll need Node.js installed on your machine.</p>
+          <p>Open your terminal and run the following command to verify your installation.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="vote-section">
+    <h2>Which style do you prefer?</h2>
+    <p>Consider readability, visual hierarchy, and how well it fits with your script editing workflow.</p>
+    <div class="vote-options">
+      <button class="vote-btn">1. Solid Background</button>
+      <button class="vote-btn">2. Full-Width Banner</button>
+      <button class="vote-btn">3. Cinematic Slug-Line</button>
+      <button class="vote-btn">4. Badge/Pill</button>
+      <button class="vote-btn">5. Accent Borders</button>
+      <button class="vote-btn">6. Minimalist Divider</button>
+    </div>
+  </div>
+</body>
+</html>

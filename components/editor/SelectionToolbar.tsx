@@ -24,7 +24,6 @@ import {
   Hash,
   ScreenShare,
   Presentation,
-  StickyNote,
   ChevronDown,
   User,
 } from "lucide-react";
@@ -382,30 +381,6 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
       .run();
   };
 
-  const insertEditorNote = () => {
-    const { from, to } = editor.state.selection;
-    const { startBlockPos, endBlockPos, selectedContent } = collectBlocksInSelection(editor.state, from, to);
-
-    // If we have selected content, wrap it; otherwise create default content
-    const content = selectedContent.length > 0
-      ? selectedContent
-      : [{ type: "paragraph", content: [{ type: "text", text: "Editor note..." }] }];
-
-    editor
-      .chain()
-      .focus()
-      .command(({ tr }) => {
-        tr.delete(startBlockPos, endBlockPos);
-        return true;
-      })
-      .insertContent({
-        type: "editorNote",
-        attrs: { id: generateBlockId("editorNote") },
-        content: content,
-      })
-      .run();
-  };
-
   const handleAssignSpeaker = useCallback((speakerId: string, cameraMode: CameraModeNullable) => {
     if (!selectionData) {
       toast.error("Please select some text first");
@@ -602,14 +577,6 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
         tooltip="Animation"
         onClick={insertDemonstration}
       />
-      <ToolbarButton
-        icon={<StickyNote className="h-4 w-4" />}
-        tooltip="Editor Note"
-        onClick={insertEditorNote}
-      />
-
-      <div className="mx-1 h-6 w-px bg-border" />
-
       {/* Speaker Assignment */}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

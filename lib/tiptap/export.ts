@@ -8,11 +8,6 @@ export function exportToPlainText(doc: JSONContent): string {
   const lines: string[] = [];
 
   function extractText(node: JSONContent): void {
-    // Skip editor notes entirely
-    if (node.type === "editorNote") {
-      return;
-    }
-
     // Handle text nodes
     if (node.type === "text" && node.text) {
       return;

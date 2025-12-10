@@ -56,18 +56,6 @@ function getTemplateContent(templateType?: string): string {
               type: "paragraph",
               content: [{ type: "text", text: "Now let's dive into..." }],
             },
-            {
-              type: "editorNote",
-              attrs: { id: generateBlockId("editorNote") },
-              content: [
-                {
-                  type: "paragraph",
-                  content: [
-                    { type: "text", text: "Remember to highlight key features here" },
-                  ],
-                },
-              ],
-            },
           ],
         },
       ],
@@ -172,18 +160,6 @@ function getTemplateContent(templateType?: string): string {
               type: "paragraph",
               content: [
                 { type: "text", text: "Now it's time to practice what you've learned..." },
-              ],
-            },
-            {
-              type: "editorNote",
-              attrs: { id: generateBlockId("editorNote") },
-              content: [
-                {
-                  type: "paragraph",
-                  content: [
-                    { type: "text", text: "Add interactive exercises or quizzes here" },
-                  ],
-                },
               ],
             },
           ],
@@ -354,7 +330,7 @@ function sanitizeTemplateContent(content: string): string {
 
       // If this is a custom block with an ID attribute, regenerate it
       if (node.attrs?.id && node.type) {
-        const blockTypes = ["chapter", "screenRecording", "demonstration", "editorNote"];
+        const blockTypes = ["chapter", "screenRecording", "demonstration"];
         if (blockTypes.includes(node.type)) {
           node.attrs.id = generateBlockId(node.type);
         }

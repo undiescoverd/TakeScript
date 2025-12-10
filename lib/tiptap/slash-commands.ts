@@ -375,33 +375,6 @@ export const slashCommandItems: SlashCommandItem[] = [
     },
   },
   {
-    name: "Editor Note",
-    description: "Hidden in recording mode.",
-    icon: "Ed",
-    command: ({ editor, range, selection }) => {
-      // Delete the slash command
-      editor.chain().focus().deleteRange(range).run();
-
-      if (selection && !selection.isEmpty) {
-        // Wrap selected content in an editor note block
-        wrapSelectionInBlock(editor, selection, "editorNote", {
-          id: generateBlockId("editorNote"),
-        });
-      } else {
-        // No selection - insert new block with placeholder
-        editor
-          .chain()
-          .focus()
-          .insertContent({
-            type: "editorNote",
-            attrs: { id: generateBlockId("editorNote") },
-            content: [{ type: "paragraph", content: [{ type: "text", text: "Editor note..." }] }],
-          })
-          .run();
-      }
-    },
-  },
-  {
     name: "Thumbnail Title",
     description: "Add a thumbnail title section.",
     icon: "Th",

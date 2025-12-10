@@ -1,7 +1,7 @@
 "use client";
 
 import { NodeViewWrapper, NodeViewContent, NodeViewProps } from "@tiptap/react";
-import { Monitor, X, Pencil } from "lucide-react";
+import { MonitorPlay, X, Pencil } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Fragment } from "@tiptap/pm/model";
 import { useState, useRef, useEffect } from "react";
@@ -92,7 +92,7 @@ export function ScreenRecordingNodeView({ editor, getPos, node, updateAttributes
       <div className="group relative my-4 rounded-lg border-2 border-dashed border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-950/30 p-4">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
-            <Monitor className="h-5 w-5" />
+            <MonitorPlay className="h-5 w-5" />
             <span className="font-medium text-sm uppercase tracking-wide">Screen Recording</span>
           </div>
           <Tooltip>

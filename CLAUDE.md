@@ -137,7 +137,7 @@ const user = await ctx.db
 ```
 
 #### 3. Tiptap Editor Integration
-- **Custom Node Extensions**: `ChapterBlock`, `ScreenRecordingBlock`, `DemonstrationBlock`, `EditorNoteBlock`
+- **Custom Node Extensions**: `ChapterBlock`, `ScreenRecordingBlock`, `DemonstrationBlock`
 - **Content Storage**: JSON stringified in Convex as `script.content`
 - **Editor Initialization**: Content parsed from JSON in `ScriptEditor` component
 - **Updates**: onChange → JSON.stringify → autosave hook
@@ -277,7 +277,6 @@ Restore:
 
 `lib/tiptap/export.ts` provides:
 - **exportToPlainText()**: Converts Tiptap JSON to plain text for teleprompter
-  - Excludes `editorNote` blocks
   - Formats chapters as `[CHAPTER TITLE]`
   - Strips all formatting
 - **getWordCount()**: Counts words in document

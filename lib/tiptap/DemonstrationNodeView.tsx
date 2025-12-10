@@ -1,7 +1,7 @@
 "use client";
 
 import { NodeViewWrapper, NodeViewContent, NodeViewProps } from "@tiptap/react";
-import { Play, X, Pencil } from "lucide-react";
+import { Sparkles, X, Pencil } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Fragment } from "@tiptap/pm/model";
 import { useState, useRef, useEffect } from "react";
@@ -92,7 +92,7 @@ export function DemonstrationNodeView({ editor, getPos, node, updateAttributes }
       <div className="group relative my-4 rounded-lg border-2 border-dashed border-orange-300 bg-orange-50 dark:border-orange-700 dark:bg-orange-950/30 p-4">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2 text-orange-600 dark:text-orange-400">
-            <Play className="h-5 w-5" />
+            <Sparkles className="h-5 w-5" />
             <span className="font-medium text-sm uppercase tracking-wide">Animation</span>
           </div>
           <Tooltip>
