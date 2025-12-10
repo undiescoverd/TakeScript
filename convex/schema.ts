@@ -7,10 +7,8 @@ export default defineSchema({
     name: v.string(),
     slug: v.string(), // URL-friendly identifier
     plan: v.optional(v.string()), // "free" | "pro" | "enterprise"
-    aiProvider: v.string(), // "anthropic" | "openai" | "openrouter"
-    anthropicModel: v.optional(v.string()), // "claude-sonnet-4-5-20250929" | "claude-opus-4-5-20251101"
-    openaiModel: v.optional(v.string()), // "gpt-4o" | "gpt-4-turbo"
-    openrouterModel: v.optional(v.string()), // "anthropic/claude-3.5-sonnet" | "openai/gpt-4o" | "google/gemini-pro" etc.
+    // AI Settings - Using OpenRouter for unified access to all models
+    openrouterModel: v.optional(v.string()), // Default: "anthropic/claude-3.5-sonnet", supports "openai/gpt-4o", "google/gemini-pro", etc.
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_slug", ["slug"]),

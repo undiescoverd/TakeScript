@@ -165,8 +165,13 @@ TakeScript includes a sophisticated speaker attribution system for dialogue in t
   - **No speaker assigned**: Adds speaker to selection
   - **Same speaker assigned**: Removes speaker (toggle off)
   - **Different speaker assigned**: Swaps to new speaker
-- **Cmd+`** (backtick): Remove speaker from current selection
+- **Cmd+J**: Remove speaker from current selection
+- **Cmd+0**: Cycle camera mode (full → voiceover → corner → none)
 - **Selection Required**: All shortcuts require text selection. To add speaker without selection, use slash commands.
+
+**Slash Commands for Speakers**:
+- **/speaker** or **/sp**: Assigns the first speaker to the current paragraph (no selection needed)
+- Shows error toast if no speakers have been added yet
 
 **Implementation Details**:
 - Speaker marks render as `<span data-speaker-id="..." data-face-visible="...">` in the editor

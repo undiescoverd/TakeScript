@@ -23,6 +23,35 @@ import { Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Id } from "@/convex/_generated/dataModel";
 
+// Popular OpenRouter models with their full identifiers
+const OPENROUTER_MODELS = [
+  {
+    id: "anthropic/claude-3.5-sonnet",
+    name: "Claude 3.5 Sonnet (Recommended)",
+    description: "Best balance of speed and intelligence"
+  },
+  {
+    id: "anthropic/claude-opus-4-5",
+    name: "Claude Opus 4.5",
+    description: "Most capable model, slower"
+  },
+  {
+    id: "openai/gpt-4o",
+    name: "GPT-4o",
+    description: "OpenAI's flagship model"
+  },
+  {
+    id: "google/gemini-pro-1.5",
+    name: "Gemini Pro 1.5",
+    description: "Google's latest model"
+  },
+  {
+    id: "meta-llama/llama-3.1-70b-instruct",
+    name: "Llama 3.1 70B",
+    description: "Open source, fast"
+  },
+];
+
 interface Props {
   scriptId: Id<"scripts">;
   open: boolean;
@@ -46,6 +75,7 @@ export function AIGenerationDialog({
   const [task, setTask] = useState<"generate" | "expand" | "rephrase" | "summarize">(
     initialTask
   );
+  const [selectedModel, setSelectedModel] = useState(OPENROUTER_MODELS[0].id);
   const [generating, setGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState("");
 
@@ -69,6 +99,7 @@ export function AIGenerationDialog({
         prompt: prompt.trim(),
         task,
         context,
+        model: selectedModel,
       });
 
       setGeneratedContent(result.generatedContent);
@@ -117,6 +148,25 @@ export function AIGenerationDialog({
                 <SelectItem value="expand">Expand with Details</SelectItem>
                 <SelectItem value="rephrase">Rephrase for Clarity</SelectItem>
                 <SelectItem value="summarize">Summarize</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label htmlFor="model">AI Model</Label>
+            <Select value={selectedModel} onValueChange={setSelectedModel}>
+              <SelectTrigger id="model">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {OPENROUTER_MODELS.map((model) => (
+                  <SelectItem key={model.id} value={model.id}>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{model.name}</span>
+                      <span className="text-xs text-muted-foreground">{model.description}</span>
+                    </div>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

@@ -143,8 +143,9 @@ async function getBrandGuidelinesForUser(ctx: any) {
 /**
  * Helper: Get organization AI settings
  * Returns default settings if user doesn't have an organization yet
+ * Currently only supports OpenRouter
  */
-async function getOrganizationAISettings(ctx: any) {
+async function getDefaultAIModel(ctx: any): Promise<string> {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) throw new Error("Not authenticated");
 
@@ -153,30 +154,17 @@ async function getOrganizationAISettings(ctx: any) {
   });
   if (!user) throw new Error("User not found");
 
-  // If user doesn't have an organization, use default settings
+  // If user doesn't have an organization, use default model
   if (!user.organizationId) {
-    return {
-      provider: "openrouter" as const,
-      model: "anthropic/claude-3.5-sonnet",
-    };
+    return "anthropic/claude-3.5-sonnet";
   }
 
   const org = await ctx.runQuery(api.organizations.get, {
     organizationId: user.organizationId,
   });
 
-  const provider = (org?.aiProvider as "anthropic" | "openai" | "openrouter") || "openrouter";
-
-  let model: string;
-  if (provider === "anthropic") {
-    model = org?.anthropicModel || "claude-sonnet-4-5-20250929";
-  } else if (provider === "openrouter") {
-    model = org?.openrouterModel || "anthropic/claude-3.5-sonnet";
-  } else {
-    model = org?.openaiModel || "gpt-4o";
-  }
-
-  return { provider, model };
+  // Return organization's preferred OpenRouter model or default
+  return org?.openrouterModel || "anthropic/claude-3.5-sonnet";
 }
 
 /**
@@ -191,94 +179,6 @@ function buildSystemPrompt(brandGuidelines: string | null, task: string): string
   }
 
   return prompt;
-}
-
-/**
- * Helper: Call AI API (supports Anthropic, OpenAI, and OpenRouter)
- */
-async function callAI(
-  messages: Array<{ role: string; content: string }>,
-  provider: "anthropic" | "openai" | "openrouter",
-  model: string
-): Promise<string> {
-  if (provider === "anthropic") {
-    return await callAnthropic(messages, model);
-  } else if (provider === "openrouter") {
-    return await callOpenRouter(messages, model);
-  } else {
-    return await callOpenAI(messages, model);
-  }
-}
-
-/**
- * Helper: Call Anthropic API
- */
-async function callAnthropic(
-  messages: Array<{ role: string; content: string }>,
-  model: string
-): Promise<string> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
-
-  // Convert OpenAI-style messages to Anthropic format
-  const systemMessage = messages.find((m) => m.role === "system");
-  const conversationMessages = messages.filter((m) => m.role !== "system");
-
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: 4096,
-      system: systemMessage?.content,
-      messages: conversationMessages,
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Anthropic API error: ${response.statusText} - ${error}`);
-  }
-
-  const data = await response.json();
-  return data.content[0].text;
-}
-
-/**
- * Helper: Call OpenAI API
- */
-async function callOpenAI(
-  messages: Array<{ role: string; content: string }>,
-  model: string
-): Promise<string> {
-  const apiKey = process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error("OPENAI_API_KEY not configured");
-
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages,
-      temperature: 0.7,
-      max_tokens: 2000,
-    }),
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`OpenAI API error: ${response.statusText} - ${error}`);
-  }
-
-  const data = await response.json();
-  return data.choices[0].message.content;
 }
 
 /**
@@ -325,7 +225,6 @@ async function trackAIRequest(
   ctx: any,
   scriptId: string | undefined,
   requestType: string,
-  provider: string,
   model: string
 ) {
   try {
@@ -342,7 +241,7 @@ async function trackAIRequest(
       organizationId: user.organizationId,
       scriptId,
       requestType,
-      provider,
+      provider: "openrouter",
       model,
     });
   } catch (error) {
@@ -369,8 +268,8 @@ export const chat = action({
     // Get brand guidelines
     const brandGuidelines = await getBrandGuidelinesForUser(ctx);
 
-    // Get AI settings
-    const aiSettings = await getOrganizationAISettings(ctx);
+    // Get default model
+    const model = await getDefaultAIModel(ctx);
 
     // Get current script content for context
     const script = await ctx.runQuery(api.scripts.get, { scriptId: args.scriptId });
@@ -396,11 +295,11 @@ export const chat = action({
       { role: "user", content: args.message },
     ];
 
-    // Call AI with user's preferred provider
-    const response = await callAI(messages, aiSettings.provider, aiSettings.model);
+    // Call OpenRouter
+    const response = await callOpenRouter(messages, model);
 
     // Track usage
-    await trackAIRequest(ctx, args.scriptId, "chat", aiSettings.provider, aiSettings.model);
+    await trackAIRequest(ctx, args.scriptId, "chat", model);
 
     return { response };
   },
@@ -416,7 +315,7 @@ export const checkGrammarAndStyle = action({
   },
   handler: async (ctx, args) => {
     const brandGuidelines = await getBrandGuidelinesForUser(ctx);
-    const aiSettings = await getOrganizationAISettings(ctx);
+    const model = await getDefaultAIModel(ctx);
 
     // Get script content
     const script = await ctx.runQuery(api.scripts.get, { scriptId: args.scriptId });
@@ -450,10 +349,10 @@ ${textToCheck.slice(0, 8000)}`;
       { role: "user", content: prompt },
     ];
 
-    const response = await callAI(messages, aiSettings.provider, aiSettings.model);
+    const response = await callOpenRouter(messages, model);
 
     // Track usage
-    await trackAIRequest(ctx, args.scriptId, "grammar", aiSettings.provider, aiSettings.model);
+    await trackAIRequest(ctx, args.scriptId, "grammar", model);
 
     try {
       return JSON.parse(response);
@@ -470,7 +369,7 @@ export const reviewScript = action({
   args: { scriptId: v.id("scripts") },
   handler: async (ctx, args) => {
     const brandGuidelines = await getBrandGuidelinesForUser(ctx);
-    const aiSettings = await getOrganizationAISettings(ctx);
+    const model = await getDefaultAIModel(ctx);
 
     const script = await ctx.runQuery(api.scripts.get, { scriptId: args.scriptId });
     const scriptContent = script?.content ? JSON.parse(script.content) : null;
@@ -515,10 +414,10 @@ ${plainText.slice(0, 8000)}`;
       { role: "user", content: prompt },
     ];
 
-    const response = await callAI(messages, aiSettings.provider, aiSettings.model);
+    const response = await callOpenRouter(messages, model);
 
     // Track usage
-    await trackAIRequest(ctx, args.scriptId, "review", aiSettings.provider, aiSettings.model);
+    await trackAIRequest(ctx, args.scriptId, "review", model);
 
     try {
       return JSON.parse(response);
@@ -537,10 +436,14 @@ export const generateContent = action({
     prompt: v.string(),
     task: v.string(), // "expand" | "rephrase" | "generate" | "summarize"
     context: v.optional(v.string()),
+    model: v.optional(v.string()), // Optional model override (OpenRouter model ID)
   },
   handler: async (ctx, args) => {
     const brandGuidelines = await getBrandGuidelinesForUser(ctx);
-    const aiSettings = await getOrganizationAISettings(ctx);
+    const defaultModel = await getDefaultAIModel(ctx);
+
+    // Override with user-selected model if provided
+    const model = args.model || defaultModel;
 
     const script = await ctx.runQuery(api.scripts.get, { scriptId: args.scriptId });
     const scriptContent = script?.content ? JSON.parse(script.content) : null;
@@ -580,10 +483,10 @@ export const generateContent = action({
       { role: "user", content: taskPrompt },
     ];
 
-    const response = await callAI(messages, aiSettings.provider, aiSettings.model);
+    const response = await callOpenRouter(messages, model);
 
     // Track usage
-    await trackAIRequest(ctx, args.scriptId, "generation", aiSettings.provider, aiSettings.model);
+    await trackAIRequest(ctx, args.scriptId, "generation", model);
 
     return { generatedContent: response };
   },

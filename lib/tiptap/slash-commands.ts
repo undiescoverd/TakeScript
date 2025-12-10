@@ -5,6 +5,7 @@ import { PluginKey, TextSelection } from "@tiptap/pm/state";
 import { Fragment, Node as PMNode } from "@tiptap/pm/model";
 import { generateBlockId } from "@/lib/utils";
 import { getFeatureFlags } from "@/lib/feature-flags";
+import { toast } from "sonner";
 
 export interface SelectionContext {
   from: number;
@@ -434,16 +435,50 @@ export const slashCommandItems: SlashCommandItem[] = [
   // Speaker commands
   {
     name: "Speaker",
-    description: "Open speaker menu to assign dialogue.",
+    description: "Assign first speaker to current paragraph.",
     icon: "Sp",
     command: ({ editor, range }) => {
       editor.chain().focus().deleteRange(range).run();
-      // Dispatch custom event to open speaker menu
-      window.dispatchEvent(
-        new CustomEvent("speaker:open-menu", {
-          detail: { editor },
-        })
+
+      // Get speakers from the store
+      // We need to import useSpeakerStore dynamically or access it via a different method
+      // For now, we'll use a simple approach: try to get the first speaker via a custom command
+
+      // Check if there are any speakers available
+      const { state } = editor;
+      const { $from } = state.selection;
+
+      // Find the paragraph boundaries
+      const paragraphStart = $from.start();
+      const paragraphEnd = $from.end();
+
+      // Try to apply first speaker mark to the current paragraph
+      // The editor extension should have access to getSpeakers
+      const extension = editor.extensionManager.extensions.find(
+        (ext) => ext.name === "speaker"
       );
+
+      if (extension && typeof extension.options.getSpeakers === "function") {
+        const speakers = extension.options.getSpeakers();
+
+        if (speakers.length === 0) {
+          // No speakers available - show error
+          toast.error("No speakers available. Add a speaker first.");
+          return;
+        }
+
+        // Apply the first speaker to the current paragraph
+        const firstSpeaker = speakers[0];
+        editor
+          .chain()
+          .focus()
+          .setTextSelection({ from: paragraphStart, to: paragraphEnd })
+          .setSpeaker({
+            speakerId: firstSpeaker.id,
+            cameraMode: firstSpeaker.defaultVisibility || null,
+          })
+          .run();
+      }
     },
   },
   {

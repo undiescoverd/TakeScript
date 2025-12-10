@@ -35,8 +35,7 @@ export const createOrGet = mutation({
       name: `${user.name}'s Workspace`,
       slug: generateSlug(user.name),
       plan: "free",
-      aiProvider: "anthropic",
-      anthropicModel: "claude-sonnet-4-5-20250929",
+      openrouterModel: "anthropic/claude-3.5-sonnet",
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -117,14 +116,12 @@ export const update = mutation({
 });
 
 /**
- * Update AI provider settings
+ * Update AI model settings (OpenRouter only)
  */
 export const updateAISettings = mutation({
   args: {
     organizationId: v.id("organizations"),
-    aiProvider: v.optional(v.string()),
-    anthropicModel: v.optional(v.string()),
-    openaiModel: v.optional(v.string()),
+    openrouterModel: v.string(), // OpenRouter model ID (e.g., "anthropic/claude-3.5-sonnet")
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -142,12 +139,10 @@ export const updateAISettings = mutation({
       throw new Error("Only owners and admins can update AI settings");
     }
 
-    const updates: any = { updatedAt: Date.now() };
-    if (args.aiProvider) updates.aiProvider = args.aiProvider;
-    if (args.anthropicModel) updates.anthropicModel = args.anthropicModel;
-    if (args.openaiModel) updates.openaiModel = args.openaiModel;
-
-    await ctx.db.patch(args.organizationId, updates);
+    await ctx.db.patch(args.organizationId, {
+      openrouterModel: args.openrouterModel,
+      updatedAt: Date.now(),
+    });
   },
 });
 
@@ -213,26 +208,3 @@ export const updateMemberRole = mutation({
   },
 });
 
-/**
- * Fix all organizations to use OpenRouter (one-time migration)
- * Run with: npx convex run organizations:migrateToOpenRouter
- */
-export const migrateToOpenRouter = mutation({
-  handler: async (ctx) => {
-    const orgs = await ctx.db.query("organizations").collect();
-    let updated = 0;
-
-    for (const org of orgs) {
-      if (org.aiProvider === "anthropic" || !org.aiProvider) {
-        await ctx.db.patch(org._id, {
-          aiProvider: "openrouter",
-          openrouterModel: "anthropic/claude-3.5-sonnet",
-          updatedAt: Date.now(),
-        });
-        updated++;
-      }
-    }
-
-    return { updated, total: orgs.length };
-  },
-});
