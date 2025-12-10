@@ -12,11 +12,6 @@ function extractPlainText(content: any): string {
   const lines: string[] = [];
 
   function extractText(node: any): void {
-    // Skip editor notes
-    if (node.type === "editorNote") {
-      return;
-    }
-
     // Handle text nodes
     if (node.type === "text" && node.text) {
       return; // Text is collected via getTextContent

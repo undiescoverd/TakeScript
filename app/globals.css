@@ -231,43 +231,6 @@
   letter-spacing: 0.05em;
 }
 
-/* Editor Note Block */
-.ProseMirror [data-type="editorNote"],
-.editor-note-block {
-  background: #fef3c7;
-  padding: 0.75rem 1rem;
-  border-radius: 0.375rem;
-  margin: 0.5rem 0;
-  position: relative;
-}
-
-.editor-note-block::before {
-  content: "📝 EDITOR NOTE";
-  display: block;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: #92400e;
-  margin-bottom: 0.25rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-/* Dark mode for editor note */
-.dark .ProseMirror [data-type="editorNote"],
-.dark .editor-note-block {
-  background: #422006;
-}
-
-.dark .editor-note-block::before {
-  color: #fcd34d;
-}
-
-/* Recording mode - hide editor notes */
-[data-mode="recording"] [data-type="editorNote"],
-[data-mode="recording"] .editor-note-block {
-  display: none;
-}
-
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .ProseMirror {

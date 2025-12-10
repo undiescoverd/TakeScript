@@ -3,7 +3,6 @@ import { ReactNodeViewRenderer } from "@tiptap/react";
 import { ChapterNodeView } from "./ChapterNodeView";
 import { ScreenRecordingNodeView } from "./ScreenRecordingNodeView";
 import { DemonstrationNodeView } from "./DemonstrationNodeView";
-import { EditorNoteNodeView } from "./EditorNoteNodeView";
 import { ThumbnailTitleNodeView } from "./ThumbnailTitleNodeView";
 
 // Re-export SpeakerMark for use in components
@@ -152,49 +151,6 @@ export const DemonstrationBlock = Node.create({
   },
 });
 
-// Editor Note Block Extension
-// Supports wrapping block content (lists, paragraphs, etc.) while preserving formatting
-export const EditorNoteBlock = Node.create({
-  name: "editorNote",
-  group: "block",
-  content: "block+",
-  defining: true,
-
-  addAttributes() {
-    return {
-      id: {
-        default: null,
-      },
-      description: {
-        default: null,
-      },
-    };
-  },
-
-  parseHTML() {
-    return [
-      {
-        tag: 'div[data-type="editorNote"]',
-      },
-    ];
-  },
-
-  renderHTML({ HTMLAttributes }) {
-    return [
-      "div",
-      mergeAttributes(HTMLAttributes, {
-        "data-type": "editorNote",
-        class: "editor-note-block",
-      }),
-      0,
-    ];
-  },
-
-  addNodeView() {
-    return ReactNodeViewRenderer(EditorNoteNodeView);
-  },
-});
-
 // Thumbnail Title Block Extension
 // Supports wrapping block content with an editable title for video thumbnails
 export const ThumbnailTitleBlock = Node.create({
@@ -249,6 +205,5 @@ export const customExtensions = [
   ChapterBlock,
   ScreenRecordingBlock,
   DemonstrationBlock,
-  EditorNoteBlock,
   ThumbnailTitleBlock,
 ];

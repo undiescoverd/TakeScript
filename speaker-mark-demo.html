@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tiptap Mark Demo - What a Mark Actually Looks Like</title>
+  <style>
+    :root {
+      --tobi-color: #3b82f6;
+      --victoria-color: #8b5cf6;
+      --narrator-color: #10b981;
+      --bg-dark: #1a1a2e;
+      --bg-card: #252542;
+      --bg-code: #1e1e2e;
+      --text-primary: #e2e8f0;
+      --text-secondary: #94a3b8;
+      --border-color: #374151;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      line-height: 1.7;
+      padding: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: var(--text-secondary);
+      margin-bottom: 3rem;
+    }
+
+    section {
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      border: 1px solid var(--border-color);
+    }
+
+    h2 {
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    h2 .number {
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+    }
+
+    h3 {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      margin: 1.5rem 0 0.75rem 0;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .demo-box {
+      background: var(--bg-code);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin: 1rem 0;
+    }
+
+    .label {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.5rem;
+    }
+
+    pre {
+      background: #0d0d1a;
+      border-radius: 6px;
+      padding: 1rem;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      font-size: 0.8rem;
+      line-height: 1.5;
+    }
+
+    code {
+      font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    }
+
+    .json-key { color: #7dd3fc; }
+    .json-string { color: #86efac; }
+    .json-number { color: #fcd34d; }
+    .json-bracket { color: #94a3b8; }
+
+    .arrow {
+      text-align: center;
+      font-size: 2rem;
+      color: var(--text-secondary);
+      margin: 1rem 0;
+    }
+
+    /* ========================================
+       VISUAL DEMOS
+       ======================================== */
+
+    /* Basic mark rendering */
+    .editor-preview {
+      background: white;
+      color: #1a1a2e;
+      border-radius: 8px;
+      padding: 1.5rem;
+      font-family: Georgia, serif;
+      font-size: 1.1rem;
+      line-height: 1.8;
+    }
+
+    /* How the HTML span looks */
+    .editor-preview [data-speaker] {
+      /* This is what Tiptap outputs */
+    }
+
+    /* Bold mark example */
+    .editor-preview strong {
+      font-weight: 700;
+    }
+
+    /* Speaker mark - just a span with data attributes */
+    .editor-preview .speaker-tobi {
+      /* Mark itself is invisible - just a span wrapper */
+    }
+
+    .editor-preview .speaker-victoria {
+      /* Mark itself is invisible - just a span wrapper */
+    }
+
+    /* ========================================
+       STYLING OPTIONS FOR MARKS
+       ======================================== */
+
+    /* Option 1: Colored text */
+    .style-colored-text [data-speaker="tobi"] {
+      color: var(--tobi-color);
+    }
+    .style-colored-text [data-speaker="victoria"] {
+      color: var(--victoria-color);
+    }
+
+    /* Option 2: Background highlight */
+    .style-background [data-speaker="tobi"] {
+      background: rgba(59, 130, 246, 0.15);
+      padding: 2px 0;
+    }
+    .style-background [data-speaker="victoria"] {
+      background: rgba(139, 92, 246, 0.15);
+      padding: 2px 0;
+    }
+
+    /* Option 3: Underline */
+    .style-underline [data-speaker="tobi"] {
+      text-decoration: underline;
+      text-decoration-color: var(--tobi-color);
+      text-underline-offset: 3px;
+    }
+    .style-underline [data-speaker="victoria"] {
+      text-decoration: underline;
+      text-decoration-color: var(--victoria-color);
+      text-underline-offset: 3px;
+    }
+
+    /* Option 4: No direct styling - use paragraph decoration instead */
+    .style-none [data-speaker] {
+      /* Mark is invisible, paragraph gets the styling */
+    }
+
+    /* ========================================
+       PARAGRAPH-LEVEL DECORATION DEMO
+       ======================================== */
+    .para-demo {
+      background: white;
+      color: #1a1a2e;
+      border-radius: 8px;
+      padding: 1.5rem;
+      font-family: Georgia, serif;
+      font-size: 1rem;
+      line-height: 1.8;
+    }
+
+    .para-demo p {
+      margin: 0.75rem 0;
+      padding: 0.5rem 0 0.5rem 15px;
+      position: relative;
+    }
+
+    .para-demo p:first-child { margin-top: 0; }
+    .para-demo p:last-child { margin-bottom: 0; }
+
+    /* Paragraph with speaker gets border */
+    .para-demo p[data-paragraph-speaker="tobi"] {
+      border-left: 3px solid var(--tobi-color);
+    }
+
+    .para-demo p[data-paragraph-speaker="victoria"] {
+      border-left: 3px solid var(--victoria-color);
+    }
+
+    /* First-of-run gets the label */
+    .para-demo p[data-show-label="true"]::before {
+      content: attr(data-speaker-name) " [" attr(data-camera-mode) "]";
+      position: absolute;
+      top: -1.25rem;
+      left: 12px;
+      font-size: 0.65rem;
+      font-weight: 600;
+      font-family: -apple-system, sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .para-demo p[data-paragraph-speaker="tobi"][data-show-label="true"]::before {
+      background: rgba(59, 130, 246, 0.15);
+      color: var(--tobi-color);
+    }
+
+    .para-demo p[data-paragraph-speaker="victoria"][data-show-label="true"]::before {
+      background: rgba(139, 92, 246, 0.15);
+      color: var(--victoria-color);
+    }
+
+    .para-demo p[data-show-label="true"] {
+      margin-top: 2rem;
+    }
+
+    .para-demo p[data-show-label="true"]:first-child {
+      margin-top: 1.5rem;
+    }
+
+    /* Action line */
+    .para-demo p.action {
+      color: #64748b;
+      font-style: italic;
+      border-left: none;
+      padding-left: 0;
+    }
+
+    /* ========================================
+       COMPARISON GRID
+       ======================================== */
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1.5rem;
+      margin-top: 1rem;
+    }
+
+    .comparison-item {
+      background: var(--bg-code);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    .comparison-item h4 {
+      font-size: 0.85rem;
+      margin-bottom: 0.75rem;
+      color: var(--text-primary);
+    }
+
+    .comparison-item .preview {
+      background: white;
+      color: #1a1a2e;
+      padding: 1rem;
+      border-radius: 6px;
+      font-family: Georgia, serif;
+      line-height: 1.6;
+    }
+
+    /* ========================================
+       FINAL RECOMMENDATION
+       ======================================== */
+    .recommendation {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .recommendation h4 {
+      color: #10b981;
+      margin-bottom: 0.75rem;
+    }
+
+    .recommendation ul {
+      padding-left: 1.25rem;
+      margin-top: 0.5rem;
+    }
+
+    .recommendation li {
+      margin-bottom: 0.25rem;
+    }
+
+    .note {
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-top: 1rem;
+      font-size: 0.875rem;
+    }
+
+    .note strong {
+      color: #3b82f6;
+    }
+  </style>
+</head>
+<body>
+  <h1>What is a Tiptap Mark?</h1>
+  <p class="subtitle">Understanding marks vs nodes, and how to style speaker attribution</p>
+
+  <!-- SECTION 1: What is a Mark -->
+  <section>
+    <h2><span class="number">1</span> Marks vs Nodes</h2>
+
+    <p>In Tiptap/ProseMirror, content is made of two things:</p>
+
+    <div class="comparison-grid">
+      <div class="comparison-item">
+        <h4>Nodes (Block or Inline)</h4>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.75rem;">
+          Structural elements. They exist as their own thing in the document.
+        </p>
+        <div class="preview">
+          <p style="margin-bottom: 0.5rem;">This is a <strong>paragraph node</strong>.</p>
+          <p style="margin-bottom: 0.5rem;">This is another paragraph.</p>
+          <p style="background: #f0f0f0; padding: 8px; border-radius: 4px; margin: 0;">This is a blockquote node.</p>
+        </div>
+      </div>
+
+      <div class="comparison-item">
+        <h4>Marks (Applied to Text)</h4>
+        <p style="color: var(--text-secondary); font-size: 0.85rem; margin-bottom: 0.75rem;">
+          Attributes/styling on text. They wrap existing text, don't stand alone.
+        </p>
+        <div class="preview">
+          <p>This has <strong>bold mark</strong> and <em>italic mark</em> and <span style="background: yellow;">highlight mark</span> applied.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="note">
+      <strong>Key difference:</strong> You can select any text and apply a mark. You can't select text and turn it into a node (well, you can, but it replaces the structure). Marks are non-destructive overlays on text.
+    </div>
+  </section>
+
+  <!-- SECTION 2: How a Mark Stores Data -->
+  <section>
+    <h2><span class="number">2</span> How a Mark Stores Data</h2>
+
+    <p>When you apply a mark, Tiptap stores it in the document JSON. Here's what your content would look like:</p>
+
+    <h3>You write this:</h3>
+    <div class="demo-box">
+      <div class="preview" style="background: white; color: #1a1a2e; padding: 1rem; border-radius: 6px; font-family: Georgia, serif;">
+        <p><span style="background: rgba(59, 130, 246, 0.15); padding: 2px 4px; border-radius: 2px;">Oh hi, Victoria! I didn't see you there.</span></p>
+      </div>
+      <p style="margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-secondary);">↑ Text with speaker mark applied (Tobi)</p>
+    </div>
+
+    <div class="arrow">↓</div>
+
+    <h3>Tiptap stores this JSON:</h3>
+    <div class="demo-box">
+      <pre><span class="json-bracket">{</span>
+  <span class="json-key">"type"</span>: <span class="json-string">"paragraph"</span>,
+  <span class="json-key">"content"</span>: <span class="json-bracket">[</span>
+    <span class="json-bracket">{</span>
+      <span class="json-key">"type"</span>: <span class="json-string">"text"</span>,
+      <span class="json-key">"text"</span>: <span class="json-string">"Oh hi, Victoria! I didn't see you there."</span>,
+      <span class="json-key">"marks"</span>: <span class="json-bracket">[</span>
+        <span class="json-bracket">{</span>
+          <span class="json-key">"type"</span>: <span class="json-string">"speaker"</span>,
+          <span class="json-key">"attrs"</span>: <span class="json-bracket">{</span>
+            <span class="json-key">"speakerId"</span>: <span class="json-string">"tobi"</span>,
+            <span class="json-key">"cameraMode"</span>: <span class="json-string">"fullscreen"</span>
+          <span class="json-bracket">}</span>
+        <span class="json-bracket">}</span>
+      <span class="json-bracket">]</span>
+    <span class="json-bracket">}</span>
+  <span class="json-bracket">]</span>
+<span class="json-bracket">}</span></pre>
+    </div>
+
+    <div class="arrow">↓</div>
+
+    <h3>Tiptap renders this HTML:</h3>
+    <div class="demo-box">
+      <pre>&lt;p&gt;
+  &lt;span data-speaker="tobi" data-camera-mode="fullscreen"&gt;
+    Oh hi, Victoria! I didn't see you there.
+  &lt;/span&gt;
+&lt;/p&gt;</pre>
+    </div>
+
+    <div class="note">
+      <strong>The mark is just a &lt;span&gt; with data attributes.</strong> It doesn't look like anything by default. You add CSS to style it however you want.
+    </div>
+  </section>
+
+  <!-- SECTION 3: Ways to Style a Mark -->
+  <section>
+    <h2><span class="number">3</span> Ways to Style the Mark</h2>
+
+    <p>The mark itself is invisible. Here are your options for making it visible:</p>
+
+    <div class="comparison-grid">
+      <div class="comparison-item">
+        <h4>Option A: Colored Text</h4>
+        <div class="preview style-colored-text">
+          <p><span data-speaker="tobi">Oh hi, Victoria! I didn't see you there.</span></p>
+          <p><span data-speaker="victoria">Looks good so far. We're at Arc Studio.</span></p>
+        </div>
+        <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem;">
+          Simple but reduces readability. Hard to distinguish speakers in long docs.
+        </p>
+      </div>
+
+      <div class="comparison-item">
+        <h4>Option B: Background Highlight</h4>
+        <div class="preview style-background">
+          <p><span data-speaker="tobi">Oh hi, Victoria! I didn't see you there.</span></p>
+          <p><span data-speaker="victoria">Looks good so far. We're at Arc Studio.</span></p>
+        </div>
+        <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem;">
+          More visible but very noisy with lots of dialogue.
+        </p>
+      </div>
+
+      <div class="comparison-item">
+        <h4>Option C: Underline</h4>
+        <div class="preview style-underline">
+          <p><span data-speaker="tobi">Oh hi, Victoria! I didn't see you there.</span></p>
+          <p><span data-speaker="victoria">Looks good so far. We're at Arc Studio.</span></p>
+        </div>
+        <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem;">
+          Subtle but underlines usually mean links. Confusing.
+        </p>
+      </div>
+
+      <div class="comparison-item">
+        <h4>Option D: Nothing (Use Decoration)</h4>
+        <div class="preview style-none">
+          <p><span data-speaker="tobi">Oh hi, Victoria! I didn't see you there.</span></p>
+          <p><span data-speaker="victoria">Looks good so far. We're at Arc Studio.</span></p>
+        </div>
+        <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem;">
+          Mark is invisible. Style the paragraph instead via decorations.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 4: The Decoration Approach -->
+  <section>
+    <h2><span class="number">4</span> The Better Approach: Mark + Paragraph Decoration</h2>
+
+    <p>Instead of styling the mark directly, use a <strong>decoration plugin</strong> to style the paragraph:</p>
+
+    <h3>How it works:</h3>
+    <ol style="padding-left: 1.5rem; margin: 1rem 0; line-height: 2;">
+      <li>Mark stores <code>speakerId</code> and <code>cameraMode</code> on the text</li>
+      <li>Plugin scans each paragraph, checks if it contains a speaker mark</li>
+      <li>Plugin adds decoration to the paragraph with <code>data-paragraph-speaker</code></li>
+      <li>Plugin checks if previous paragraph had different speaker → adds <code>data-show-label="true"</code></li>
+      <li>CSS styles the paragraph (border) and shows label only on first-of-run</li>
+    </ol>
+
+    <h3>Result:</h3>
+    <div class="demo-box">
+      <div class="para-demo">
+        <p data-paragraph-speaker="tobi" data-show-label="true" data-speaker-name="TOBI" data-camera-mode="Full">
+          <span data-speaker="tobi">Oh hi, Victoria! I didn't see you there.</span>
+        </p>
+        <p data-paragraph-speaker="tobi">
+          <span data-speaker="tobi">I'm working on an introduction script. I started with our scene location and some action.</span>
+        </p>
+
+        <p class="action">Victoria smiles and points to the screen.</p>
+
+        <p data-paragraph-speaker="victoria" data-show-label="true" data-speaker-name="VICTORIA" data-camera-mode="Mini">
+          <span data-speaker="victoria">Looks good so far. We're at Arc Studio Headquarters and it's day so this is an interior scene.</span>
+        </p>
+
+        <p data-paragraph-speaker="tobi" data-show-label="true" data-speaker-name="TOBI" data-camera-mode="VO">
+          <span data-speaker="tobi">Scene, action, character, and dialogue are the four main elements to get you started.</span>
+        </p>
+        <p data-paragraph-speaker="tobi">
+          <span data-speaker="tobi">Arc will usually select the one that is right at the moment.</span>
+        </p>
+      </div>
+    </div>
+
+    <h3>The HTML structure:</h3>
+    <div class="demo-box">
+      <pre>&lt;!-- Paragraph gets decoration attributes --&gt;
+&lt;p data-paragraph-speaker="tobi"
+   data-show-label="true"
+   data-speaker-name="TOBI"
+   data-camera-mode="Full"&gt;
+
+  &lt;!-- Mark wraps the text (invisible) --&gt;
+  &lt;span data-speaker="tobi" data-camera-mode="fullscreen"&gt;
+    Oh hi, Victoria! I didn't see you there.
+  &lt;/span&gt;
+
+&lt;/p&gt;
+
+&lt;!-- Second paragraph - same speaker, no label --&gt;
+&lt;p data-paragraph-speaker="tobi"&gt;
+  &lt;span data-speaker="tobi" data-camera-mode="fullscreen"&gt;
+    I'm working on an introduction script.
+  &lt;/span&gt;
+&lt;/p&gt;</pre>
+    </div>
+
+    <h3>The CSS:</h3>
+    <div class="demo-box">
+      <pre><span style="color: #7dd3fc;">/* Border on paragraphs with speaker */</span>
+p[data-paragraph-speaker="tobi"] {
+  border-left: 3px solid #3b82f6;
+  padding-left: 15px;
+}
+
+<span style="color: #7dd3fc;">/* Label only on first-of-run */</span>
+p[data-show-label="true"]::before {
+  content: attr(data-speaker-name) " [" attr(data-camera-mode) "]";
+  position: absolute;
+  top: -1.25rem;
+  left: 12px;
+  font-size: 0.65rem;
+  /* ... styling ... */
+}</pre>
+    </div>
+  </section>
+
+  <!-- SECTION 5: Summary -->
+  <section>
+    <h2><span class="number">5</span> Summary: What You Need to Build</h2>
+
+    <div class="recommendation">
+      <h4>Implementation Checklist</h4>
+      <ul>
+        <li><strong>Speaker Mark</strong> - stores <code>speakerId</code> and <code>cameraMode</code> on text</li>
+        <li><strong>Decoration Plugin</strong> - scans paragraphs, adds <code>data-paragraph-speaker</code> and <code>data-show-label</code></li>
+        <li><strong>CSS</strong> - styles border, renders label via <code>::before</code> pseudo-element</li>
+        <li><strong>Zustand Store</strong> - manages speaker list (names, colors)</li>
+        <li><strong>Edit Button</strong> - widget decoration on hover near label to edit speaker/mode</li>
+      </ul>
+    </div>
+
+    <div class="note" style="margin-top: 1rem;">
+      <strong>Why this works well:</strong>
+      <ul style="margin-top: 0.5rem; padding-left: 1.25rem;">
+        <li>Mark is the single source of truth (no pills to sync)</li>
+        <li>Decorations are visual-only (don't affect content)</li>
+        <li>CSS handles all rendering (no React inside editor = no flashing)</li>
+        <li>Label appears once per speaker run automatically</li>
+        <li>Can apply to any selection</li>
+        <li>Slash command just applies mark to empty paragraph</li>
+      </ul>
+    </div>
+  </section>
+
+</body>
+</html>

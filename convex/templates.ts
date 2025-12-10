@@ -20,7 +20,7 @@ function sanitizeTemplateContent(content: string): string {
 
       // If this is a custom block with an ID attribute, regenerate it
       if (node.attrs?.id && node.type) {
-        const blockTypes = ["chapter", "screenRecording", "demonstration", "editorNote"];
+        const blockTypes = ["chapter", "screenRecording", "demonstration"];
         if (blockTypes.includes(node.type)) {
           node.attrs.id = generateBlockId(node.type);
         }

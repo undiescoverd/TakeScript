@@ -27,6 +27,8 @@ import {
   Sparkles,
   CheckCircle,
   FileSearch,
+  Layers,
+  Circle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ShareDialog } from "@/components/collaboration/ShareDialog";
@@ -53,7 +55,7 @@ export function Topbar({ scriptId, title, content, onSaveNow, onOpenAIChat, onGr
   const [wasSaving, setWasSaving] = useState(false);
   const updateTitle = useMutation(api.scripts.updateTitle);
   const saveVersion = useMutation(api.versions.save);
-  const { isSaving, toggleVersionHistory, toggleComments, toggleAnnotations, toggleSpeakers, speakersOpen, lastSavedAt, collaborationEnabled, toggleCollaboration } = useEditorStore();
+  const { isSaving, toggleVersionHistory, toggleComments, toggleAnnotations, toggleSpeakers, speakersOpen, lastSavedAt, collaborationEnabled, toggleCollaboration, viewMode, setViewMode } = useEditorStore();
   const templatesSaveEnabled = useFeatureFlag("templatesSaveEnabled");
 
   useEffect(() => {
@@ -184,6 +186,31 @@ export function Topbar({ scriptId, title, content, onSaveNow, onOpenAIChat, onGr
 
       {/* Center section */}
       <div className="flex items-center gap-4">
+        {/* View Mode Toggle */}
+        <div className="flex items-center gap-0.5 rounded-lg bg-muted p-1">
+          <Button
+            variant={viewMode === "focus" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("focus")}
+            disabled={collaborationEnabled}
+            title={collaborationEnabled ? "Disable collaboration to use Focus Mode" : "Focus Mode - distraction-free writing"}
+            className="gap-1.5 px-2.5 h-8"
+          >
+            <Circle className="h-3.5 w-3.5" />
+            Focus
+          </Button>
+          <Button
+            variant={viewMode === "edit" ? "secondary" : "ghost"}
+            size="sm"
+            onClick={() => setViewMode("edit")}
+            title="Edit Mode - full-featured interface"
+            className="gap-1.5 px-2.5 h-8"
+          >
+            <Layers className="h-3.5 w-3.5" />
+            Edit
+          </Button>
+        </div>
+
         <ModeToggle />
       </div>
 
@@ -193,69 +220,73 @@ export function Topbar({ scriptId, title, content, onSaveNow, onOpenAIChat, onGr
           {wordCount} words &middot; {readTime} min read
         </div>
 
-        <Button variant="outline" size="sm" onClick={handleExport}>
-          <Download className="mr-2 h-4 w-4" />
-          Export
-        </Button>
+        {viewMode === "edit" && (
+          <>
+            <Button variant="outline" size="sm" onClick={handleExport}>
+              <Download className="mr-2 h-4 w-4" />
+              Export
+            </Button>
 
-        {templatesSaveEnabled && (
-          <SaveTemplateDialog content={JSON.stringify(content)} />
+            {templatesSaveEnabled && (
+              <SaveTemplateDialog content={JSON.stringify(content)} />
+            )}
+
+            <Button variant="outline" size="sm" onClick={handleSaveVersion}>
+              <Save className="mr-2 h-4 w-4" />
+              Save Version
+            </Button>
+
+            <Button variant="ghost" size="icon" onClick={toggleVersionHistory}>
+              <History className="h-4 w-4" />
+            </Button>
+
+            <Button variant="ghost" size="icon" onClick={toggleComments}>
+              <MessageSquare className="h-4 w-4" />
+            </Button>
+
+            <Button variant="ghost" size="icon" onClick={toggleAnnotations} title="Annotations">
+              <Highlighter className="h-4 w-4" />
+            </Button>
+
+            <Button
+              variant={speakersOpen ? "default" : "ghost"}
+              size="icon"
+              onClick={toggleSpeakers}
+              title="Speakers"
+            >
+              <UserRoundPlus className="h-4 w-4" />
+            </Button>
+
+            {flags.aiChatEnabled && onOpenAIChat && (
+              <Button variant="ghost" size="icon" onClick={onOpenAIChat} title="AI Assistant">
+                <Sparkles className="h-4 w-4" />
+              </Button>
+            )}
+
+            {flags.aiGrammarCheckEnabled && onGrammarCheck && (
+              <Button variant="ghost" size="icon" onClick={onGrammarCheck} title="Check Grammar & Style">
+                <CheckCircle className="h-4 w-4" />
+              </Button>
+            )}
+
+            {flags.aiReviewEnabled && onScriptReview && (
+              <Button variant="ghost" size="icon" onClick={onScriptReview} title="Review Script">
+                <FileSearch className="h-4 w-4" />
+              </Button>
+            )}
+
+            <ShareDialog scriptId={scriptId} />
+
+            <Button
+              variant={collaborationEnabled ? "default" : "ghost"}
+              size="icon"
+              onClick={toggleCollaboration}
+              title={collaborationEnabled ? "Collaboration enabled" : "Enable collaboration"}
+            >
+              <Users className="h-4 w-4" />
+            </Button>
+          </>
         )}
-
-        <Button variant="outline" size="sm" onClick={handleSaveVersion}>
-          <Save className="mr-2 h-4 w-4" />
-          Save Version
-        </Button>
-
-        <Button variant="ghost" size="icon" onClick={toggleVersionHistory}>
-          <History className="h-4 w-4" />
-        </Button>
-
-        <Button variant="ghost" size="icon" onClick={toggleComments}>
-          <MessageSquare className="h-4 w-4" />
-        </Button>
-
-        <Button variant="ghost" size="icon" onClick={toggleAnnotations} title="Annotations">
-          <Highlighter className="h-4 w-4" />
-        </Button>
-
-        <Button
-          variant={speakersOpen ? "default" : "ghost"}
-          size="icon"
-          onClick={toggleSpeakers}
-          title="Speakers"
-        >
-          <UserRoundPlus className="h-4 w-4" />
-        </Button>
-
-        {flags.aiChatEnabled && onOpenAIChat && (
-          <Button variant="ghost" size="icon" onClick={onOpenAIChat} title="AI Assistant">
-            <Sparkles className="h-4 w-4" />
-          </Button>
-        )}
-
-        {flags.aiGrammarCheckEnabled && onGrammarCheck && (
-          <Button variant="ghost" size="icon" onClick={onGrammarCheck} title="Check Grammar & Style">
-            <CheckCircle className="h-4 w-4" />
-          </Button>
-        )}
-
-        {flags.aiReviewEnabled && onScriptReview && (
-          <Button variant="ghost" size="icon" onClick={onScriptReview} title="Review Script">
-            <FileSearch className="h-4 w-4" />
-          </Button>
-        )}
-
-        <ShareDialog scriptId={scriptId} />
-
-        <Button
-          variant={collaborationEnabled ? "default" : "ghost"}
-          size="icon"
-          onClick={toggleCollaboration}
-          title={collaborationEnabled ? "Collaboration enabled" : "Enable collaboration"}
-        >
-          <Users className="h-4 w-4" />
-        </Button>
 
         <ThemeToggle />
         <UserButton afterSignOutUrl="/login" />

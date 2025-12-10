@@ -57,7 +57,7 @@ export default function ScriptPage() {
   const scriptId = params.id as Id<"scripts">;
   const script = useQuery(api.scripts.get, { scriptId });
   const { scheduleAutosave, saveNow, setOnSaveComplete, getLastSavedContent, initializeLastSaved } = useAutosave(scriptId);
-  const { mode, commentsOpen, setCommentsOpen, annotationsOpen, setAnnotationsOpen, collaborationEnabled, speakersOpen, setSpeakersOpen } = useEditorStore();
+  const { mode, viewMode, toggleViewMode, commentsOpen, setCommentsOpen, annotationsOpen, setAnnotationsOpen, collaborationEnabled, speakersOpen, setSpeakersOpen } = useEditorStore();
   const { speakers, setSpeakers } = useSpeakerStore();
   const updateSpeakers = useMutation(api.scripts.updateSpeakers);
   const [editorRef, setEditorRef] = useState<Editor | null>(null);
@@ -330,6 +330,34 @@ export default function ScriptPage() {
     };
   }, []);
 
+  // Focus Mode keyboard shortcut: Cmd+Shift+F
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
+        e.preventDefault();
+        toggleViewMode();
+        const newMode = viewMode === "focus" ? "edit" : "focus";
+        toast.success(`${newMode === "focus" ? "Focus" : "Edit"} Mode activated`);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [viewMode, toggleViewMode]);
+
+  // Show onboarding tooltip on first Focus Mode activation
+  useEffect(() => {
+    if (viewMode === "focus") {
+      const hasSeenTip = localStorage.getItem("takescript-focus-mode-tip");
+      if (!hasSeenTip) {
+        toast.info("Hover near the top edge to reveal controls", {
+          duration: 5000,
+        });
+        localStorage.setItem("takescript-focus-mode-tip", "true");
+      }
+    }
+  }, [viewMode]);
+
   // Save immediately on blur (when user clicks away) - like Google Docs
   useEffect(() => {
     if (!editorRef) return;
@@ -427,7 +455,13 @@ export default function ScriptPage() {
 
 
   return (
-    <div className="flex h-screen flex-col bg-background" data-mode={mode}>
+    <div className="flex h-screen flex-col bg-background" data-mode={mode} data-view-mode={viewMode}>
+      {/* Combined Hover Zone for Topbar + BeatBoard (Focus Mode only) */}
+      {/* Extends from top down to bottom of BeatBoard when visible */}
+      {viewMode === "focus" && (
+        <div className="topbar-hover-zone fixed top-0 left-0 right-0 h-28 z-[60] pointer-events-none" />
+      )}
+
       {/* Topbar */}
       <Topbar
         scriptId={scriptId}

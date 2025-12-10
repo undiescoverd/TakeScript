@@ -105,7 +105,6 @@ const BLOCK_TYPES = new Set([
   "chapter",
   "screenRecording",
   "demonstration",
-  "editorNote",
   "thumbnailTitle",
 ]);
 

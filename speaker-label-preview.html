@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Speaker Label Preview - TakeScript</title>
+  <style>
+    :root {
+      --nick-color: #3b82f6;
+      --sarah-color: #8b5cf6;
+      --narrator-color: #10b981;
+      --bg-dark: #0a0a0a;
+      --bg-card: #171717;
+      --text-primary: #fafafa;
+      --text-muted: #a1a1aa;
+      --border: #27272a;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-dark);
+      color: var(--text-primary);
+      line-height: 1.7;
+      padding: 2rem;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 0.5rem;
+      font-size: 1.5rem;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: var(--text-muted);
+      margin-bottom: 2rem;
+      font-size: 0.875rem;
+    }
+
+    .preview-container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 2rem;
+      border: 1px solid var(--border);
+    }
+
+    .preview-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* Editor simulation */
+    .editor {
+      background: #1a1a1a;
+      border-radius: 8px;
+      padding: 2rem;
+      font-family: 'Courier Prime', 'Courier New', monospace;
+      font-size: 14px;
+      line-height: 2;
+    }
+
+    .editor p {
+      margin: 0.5rem 0;
+      padding: 0.5rem 0 0.5rem 1rem;
+      position: relative;
+    }
+
+    /* ===== SPEAKER ATTRIBUTION STYLES ===== */
+
+    /* Paragraph with speaker - colored left border */
+    .editor p[data-paragraph-speaker] {
+      border-left: 3px solid var(--speaker-color, #3b82f6);
+      padding-left: 1rem;
+    }
+
+    /* First paragraph of speaker run - extra margin for label */
+    .editor p[data-show-label="true"] {
+      margin-top: 2.5rem;
+    }
+
+    .editor p[data-show-label="true"]:first-child {
+      margin-top: 1.5rem;
+    }
+
+    /* CENTERED LABEL using ::before */
+    .editor p[data-show-label="true"]::before {
+      content: attr(data-speaker-name) " - " attr(data-camera-mode);
+      position: absolute;
+      top: -1.75rem;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.65rem;
+      font-weight: 600;
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 3px 14px;
+      border-radius: 4px;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    .editor p[data-show-label="true"]::before:hover {
+      opacity: 0.8;
+    }
+
+    /* Nick's colors (blue) */
+    .editor p[data-paragraph-speaker="nick"] {
+      --speaker-color: #3b82f6;
+    }
+    .editor p[data-paragraph-speaker="nick"][data-show-label="true"]::before {
+      background: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+    }
+
+    /* Sarah's colors (purple) */
+    .editor p[data-paragraph-speaker="sarah"] {
+      --speaker-color: #8b5cf6;
+    }
+    .editor p[data-paragraph-speaker="sarah"][data-show-label="true"]::before {
+      background: rgba(139, 92, 246, 0.2);
+      color: #a78bfa;
+    }
+
+    /* Narrator's colors (green) */
+    .editor p[data-paragraph-speaker="narrator"] {
+      --speaker-color: #10b981;
+    }
+    .editor p[data-paragraph-speaker="narrator"][data-show-label="true"]::before {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+    }
+
+    /* Action/Description line (no speaker) */
+    .editor p.action {
+      color: var(--text-muted);
+      font-style: italic;
+      border-left: none;
+      padding-left: 0;
+    }
+
+    /* ===== INFO SECTION ===== */
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-top: 2rem;
+    }
+
+    .info-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+
+    .info-card h3 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+    }
+
+    .speaker-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin: 0.25rem;
+    }
+
+    .speaker-chip.nick {
+      background: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+    }
+
+    .speaker-chip.sarah {
+      background: rgba(139, 92, 246, 0.2);
+      color: #a78bfa;
+    }
+
+    .speaker-chip.narrator {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+    }
+
+    .camera-mode {
+      display: block;
+      padding: 0.25rem 0;
+      font-size: 0.875rem;
+    }
+
+    code {
+      background: rgba(255,255,255,0.1);
+      padding: 0.125rem 0.375rem;
+      border-radius: 3px;
+      font-size: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Speaker Label Preview</h1>
+  <p class="subtitle">Centered labels above paragraphs - Arc Studio style</p>
+
+  <div class="preview-container">
+    <div class="preview-label">Editor Preview</div>
+
+    <div class="editor">
+      <p data-paragraph-speaker="nick"
+         data-show-label="true"
+         data-speaker-name="NICK"
+         data-camera-mode="FULL">
+        Hi, I'm Nick from SquareKicker. In this tutorial, you'll learn how to transfer website ownership using SquareKicker's transfer feature.
+      </p>
+
+      <p data-paragraph-speaker="nick">
+        Whether you're a designer handing off a completed project to your client, or a client taking ownership of your new website, this process makes it simple and secure.
+      </p>
+
+      <p class="action">Nick clicks on the Settings panel in the dashboard.</p>
+
+      <p data-paragraph-speaker="sarah"
+         data-show-label="true"
+         data-speaker-name="SARAH"
+         data-camera-mode="SMALL">
+        Before we begin, make sure you're logged into your SquareKicker account and have the recipient's email address ready.
+      </p>
+
+      <p data-paragraph-speaker="nick"
+         data-show-label="true"
+         data-speaker-name="NICK"
+         data-camera-mode="VOICE OVER">
+        Let me walk you through the transfer process step by step. First, navigate to your project settings.
+      </p>
+
+      <p data-paragraph-speaker="nick">
+        You'll find the transfer option under the "Ownership" section. Click "Transfer Website" to begin.
+      </p>
+
+      <p data-paragraph-speaker="nick">
+        Enter the recipient's email address and they'll receive an invitation to accept the transfer.
+      </p>
+
+      <p data-paragraph-speaker="narrator"
+         data-show-label="true"
+         data-speaker-name="NARRATOR"
+         data-camera-mode="VOICE OVER">
+        The transfer process typically takes less than a minute once the recipient accepts the invitation.
+      </p>
+    </div>
+  </div>
+
+  <div class="info-grid">
+    <div class="info-card">
+      <h3>Speakers</h3>
+      <span class="speaker-chip nick">NICK</span>
+      <span class="speaker-chip sarah">SARAH</span>
+      <span class="speaker-chip narrator">NARRATOR</span>
+    </div>
+
+    <div class="info-card">
+      <h3>Camera Modes</h3>
+      <span class="camera-mode"><code>FULL</code> - Full screen</span>
+      <span class="camera-mode"><code>SMALL</code> - Corner/minimized</span>
+      <span class="camera-mode"><code>VOICE OVER</code> - Audio only</span>
+    </div>
+
+    <div class="info-card">
+      <h3>Label Behavior</h3>
+      <p style="font-size: 0.875rem; color: var(--text-muted);">
+        Labels appear only on the <strong>first paragraph</strong> of each speaker run. Subsequent paragraphs by the same speaker just show the colored border.
+      </p>
+    </div>
+  </div>
+
+</body>
+</html>
