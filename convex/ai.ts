@@ -267,7 +267,7 @@ export const chat = action({
     const model = await getDefaultAIModel(ctx);
 
     // Get current script content for context
-    const script = await ctx.runQuery(api.scripts.get, { scriptId: args.scriptId });
+    const script = await ctx.runAction(api.scripts.loadWithContent, { scriptId: args.scriptId });
     const scriptContent = script?.content ? JSON.parse(script.content) : null;
 
     // Extract plain text from Tiptap JSONContent
@@ -313,7 +313,7 @@ export const checkGrammarAndStyle = action({
     const model = await getDefaultAIModel(ctx);
 
     // Get script content
-    const script = await ctx.runQuery(api.scripts.get, { scriptId: args.scriptId });
+    const script = await ctx.runAction(api.scripts.loadWithContent, { scriptId: args.scriptId });
     const scriptContent = script?.content ? JSON.parse(script.content) : null;
     const textToCheck = args.selectedText || (scriptContent ? extractPlainText(scriptContent) : "");
 
@@ -387,7 +387,7 @@ export const reviewScript = action({
     const brandGuidelines = await getBrandGuidelinesForUser(ctx);
     const model = await getDefaultAIModel(ctx);
 
-    const script = await ctx.runQuery(api.scripts.get, { scriptId: args.scriptId });
+    const script = await ctx.runAction(api.scripts.loadWithContent, { scriptId: args.scriptId });
     const scriptContent = script?.content ? JSON.parse(script.content) : null;
     const plainText = scriptContent ? extractPlainText(scriptContent) : "";
 
@@ -461,7 +461,7 @@ export const generateContent = action({
     // Override with user-selected model if provided
     const model = args.model || defaultModel;
 
-    const script = await ctx.runQuery(api.scripts.get, { scriptId: args.scriptId });
+    const script = await ctx.runAction(api.scripts.loadWithContent, { scriptId: args.scriptId });
     const scriptContent = script?.content ? JSON.parse(script.content) : null;
     const plainText = scriptContent ? extractPlainText(scriptContent) : "";
 
