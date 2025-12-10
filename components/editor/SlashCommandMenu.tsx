@@ -62,16 +62,55 @@ export const SlashCommandMenu = forwardRef<
     },
   }));
 
-  // Calculate position from clientRect
+  // Calculate position from clientRect with dynamic positioning
   const rect = clientRect?.();
-  const style = rect
-    ? {
-        position: "fixed" as const,
-        top: rect.bottom + 8,
-        left: rect.left,
-        zIndex: 9999,
-      }
-    : { display: "none" as const };
+
+  // Dynamic positioning logic to prevent overflow
+  const calculatePosition = () => {
+    if (!rect) return { display: "none" as const };
+
+    const MENU_MAX_HEIGHT = 320; // matches max-h-[320px] in className
+    const MENU_WIDTH = 220; // approximate width based on min-w-[220px]
+    const SPACING = 8; // gap between cursor and menu
+
+    const viewportHeight = window.innerHeight;
+    const viewportWidth = window.innerWidth;
+
+    // Calculate available space below and above the cursor
+    const spaceBelow = viewportHeight - rect.bottom;
+    const spaceAbove = rect.top;
+
+    // Determine vertical position
+    let top: number;
+    if (spaceBelow >= MENU_MAX_HEIGHT + SPACING) {
+      // Enough space below - position below cursor
+      top = rect.bottom + SPACING;
+    } else if (spaceAbove >= MENU_MAX_HEIGHT + SPACING) {
+      // Not enough space below, but enough above - position above cursor
+      top = rect.top - MENU_MAX_HEIGHT - SPACING;
+    } else if (spaceBelow >= spaceAbove) {
+      // Limited space both sides, but more below - position below with max available height
+      top = rect.bottom + SPACING;
+    } else {
+      // More space above - position above with max available height
+      top = Math.max(SPACING, rect.top - MENU_MAX_HEIGHT - SPACING);
+    }
+
+    // Determine horizontal position (prevent overflow on right edge)
+    let left = rect.left;
+    if (left + MENU_WIDTH > viewportWidth) {
+      left = Math.max(SPACING, viewportWidth - MENU_WIDTH - SPACING);
+    }
+
+    return {
+      position: "fixed" as const,
+      top,
+      left,
+      zIndex: 9999,
+    };
+  };
+
+  const style = calculatePosition();
 
   if (items.length === 0) {
     return (
