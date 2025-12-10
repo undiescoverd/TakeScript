@@ -701,3 +701,58 @@
   transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1),
               opacity 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
+
+/* BeatBoard Hover Reveal in Focus Mode */
+.beatboard-focus-wrapper {
+  height: 0; /* Don't take layout space */
+  overflow: visible;
+  position: relative;
+  z-index: 45;
+}
+
+.beatboard-focus {
+  position: fixed;
+  top: -48px; /* Hidden by default */
+  left: 50%;
+  transform: translateX(-50%);
+  transition: top 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 45;
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: hsl(var(--card));
+  border-radius: 0 0 0.5rem 0.5rem;
+  border: 1px solid hsl(var(--border));
+  border-top: none;
+  max-width: 90vw;
+  overflow-x: auto;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+/* Cascading hover: appears when topbar hovered OR when hovering beatboard */
+[data-view-mode="focus"] header:hover ~ * .beatboard-focus,
+[data-view-mode="focus"] .beatboard-focus:hover {
+  top: 56px; /* Below topbar (topbar height is h-14 = 56px) */
+}
+
+/* Minimal pill styling */
+.beatboard-pill {
+  padding: 0.375rem 0.875rem;
+  border-radius: 9999px;
+  background: hsl(var(--muted));
+  font-size: 0.8125rem;
+  font-weight: 500;
+  white-space: nowrap;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid transparent;
+}
+
+.beatboard-pill:hover {
+  background: hsl(var(--accent));
+  border-color: hsl(var(--primary) / 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+}
