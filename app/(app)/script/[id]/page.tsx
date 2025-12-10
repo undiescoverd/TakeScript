@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useQuery, useAction, useMutation } from "convex/react";
-import { useCallback, useState, useEffect, useRef, useMemo } from "react";
+import { useCallback, useState, useEffect, useRef, useMemo, startTransition } from "react";
 import { JSONContent, Editor } from "@tiptap/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -55,10 +55,44 @@ export default function ScriptPage() {
   const router = useRouter();
   const flags = getFeatureFlags();
   const scriptId = params.id as Id<"scripts">;
-  const script = useQuery(api.scripts.get, { scriptId });
+  const scriptMetadata = useQuery(api.scripts.get, { scriptId });
+  const loadScriptWithContent = useAction(api.scripts.loadWithContent);
+  const [script, setScript] = useState<typeof scriptMetadata>(undefined);
+  const [contentLoaded, setContentLoaded] = useState(false);
   const { scheduleAutosave, saveNow, setOnSaveComplete, getLastSavedContent, initializeLastSaved } = useAutosave(scriptId);
+
+  // Load content from R2 when metadata is available
+  useEffect(() => {
+    if (scriptMetadata && !contentLoaded) {
+      // If content is already present (not migrated), use it directly
+      if (scriptMetadata.content && scriptMetadata.content.length > 0) {
+        setScript(scriptMetadata);
+        setContentLoaded(true);
+      } else if (scriptMetadata.contentUrl) {
+        // Content is in R2, fetch it
+        loadScriptWithContent({ scriptId })
+          .then((result) => {
+            if (result) {
+              setScript(result);
+            } else {
+              setScript(scriptMetadata);
+            }
+            setContentLoaded(true);
+          })
+          .catch((error) => {
+            console.error("Failed to load script content from R2:", error);
+            setScript(scriptMetadata);
+            setContentLoaded(true);
+          });
+      } else {
+        // No content URL and no content - new or empty script
+        setScript(scriptMetadata);
+        setContentLoaded(true);
+      }
+    }
+  }, [scriptMetadata, contentLoaded, loadScriptWithContent, scriptId]);
   const { mode, viewMode, toggleViewMode, commentsOpen, setCommentsOpen, annotationsOpen, setAnnotationsOpen, collaborationEnabled, speakersOpen, setSpeakersOpen } = useEditorStore();
-  const { speakers, setSpeakers } = useSpeakerStore();
+  const { setSpeakers } = useSpeakerStore();
   const updateSpeakers = useMutation(api.scripts.updateSpeakers);
   const [editorRef, setEditorRef] = useState<Editor | null>(null);
   
@@ -155,9 +189,11 @@ export default function ScriptPage() {
         ? script.content
         : JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] });
 
-      // Update local content - use regular setState, not startTransition
-      // startTransition defers updates which can cause the loading screen to stay visible
-      setLocalContent(initialContent);
+      // Update local content - use startTransition to avoid cascading renders
+      // This is required by React best practices for setState in effects
+      startTransition(() => {
+        setLocalContent(initialContent);
+      });
 
       // Initialize autosave
       if (typeof initializeLastSaved === 'function') {
@@ -207,7 +243,9 @@ export default function ScriptPage() {
         // This is a real external change (version restore, etc.)
         // Update via initialContent memo which will trigger the effect above
         lastScriptContentRef.current = script.content;
-        setLocalContent(initialContent);
+        startTransition(() => {
+          setLocalContent(initialContent);
+        });
         isRestoringVersionRef.current = false;
       } catch {
         // ignore parse errors
@@ -267,7 +305,7 @@ export default function ScriptPage() {
 
       // Validate issues have originalText
       const validIssues = result.issues?.filter(
-        issue => issue.originalText && issue.originalText.trim() !== ""
+        (issue: { originalText?: string }) => issue.originalText && issue.originalText.trim() !== ""
       ) || [];
 
       setGrammarCheckResults({ ...result, issues: validIssues });
@@ -476,7 +514,7 @@ export default function ScriptPage() {
       {/* Combined Hover Zone for Topbar + BeatBoard (Focus Mode only) */}
       {/* Extends from top down to bottom of BeatBoard when visible */}
       {viewMode === "focus" && (
-        <div className="topbar-hover-zone fixed top-0 left-0 right-0 h-28 z-[60] pointer-events-none" />
+        <div className="topbar-hover-zone fixed top-0 left-0 right-0 h-28 z-60 pointer-events-none" />
       )}
 
       {/* Topbar */}

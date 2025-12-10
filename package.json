@@ -10,6 +10,7 @@
     "collab": "tsx server/hocuspocus.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.948.0",
     "@clerk/nextjs": "^6.35.6",
     "@hocuspocus/provider": "^3.4.0",
     "@hocuspocus/server": "^3.4.0",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMutation } from "convex/react";
+import { useAction } from "convex/react";
 import { useCallback, useEffect, useRef } from "react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -10,7 +10,7 @@ const AUTOSAVE_DELAY = 2000; // 2 seconds after typing stops (like Google Docs)
 const SAVE_INDICATOR_DELAY = 500; // Show "Saving..." after 500ms of continuous typing
 
 export function useAutosave(scriptId: Id<"scripts">) {
-  const updateScript = useMutation(api.scripts.update);
+  const updateScript = useAction(api.scripts.updateWithR2);
   const { setIsSaving, setLastSavedAt } = useEditorStore();
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const savingIndicatorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
