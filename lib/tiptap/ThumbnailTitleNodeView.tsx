@@ -156,6 +156,9 @@ export function ThumbnailTitleNodeView({ node, updateAttributes, editor, getPos 
       >
         <div className="flex items-start justify-between">
           <div className="flex-1">
+            <div className="text-[10px] font-medium uppercase tracking-wide mb-1 opacity-60" style={{ color: '#8b5cf6' }}>
+              Thumbnail Title
+            </div>
             <div className="text-lg font-bold uppercase" style={{ color: '#8b5cf6' }}>
               {node.attrs.title || "Thumbnail Title"}
             </div>

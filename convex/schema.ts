@@ -8,6 +8,8 @@ export default defineSchema({
     slug: v.string(), // URL-friendly identifier
     plan: v.optional(v.string()), // "free" | "pro" | "enterprise"
     // AI Settings - Using OpenRouter for unified access to all models
+    aiProvider: v.optional(v.string()), // "openrouter" | "anthropic" (legacy)
+    anthropicModel: v.optional(v.string()), // Legacy field
     openrouterModel: v.optional(v.string()), // Default: "anthropic/claude-3.5-sonnet", supports "openai/gpt-4o", "google/gemini-pro", etc.
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -42,7 +44,10 @@ export default defineSchema({
   scripts: defineTable({
     title: v.string(),
     userId: v.id("users"),
-    content: v.string(), // JSON stringified Tiptap document
+    content: v.string(), // DEPRECATED: JSON stringified Tiptap document (migrating to R2)
+    contentUrl: v.optional(v.string()), // R2 URL: r2://bucket/key
+    contentSize: v.optional(v.number()), // Size in bytes for monitoring
+    contentHash: v.optional(v.string()), // SHA-256 hash for cache validation
     lastEditedAt: v.number(),
     createdAt: v.number(),
     // New fields for Phase 2 (all optional for backward compatibility)
@@ -75,7 +80,9 @@ export default defineSchema({
   scriptVersions: defineTable({
     scriptId: v.id("scripts"),
     versionNumber: v.number(),
-    content: v.string(), // JSON stringified snapshot
+    content: v.string(), // DEPRECATED: JSON stringified snapshot (migrating to R2)
+    contentUrl: v.optional(v.string()), // R2 URL: r2://bucket/key
+    contentSize: v.optional(v.number()), // Size in bytes
     changedBy: v.id("users"),
     changeNote: v.optional(v.string()),
     createdAt: v.number(),

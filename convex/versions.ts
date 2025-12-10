@@ -53,6 +53,18 @@ export const save = mutation({
       createdAt: Date.now(),
     });
 
+    // Auto-cleanup: Keep only last 20 versions to save storage
+    const MAX_VERSIONS = 20;
+    if (versions.length >= MAX_VERSIONS) {
+      // Sort by version number and delete oldest ones
+      const sortedVersions = versions.sort((a, b) => b.versionNumber - a.versionNumber);
+      const versionsToDelete = sortedVersions.slice(MAX_VERSIONS - 1); // Keep 19, new one makes 20
+
+      for (const oldVersion of versionsToDelete) {
+        await ctx.db.delete(oldVersion._id);
+      }
+    }
+
     return versionId;
   },
 });

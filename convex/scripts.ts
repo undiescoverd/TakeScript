@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, action, internalMutation } from "./_generated/server";
+import { api, internal } from "./_generated/api";
 
 // Helper function to generate unique IDs for blocks
 function generateBlockId(blockType: string): string {
@@ -418,6 +419,53 @@ export const get = query({
   },
 });
 
+// Action to load script with content from R2
+export const loadWithContent = action({
+  args: { scriptId: v.id("scripts") },
+  handler: async (ctx, args) => {
+    const script = await ctx.runQuery(api.scripts.get, { scriptId: args.scriptId });
+    if (!script) {
+      return null;
+    }
+
+    // If content is in R2, fetch it
+    if (script.contentUrl && (!script.content || script.content.length === 0)) {
+      try {
+        const r2Result = await ctx.runAction(api.r2.downloadContent, {
+          r2Url: script.contentUrl,
+        });
+        if (r2Result.success && r2Result.content) {
+          return { ...script, content: r2Result.content };
+        }
+      } catch (error) {
+        console.error("Failed to load content from R2:", error);
+      }
+    }
+
+    // Return script as-is (content already present or R2 fetch failed)
+    return script;
+  },
+});
+
+// Internal mutation for updating script with R2 URL
+export const updateInternal = internalMutation({
+  args: {
+    scriptId: v.id("scripts"),
+    content: v.string(),
+    contentUrl: v.optional(v.string()),
+    contentSize: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.scriptId, {
+      content: args.content, // Keep for backward compat
+      contentUrl: args.contentUrl,
+      contentSize: args.contentSize,
+      lastEditedAt: Date.now(),
+    });
+  },
+});
+
+// Simple mutation for updating script content (used by autosave)
 export const update = mutation({
   args: {
     scriptId: v.id("scripts"),
@@ -449,6 +497,58 @@ export const update = mutation({
     await ctx.db.patch(args.scriptId, {
       content: args.content,
       lastEditedAt: Date.now(),
+    });
+  },
+});
+
+// Action wrapper for update with R2 (for future use when R2 is configured)
+export const updateWithR2 = action({
+  args: {
+    scriptId: v.id("scripts"),
+    content: v.string(),
+  },
+  handler: async (ctx, args) => {
+    // Auth check
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const script = await ctx.runQuery(api.scripts.get, { scriptId: args.scriptId });
+    if (!script) {
+      throw new Error("Script not found");
+    }
+
+    const user = await ctx.runQuery(api.users.getByToken, {
+      tokenIdentifier: identity.tokenIdentifier
+    });
+
+    if (!user || script.userId !== user._id) {
+      throw new Error("Not authorized");
+    }
+
+    // Upload to R2
+    const r2Result = await ctx.runAction(api.r2.uploadScript, {
+      scriptId: args.scriptId,
+      content: args.content,
+    });
+
+    if (!r2Result.success) {
+      // Fallback: save to Convex if R2 fails
+      console.error("R2 upload failed, falling back to Convex:", r2Result.error);
+      await ctx.runMutation(internal.scripts.updateInternal, {
+        scriptId: args.scriptId,
+        content: args.content,
+      });
+      return;
+    }
+
+    // Update database with R2 URL
+    await ctx.runMutation(internal.scripts.updateInternal, {
+      scriptId: args.scriptId,
+      content: args.content, // Keep for backward compat
+      contentUrl: r2Result.url,
+      contentSize: r2Result.size,
     });
   },
 });
