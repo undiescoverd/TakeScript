@@ -1,17 +1,27 @@
 import { v } from "convex/values";
-import { action } from "./_generated/server";
+import { action, ActionCtx } from "./_generated/server";
 import { api } from "./_generated/api";
+
+/**
+ * Tiptap JSON node structure
+ */
+interface TiptapNode {
+  type: string;
+  text?: string;
+  content?: TiptapNode[];
+  attrs?: Record<string, unknown>;
+}
 
 /**
  * Helper: Extract plain text from Tiptap JSONContent (server-side version)
  * Simplified version of exportToPlainText for use in Convex actions
  */
-function extractPlainText(content: any): string {
+function extractPlainText(content: TiptapNode | null): string {
   if (!content) return "";
 
   const lines: string[] = [];
 
-  function extractText(node: any): void {
+  function extractText(node: TiptapNode): void {
     // Handle text nodes
     if (node.type === "text" && node.text) {
       return; // Text is collected via getTextContent
@@ -25,10 +35,11 @@ function extractPlainText(content: any): string {
 
       case "chapter":
         if (node.attrs?.title) {
+          const title = node.attrs.title as string;
           lines.push("");
-          lines.push(`[${node.attrs.title.toUpperCase()}]`);
+          lines.push(`[${title.toUpperCase()}]`);
           if (node.attrs.duration) {
-            lines.push(`(${node.attrs.duration})`);
+            lines.push(`(${node.attrs.duration as string})`);
           }
           lines.push("");
         }
@@ -73,7 +84,7 @@ function extractPlainText(content: any): string {
 
       case "bulletList":
       case "orderedList":
-        node.content?.forEach((item: any, index: number) => {
+        node.content?.forEach((item: TiptapNode, index: number) => {
           const itemText = getTextContent(item);
           if (itemText) {
             const prefix = node.type === "orderedList" ? `${index + 1}. ` : "• ";
@@ -103,7 +114,7 @@ function extractPlainText(content: any): string {
     }
   }
 
-  function getTextContent(node: any): string {
+  function getTextContent(node: TiptapNode): string {
     if (node.type === "text" && node.text) {
       return node.text;
     }
@@ -127,7 +138,7 @@ function extractPlainText(content: any): string {
 /**
  * Helper: Get brand guidelines for user's organization
  */
-async function getBrandGuidelinesForUser(ctx: any) {
+async function getBrandGuidelinesForUser(ctx: ActionCtx) {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) return null;
 
@@ -140,7 +151,7 @@ async function getBrandGuidelinesForUser(ctx: any) {
  * Returns default settings if user doesn't have an organization yet
  * Currently only supports OpenRouter
  */
-async function getDefaultAIModel(ctx: any): Promise<string> {
+async function getDefaultAIModel(ctx: ActionCtx): Promise<string> {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) throw new Error("Not authenticated");
 
@@ -217,7 +228,7 @@ async function callOpenRouter(
  * Helper: Track AI request for analytics
  */
 async function trackAIRequest(
-  ctx: any,
+  ctx: ActionCtx,
   scriptId: string | undefined,
   requestType: string,
   model: string
