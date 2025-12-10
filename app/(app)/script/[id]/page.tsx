@@ -131,9 +131,14 @@ export default function ScriptPage() {
   const handleSpeakersChange = useCallback(
     async (newSpeakers: Speaker[]) => {
       try {
+        // Map null to undefined for Convex compatibility
+        const speakersForConvex = newSpeakers.map((s) => ({
+          ...s,
+          defaultVisibility: s.defaultVisibility ?? undefined,
+        }));
         await updateSpeakers({
           scriptId,
-          speakers: newSpeakers,
+          speakers: speakersForConvex,
         });
       } catch (error) {
         console.error("Failed to save speakers:", error);

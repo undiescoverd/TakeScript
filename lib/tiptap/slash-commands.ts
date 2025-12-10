@@ -1,7 +1,8 @@
 import { Extension } from "@tiptap/core";
 import { Editor, Range } from "@tiptap/core";
 import Suggestion, { SuggestionOptions } from "@tiptap/suggestion";
-import { PluginKey } from "@tiptap/pm/state";
+import { PluginKey, TextSelection } from "@tiptap/pm/state";
+import { Fragment, Node as PMNode } from "@tiptap/pm/model";
 import { generateBlockId } from "@/lib/utils";
 import { getFeatureFlags } from "@/lib/feature-flags";
 
@@ -23,6 +24,89 @@ export interface SlashCommandItem {
   }) => void;
   // Optional: indicates if command requires a selection to work
   requiresSelection?: boolean;
+}
+
+/**
+ * Wraps selected content in a block-level wrapper node (like demonstration, screenRecording, etc.)
+ * This preserves all formatting and block structure within the selection.
+ */
+function wrapSelectionInBlock(
+  editor: Editor,
+  selection: SelectionContext,
+  blockType: string,
+  attrs: Record<string, unknown>
+) {
+  const { state } = editor;
+  const { doc, schema } = state;
+  const { from, to } = selection;
+
+  // Resolve positions
+  const $from = doc.resolve(from);
+  const $to = doc.resolve(to);
+
+  // Find the top-level blocks that contain the selection
+  // Walk up from the selection to find blocks at depth 1 (direct children of doc)
+  let startDepth = $from.depth;
+  while (startDepth > 1) startDepth--;
+
+  let endDepth = $to.depth;
+  while (endDepth > 1) endDepth--;
+
+  // Get the positions of the top-level blocks containing the selection
+  const startBlockPos = $from.start(1); // Start of the top-level block containing $from
+  const endBlockPos = $to.end(1); // End of the top-level block containing $to
+
+  // Collect all top-level blocks in the range
+  const blocks: PMNode[] = [];
+  let currentPos = startBlockPos;
+
+  doc.nodesBetween(startBlockPos, endBlockPos, (node, pos) => {
+    const $pos = doc.resolve(pos);
+    // Only collect direct children of the document (depth 1)
+    if ($pos.depth === 1 && node.isBlock) {
+      blocks.push(node);
+      return false; // Don't descend into children
+    }
+    return true;
+  });
+
+  // If no blocks found, create a paragraph with the selected text
+  if (blocks.length === 0) {
+    const selectedText = selection.text;
+    editor
+      .chain()
+      .focus()
+      .insertContentAt({ from, to }, {
+        type: blockType,
+        attrs,
+        content: [{ type: "paragraph", content: selectedText ? [{ type: "text", text: selectedText }] : [] }],
+      })
+      .run();
+    return;
+  }
+
+  // Create the wrapper node with the collected blocks as content
+  const wrapperType = schema.nodes[blockType];
+  if (!wrapperType) {
+    console.error(`Block type "${blockType}" not found in schema`);
+    return;
+  }
+
+  editor.chain().focus().command(({ tr }) => {
+    // Calculate the actual end position based on collected blocks
+    let actualEndPos = startBlockPos;
+    for (const block of blocks) {
+      actualEndPos += block.nodeSize;
+    }
+
+    // Create the wrapper node with the content
+    const wrapperNode = wrapperType.create(attrs, Fragment.from(blocks));
+
+    // Replace the range with the wrapper
+    tr.replaceWith(startBlockPos, actualEndPos, wrapperNode);
+
+    return true;
+  }).run();
 }
 
 export const slashCommandItems: SlashCommandItem[] = [
@@ -193,20 +277,45 @@ export const slashCommandItems: SlashCommandItem[] = [
     description: "Add a chapter heading.",
     icon: "Ch",
     command: ({ editor, range, selection }) => {
-      // For block-level nodes, just delete slash and insert
-      // Selection is preserved separately
-      editor
-        .chain()
-        .focus()
-        .deleteRange(range)
-        .insertContent({
-          type: "chapter",
-          attrs: {
-            title: "New Chapter",
-            id: generateBlockId("chapter"),
-          },
-        })
-        .run();
+      // Delete the slash command
+      editor.chain().focus().deleteRange(range).run();
+
+      if (selection && !selection.isEmpty) {
+        // Wrap selected content in a chapter block
+        wrapSelectionInBlock(editor, selection, "chapter", {
+          title: "New Chapter",
+          id: generateBlockId("chapter"),
+        });
+      } else {
+        // No selection - insert new empty chapter and position cursor inside
+        const insertPos = editor.state.selection.from;
+
+        editor
+          .chain()
+          .focus()
+          .insertContent({
+            type: "chapter",
+            attrs: {
+              title: "New Chapter",
+              id: generateBlockId("chapter"),
+            },
+            content: [{ type: "paragraph" }],
+          })
+          .command(({ tr, dispatch }) => {
+            if (dispatch) {
+              // Position cursor inside the paragraph within the chapter
+              // The chapter node structure is: chapter > paragraph > text
+              // After insertion at insertPos, the structure is:
+              // insertPos: start of chapter node
+              // insertPos + 1: start of paragraph inside chapter
+              // We want cursor at the text position inside the paragraph
+              const newPos = insertPos + 2; // +1 for chapter, +1 for paragraph start
+              tr.setSelection(TextSelection.create(tr.doc, newPos));
+            }
+            return true;
+          })
+          .run();
+      }
     },
   },
   {
@@ -214,16 +323,26 @@ export const slashCommandItems: SlashCommandItem[] = [
     description: "Add a screen recording section.",
     icon: "Sc",
     command: ({ editor, range, selection }) => {
-      editor
-        .chain()
-        .focus()
-        .deleteRange(range)
-        .insertContent({
-          type: "screenRecording",
-          attrs: { id: generateBlockId("screenRecording") },
-          content: [{ type: "text", text: "Describe screen recording..." }],
-        })
-        .run();
+      // Delete the slash command
+      editor.chain().focus().deleteRange(range).run();
+
+      if (selection && !selection.isEmpty) {
+        // Wrap selected content in a screen recording block
+        wrapSelectionInBlock(editor, selection, "screenRecording", {
+          id: generateBlockId("screenRecording"),
+        });
+      } else {
+        // No selection - insert new block with placeholder
+        editor
+          .chain()
+          .focus()
+          .insertContent({
+            type: "screenRecording",
+            attrs: { id: generateBlockId("screenRecording") },
+            content: [{ type: "paragraph", content: [{ type: "text", text: "Describe screen recording..." }] }],
+          })
+          .run();
+      }
     },
   },
   {
@@ -231,16 +350,26 @@ export const slashCommandItems: SlashCommandItem[] = [
     description: "Add an animation section.",
     icon: "An",
     command: ({ editor, range, selection }) => {
-      editor
-        .chain()
-        .focus()
-        .deleteRange(range)
-        .insertContent({
-          type: "demonstration",
-          attrs: { id: generateBlockId("demonstration") },
-          content: [{ type: "paragraph", content: [{ type: "text", text: "Describe animation..." }] }],
-        })
-        .run();
+      // Delete the slash command
+      editor.chain().focus().deleteRange(range).run();
+
+      if (selection && !selection.isEmpty) {
+        // Wrap selected content in an animation block
+        wrapSelectionInBlock(editor, selection, "demonstration", {
+          id: generateBlockId("demonstration"),
+        });
+      } else {
+        // No selection - insert new block with placeholder
+        editor
+          .chain()
+          .focus()
+          .insertContent({
+            type: "demonstration",
+            attrs: { id: generateBlockId("demonstration") },
+            content: [{ type: "paragraph", content: [{ type: "text", text: "Describe animation..." }] }],
+          })
+          .run();
+      }
     },
   },
   {
@@ -248,16 +377,57 @@ export const slashCommandItems: SlashCommandItem[] = [
     description: "Hidden in recording mode.",
     icon: "Ed",
     command: ({ editor, range, selection }) => {
-      editor
-        .chain()
-        .focus()
-        .deleteRange(range)
-        .insertContent({
-          type: "editorNote",
-          attrs: { id: generateBlockId("editorNote") },
-          content: [{ type: "text", text: "Editor note..." }],
-        })
-        .run();
+      // Delete the slash command
+      editor.chain().focus().deleteRange(range).run();
+
+      if (selection && !selection.isEmpty) {
+        // Wrap selected content in an editor note block
+        wrapSelectionInBlock(editor, selection, "editorNote", {
+          id: generateBlockId("editorNote"),
+        });
+      } else {
+        // No selection - insert new block with placeholder
+        editor
+          .chain()
+          .focus()
+          .insertContent({
+            type: "editorNote",
+            attrs: { id: generateBlockId("editorNote") },
+            content: [{ type: "paragraph", content: [{ type: "text", text: "Editor note..." }] }],
+          })
+          .run();
+      }
+    },
+  },
+  {
+    name: "Thumbnail Title",
+    description: "Add a thumbnail title section.",
+    icon: "Th",
+    command: ({ editor, range, selection }) => {
+      // Delete the slash command
+      editor.chain().focus().deleteRange(range).run();
+
+      if (selection && !selection.isEmpty) {
+        // Wrap selected content in a thumbnail title block
+        wrapSelectionInBlock(editor, selection, "thumbnailTitle", {
+          title: "Thumbnail Title",
+          id: generateBlockId("thumbnailTitle"),
+        });
+      } else {
+        // No selection - insert new empty thumbnail title block
+        editor
+          .chain()
+          .focus()
+          .insertContent({
+            type: "thumbnailTitle",
+            attrs: {
+              title: "Thumbnail Title",
+              id: generateBlockId("thumbnailTitle"),
+            },
+            content: [{ type: "paragraph" }],
+          })
+          .run();
+      }
     },
   },
   // Speaker commands

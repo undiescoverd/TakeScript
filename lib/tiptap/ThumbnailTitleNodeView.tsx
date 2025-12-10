@@ -1,79 +1,22 @@
 "use client";
 
 import { NodeViewWrapper, NodeViewContent, NodeViewProps } from "@tiptap/react";
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { Edit2, Check, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Fragment } from "@tiptap/pm/model";
 
-export function ChapterNodeView({ node, updateAttributes, editor, getPos }: NodeViewProps) {
-  // Auto-open edit mode for newly created chapters (with default title "New Chapter")
-  const initialTitle = node.attrs.title || "Untitled Chapter";
-  const isNewChapter = initialTitle === "New Chapter";
-  const [isEditing, setIsEditing] = useState(isNewChapter);
-  const [title, setTitle] = useState(initialTitle);
-  const [duration, setDuration] = useState(node.attrs.duration || "");
-
-  // Update local state when node attributes change (only when not editing to avoid interfering with user input)
-  useEffect(() => {
-    if (!isEditing) {
-      setTitle(node.attrs.title || "Untitled Chapter");
-      setDuration(node.attrs.duration || "");
-    }
-  }, [node.attrs.title, node.attrs.duration, isEditing]);
+export function ThumbnailTitleNodeView({ node, updateAttributes, editor, getPos }: NodeViewProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [title, setTitle] = useState(node.attrs.title || "Thumbnail Title");
 
   const handleSave = () => {
-    const pos = getPos();
-    if (typeof pos === "number") {
-      editor
-        .chain()
-        .focus()
-        .command(({ tr, state }) => {
-          const node = state.doc.nodeAt(pos);
-          if (node && node.type.name === "chapter") {
-            // Ensure the node has valid content before updating
-            // If empty, add a default paragraph
-            if (node.content.size === 0) {
-              const paragraph = state.schema.nodes.paragraph.create();
-              tr.replaceWith(pos + 1, pos + 1, paragraph);
-            }
-            tr.setNodeMarkup(pos, undefined, {
-              ...node.attrs,
-              title,
-              duration: duration || null,
-            });
-          }
-          return true;
-        })
-        .run();
-    } else {
-      // Fallback to direct update if position is unavailable
-      try {
-        updateAttributes({ title, duration: duration || null });
-      } catch (error) {
-        console.error("Failed to update chapter attributes:", error);
-        // If update fails, try using editor chain as fallback
-        editor
-          .chain()
-          .focus()
-          .updateAttributes("chapter", { title, duration: duration || null })
-          .run();
-      }
-    }
+    updateAttributes({ title });
     setIsEditing(false);
   };
 
   const handleCancel = () => {
-    // If this is a new chapter that was never saved (still has default title),
-    // remove the block entirely instead of just closing the dialog
-    const currentTitle = node.attrs.title || "Untitled Chapter";
-    if (currentTitle === "New Chapter" || currentTitle === "Untitled Chapter") {
-      handleRemoveBlock();
-      return;
-    }
-
-    setTitle(currentTitle);
-    setDuration(node.attrs.duration || "");
+    setTitle(node.attrs.title || "Thumbnail Title");
     setIsEditing(false);
   };
 
@@ -84,7 +27,7 @@ export function ChapterNodeView({ node, updateAttributes, editor, getPos }: Node
     const currentNode = editor.state.doc.nodeAt(pos);
     if (!currentNode) return;
 
-    // Extract the inner content (preserving block structure like lists, paragraphs)
+    // Extract the inner content (preserving block structure)
     const innerContent: typeof currentNode[] = [];
     currentNode.forEach((child) => {
       innerContent.push(child);
@@ -97,12 +40,11 @@ export function ChapterNodeView({ node, updateAttributes, editor, getPos }: Node
         const start = pos;
         const end = pos + currentNode.nodeSize;
 
-        // If there's content inside the chapter, preserve it
-        // Otherwise, just delete the chapter block entirely
+        // If there's content inside, preserve it
         if (innerContent.length > 0) {
           tr.replaceWith(start, end, Fragment.from(innerContent));
         } else {
-          // No content - just delete the chapter block
+          // No content - just delete the block
           tr.delete(start, end);
         }
         return true;
@@ -112,28 +54,26 @@ export function ChapterNodeView({ node, updateAttributes, editor, getPos }: Node
 
   if (isEditing) {
     return (
-      <NodeViewWrapper className="chapter-node-view">
+      <NodeViewWrapper className="thumbnail-title-node-view">
         <div className="mb-6 mt-8 space-y-3 rounded-lg border-2 border-primary bg-accent p-4">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Chapter Title</label>
+            <label className="text-sm font-medium">Thumbnail Title</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              placeholder="Enter chapter title"
+              placeholder="Enter thumbnail title"
               autoFocus
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Duration (optional)</label>
-            <input
-              type="text"
-              value={duration}
-              onChange={(e) => setDuration(e.target.value)}
-              className="w-full rounded-md border bg-background px-3 py-2 text-sm"
-              placeholder="e.g., 2m, 30s, 1m 30s"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSave();
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  handleCancel();
+                }
+              }}
             />
           </div>
 
@@ -159,7 +99,7 @@ export function ChapterNodeView({ node, updateAttributes, editor, getPos }: Node
   }
 
   return (
-    <NodeViewWrapper className="chapter-node-view">
+    <NodeViewWrapper className="thumbnail-title-node-view">
       <div
         className="group relative mb-6 mt-8 border-l-4 border-primary pl-4 py-2 cursor-pointer hover:bg-accent/50 rounded-r-lg transition-colors"
         data-id={node.attrs.id}
@@ -168,13 +108,8 @@ export function ChapterNodeView({ node, updateAttributes, editor, getPos }: Node
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <div className="text-lg font-bold uppercase text-primary">
-              {node.attrs.title || "Untitled Chapter"}
+              {node.attrs.title || "Thumbnail Title"}
             </div>
-            {node.attrs.duration && (
-              <div className="text-sm text-muted-foreground">
-                Duration: {node.attrs.duration}
-              </div>
-            )}
           </div>
           <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <Tooltip>
@@ -190,7 +125,7 @@ export function ChapterNodeView({ node, updateAttributes, editor, getPos }: Node
                 </button>
               </TooltipTrigger>
               <TooltipContent>
-                <p>Edit chapter</p>
+                <p>Edit thumbnail title</p>
               </TooltipContent>
             </Tooltip>
             <Tooltip>
@@ -212,7 +147,7 @@ export function ChapterNodeView({ node, updateAttributes, editor, getPos }: Node
           </div>
         </div>
         <div className="mt-2">
-          <NodeViewContent className="chapter-content" />
+          <NodeViewContent className="thumbnail-title-content" />
         </div>
       </div>
     </NodeViewWrapper>

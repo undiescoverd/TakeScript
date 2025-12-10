@@ -1,12 +1,13 @@
 import { create } from "zustand";
 
 export type CameraMode = "full" | "corner" | "voiceover";
+export type CameraModeNullable = CameraMode | null;
 
 export interface Speaker {
   id: string;
   name: string;
   color: string;
-  defaultVisibility?: CameraMode;
+  defaultVisibility?: CameraModeNullable;
 }
 
 interface SpeakerState {

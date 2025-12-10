@@ -55,7 +55,43 @@ import {
 } from "@/lib/tiptap/annotation-mark";
 import { generateBlockId } from "@/lib/utils";
 import { useSpeakerStore } from "@/store/speaker-store";
-import { CameraMode, cameraModeLabels } from "@/lib/tiptap/speaker-mark";
+import { CameraMode, CameraModeNullable, cameraModeLabels } from "@/lib/tiptap/speaker-mark";
+import type { EditorState } from "@tiptap/pm/state";
+
+/**
+ * Helper to collect all top-level blocks in a selection range.
+ * Returns the block range and collected content for wrapping.
+ */
+function collectBlocksInSelection(state: EditorState, from: number, to: number) {
+  const { doc } = state;
+  const $from = doc.resolve(from);
+  const $to = doc.resolve(to);
+
+  // Find the first top-level block that contains the start of selection
+  // Go up to depth 1 (direct child of doc)
+  let startBlockPos = $from.start(1);
+
+  // Find the end of the last top-level block that contains the end of selection
+  let endBlockPos = $to.end(1);
+
+  // Collect all top-level blocks in this range
+  const selectedContent: any[] = [];
+  doc.nodesBetween(startBlockPos, endBlockPos, (node, pos) => {
+    const $pos = doc.resolve(pos);
+    // Only collect nodes that are direct children of the document (depth 1)
+    if ($pos.depth === 0 && node.isBlock) {
+      selectedContent.push(node.toJSON());
+      return false; // Don't descend into children
+    }
+    return true;
+  });
+
+  return {
+    startBlockPos,
+    endBlockPos,
+    selectedContent,
+  };
+}
 
 interface SelectionToolbarProps {
   editor: Editor;
@@ -93,7 +129,8 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
   const createAnnotation = useMutation(api.annotations.create);
   const { setAnnotationsOpen } = useEditorStore();
   const { speakers } = useSpeakerStore();
-  const [speakerCameraMode, setSpeakerCameraMode] = useState<CameraMode>("full");
+  const [speakerCameraMode, setSpeakerCameraMode] = useState<CameraModeNullable>(null);
+  const [selectedSpeakerId, setSelectedSpeakerId] = useState<string | null>(null);
 
   useEffect(() => {
     const updateToolbar = () => {
@@ -124,12 +161,11 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
       const selectedText = editor.state.doc.textBetween(from, to);
       setSelectionData({ from, to, text: selectedText });
 
-      // Calculate toolbar position (above selection, centered)
+      // Calculate toolbar position (below selection, centered)
       const toolbarWidth = 600; // Approximate width
-      const toolbarHeight = 48; // Approximate height
 
       const left = (start.left + end.left) / 2 - toolbarWidth / 2;
-      const top = start.top - toolbarHeight - 8; // 8px gap above selection
+      const top = end.bottom + 8; // 8px gap below selection
 
       setPosition({ top, left });
       setIsVisible(true);
@@ -278,68 +314,58 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
 
   const insertChapter = () => {
     const { from, to } = editor.state.selection;
-    const selectedText = editor.state.doc.textBetween(from, to);
+    const { startBlockPos, endBlockPos, selectedContent } = collectBlocksInSelection(editor.state, from, to);
 
-    // Use selected text as chapter title if available, otherwise default
-    const chapterTitle = selectedText.trim() || "New Chapter";
+    // If we have selected content, wrap it; otherwise create empty paragraph
+    const content = selectedContent.length > 0
+      ? selectedContent
+      : [{ type: "paragraph" }];
 
     editor
       .chain()
       .focus()
-      .deleteSelection()
+      .command(({ tr }) => {
+        tr.delete(startBlockPos, endBlockPos);
+        return true;
+      })
       .insertContent({
         type: "chapter",
         attrs: {
-          title: chapterTitle,
+          title: "New Chapter",
           id: generateBlockId("chapter"),
         },
+        content: content,
       })
       .run();
   };
 
   const insertScreenRecording = () => {
     const { from, to } = editor.state.selection;
-    const selectedText = editor.state.doc.textBetween(from, to);
+    const { startBlockPos, endBlockPos, selectedContent } = collectBlocksInSelection(editor.state, from, to);
 
-    // Use selected text as content if available, otherwise default
-    const content = selectedText.trim() || "Describe screen recording...";
+    // If we have selected content, wrap it; otherwise create default content
+    const content = selectedContent.length > 0
+      ? selectedContent
+      : [{ type: "paragraph", content: [{ type: "text", text: "Describe screen recording..." }] }];
 
     editor
       .chain()
       .focus()
-      .deleteSelection()
+      .command(({ tr }) => {
+        tr.delete(startBlockPos, endBlockPos);
+        return true;
+      })
       .insertContent({
         type: "screenRecording",
         attrs: { id: generateBlockId("screenRecording") },
-        content: [{ type: "text", text: content }],
+        content: content,
       })
       .run();
   };
 
   const insertDemonstration = () => {
     const { from, to } = editor.state.selection;
-    const { state } = editor;
-
-    // Resolve positions to find block boundaries
-    const $from = state.doc.resolve(from);
-    const $to = state.doc.resolve(to);
-
-    // Find the range of complete blocks that are selected
-    const startBlock = $from.start($from.depth);
-    const endBlock = $to.end($to.depth);
-
-    // Get all nodes in the selection range
-    const selectedContent: any[] = [];
-    state.doc.nodesBetween(startBlock, endBlock, (node, pos, parent) => {
-      // Only collect top-level block nodes within the selection
-      if (parent === state.doc || (parent && parent.type.name === "doc")) {
-        if (pos >= startBlock && pos < endBlock) {
-          selectedContent.push(node.toJSON());
-        }
-        return false; // Don't descend into children
-      }
-      return true;
-    });
+    const { startBlockPos, endBlockPos, selectedContent } = collectBlocksInSelection(editor.state, from, to);
 
     // If we have selected content, wrap it; otherwise create default content
     const content = selectedContent.length > 0
@@ -350,8 +376,7 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
       .chain()
       .focus()
       .command(({ tr }) => {
-        // Delete the selected blocks
-        tr.delete(startBlock, endBlock);
+        tr.delete(startBlockPos, endBlockPos);
         return true;
       })
       .insertContent({
@@ -364,24 +389,29 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
 
   const insertEditorNote = () => {
     const { from, to } = editor.state.selection;
-    const selectedText = editor.state.doc.textBetween(from, to);
+    const { startBlockPos, endBlockPos, selectedContent } = collectBlocksInSelection(editor.state, from, to);
 
-    // Use selected text as content if available, otherwise default
-    const content = selectedText.trim() || "Editor note...";
+    // If we have selected content, wrap it; otherwise create default content
+    const content = selectedContent.length > 0
+      ? selectedContent
+      : [{ type: "paragraph", content: [{ type: "text", text: "Editor note..." }] }];
 
     editor
       .chain()
       .focus()
-      .deleteSelection()
+      .command(({ tr }) => {
+        tr.delete(startBlockPos, endBlockPos);
+        return true;
+      })
       .insertContent({
         type: "editorNote",
         attrs: { id: generateBlockId("editorNote") },
-        content: [{ type: "text", text: content }],
+        content: content,
       })
       .run();
   };
 
-  const handleAssignSpeaker = useCallback((speakerId: string, cameraMode: CameraMode) => {
+  const handleAssignSpeaker = useCallback((speakerId: string, cameraMode: CameraModeNullable) => {
     if (!selectionData) {
       toast.error("Please select some text first");
       return;
@@ -397,7 +427,8 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
       .run();
 
     const speaker = speakers.find(s => s.id === speakerId);
-    toast.success(`Assigned to ${speaker?.name || "speaker"}`);
+    const modeLabel = cameraMode ? cameraModeLabels[cameraMode] : "no camera";
+    toast.success(`Assigned to ${speaker?.name || "speaker"} (${modeLabel})`);
     setIsVisible(false);
     setSelectionData(null);
   }, [editor, selectionData, speakers]);
@@ -418,13 +449,30 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
       .run();
 
     toast.success("Removed speaker attribution");
-    setIsVisible(false);
-    setSelectionData(null);
+    // Keep toolbar visible so user can assign a new speaker
   }, [editor, selectionData]);
 
   if (!isVisible) return null;
 
   const hasAnnotation = editor.isActive("annotation");
+
+  // Check if selection contains any speaker marks
+  const hasSpeakerMark = (() => {
+    if (editor.isActive("speaker")) return true;
+
+    // Also check if any part of the selection has speaker marks
+    const { from, to } = editor.state.selection;
+    let found = false;
+    editor.state.doc.nodesBetween(from, to, (node) => {
+      if (found) return false;
+      if (node.marks?.some(mark => mark.type.name === "speaker")) {
+        found = true;
+        return false;
+      }
+      return true;
+    });
+    return found;
+  })();
 
   return (
     <div
@@ -593,50 +641,104 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
             </div>
           ) : (
             <>
-              {speakers.map((speaker) => (
-                <DropdownMenuItem
-                  key={speaker.id}
-                  onClick={() => handleAssignSpeaker(speaker.id, speakerCameraMode)}
-                  className="flex items-center gap-2"
+              {/* Speaker Selection */}
+              <div className="px-2 py-1.5">
+                <div className="text-xs text-muted-foreground mb-1">Speaker</div>
+                <div className="flex flex-col gap-1">
+                  {speakers.map((speaker) => (
+                    <button
+                      key={speaker.id}
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setSelectedSpeakerId(speaker.id);
+                      }}
+                      className={`flex items-center gap-2 px-2 py-1.5 rounded text-sm text-left ${
+                        selectedSpeakerId === speaker.id
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-muted"
+                      }`}
+                    >
+                      <div
+                        className="h-3 w-3 rounded-full border shrink-0"
+                        style={{ backgroundColor: speaker.color }}
+                      />
+                      <span>{speaker.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <DropdownMenuSeparator />
+
+              {/* Camera Mode Selection */}
+              <div className="px-2 py-1.5">
+                <div className="text-xs text-muted-foreground mb-1">Camera View (Optional)</div>
+                <div className="flex gap-1">
+                  {/* None option */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setSpeakerCameraMode(null);
+                    }}
+                    className={`flex-1 px-2 py-1 text-xs rounded ${
+                      speakerCameraMode === null
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted hover:bg-muted/80"
+                    }`}
+                  >
+                    None
+                  </button>
+                  {(["full", "corner", "voiceover"] as CameraMode[]).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setSpeakerCameraMode(mode);
+                      }}
+                      className={`flex-1 px-2 py-1 text-xs rounded ${
+                        speakerCameraMode === mode
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted hover:bg-muted/80"
+                      }`}
+                    >
+                      {cameraModeLabels[mode]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <DropdownMenuSeparator />
+
+              {/* Apply Button */}
+              <div className="px-2 py-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectedSpeakerId) {
+                      handleAssignSpeaker(selectedSpeakerId, speakerCameraMode);
+                      setSelectedSpeakerId(null);
+                    }
+                  }}
+                  disabled={!selectedSpeakerId}
+                  className={`w-full px-3 py-1.5 text-sm rounded font-medium ${
+                    selectedSpeakerId
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                      : "bg-muted text-muted-foreground cursor-not-allowed"
+                  }`}
                 >
-                  <div
-                    className="h-3 w-3 rounded-full border"
-                    style={{ backgroundColor: speaker.color }}
-                  />
-                  <span>{speaker.name}</span>
-                </DropdownMenuItem>
-              ))}
+                  Apply Speaker
+                </button>
+              </div>
             </>
           )}
 
-          <DropdownMenuSeparator />
-
-          {/* Camera Mode Selection */}
-          <div className="px-2 py-1.5">
-            <div className="text-xs text-muted-foreground mb-1">Camera View</div>
-            <div className="flex gap-1">
-              {(["full", "corner", "voiceover"] as CameraMode[]).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setSpeakerCameraMode(mode);
-                  }}
-                  className={`flex-1 px-2 py-1 text-xs rounded ${
-                    speakerCameraMode === mode
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted hover:bg-muted/80"
-                  }`}
-                >
-                  {cameraModeLabels[mode]}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {editor.isActive("speaker") && (
+          {hasSpeakerMark && (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem

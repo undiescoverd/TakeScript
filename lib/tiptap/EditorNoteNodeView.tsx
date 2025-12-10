@@ -3,33 +3,32 @@
 import { NodeViewWrapper, NodeViewContent, NodeViewProps } from "@tiptap/react";
 import { StickyNote, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Fragment } from "@tiptap/pm/model";
 
 export function EditorNoteNodeView({ editor, getPos }: NodeViewProps) {
   const handleRemoveBlock = () => {
     const pos = getPos();
     if (typeof pos !== "number") return;
 
-    const node = editor.state.doc.nodeAt(pos);
-    if (!node) return;
+    const currentNode = editor.state.doc.nodeAt(pos);
+    if (!currentNode) return;
 
-    // Get the text content from this node
-    const textContent = node.textContent;
+    // Extract the inner content (preserving block structure like lists, paragraphs)
+    const innerContent: typeof currentNode[] = [];
+    currentNode.forEach((child) => {
+      innerContent.push(child);
+    });
 
-    // Replace the block with a paragraph containing the same text
+    // Replace the wrapper with its inner content
     editor
       .chain()
       .focus()
       .command(({ tr }) => {
         const start = pos;
-        const end = pos + node.nodeSize;
+        const end = pos + currentNode.nodeSize;
 
-        // Create a paragraph with the text content
-        const paragraph = editor.schema.nodes.paragraph.create(
-          null,
-          textContent ? editor.schema.text(textContent) : null
-        );
-
-        tr.replaceWith(start, end, paragraph);
+        // Replace with the inner block content
+        tr.replaceWith(start, end, Fragment.from(innerContent));
         return true;
       })
       .run();
@@ -57,7 +56,7 @@ export function EditorNoteNodeView({ editor, getPos }: NodeViewProps) {
               </button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>Remove block (keep text)</p>
+              <p>Remove block (keep content)</p>
             </TooltipContent>
           </Tooltip>
         </div>

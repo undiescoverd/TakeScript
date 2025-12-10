@@ -20,7 +20,7 @@ import {
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { useSpeakerStore, Speaker } from "@/store/speaker-store";
-import { CameraMode, cameraModeLabels } from "@/lib/tiptap/speaker-mark";
+import { CameraMode, CameraModeNullable, cameraModeLabels } from "@/lib/tiptap/speaker-mark";
 
 interface SpeakerEditDialogProps {
   editor: Editor | null;
@@ -28,7 +28,7 @@ interface SpeakerEditDialogProps {
   onClose: () => void;
   paragraphPos: number | null;
   currentSpeakerId: string | null;
-  currentCameraMode: CameraMode | null;
+  currentCameraMode: CameraModeNullable;
 }
 
 export function SpeakerEditDialog({
@@ -42,13 +42,13 @@ export function SpeakerEditDialog({
   const { speakers, getSpeakerById } = useSpeakerStore();
 
   const [selectedSpeakerId, setSelectedSpeakerId] = useState<string>("");
-  const [selectedCameraMode, setSelectedCameraMode] = useState<CameraMode>("full");
+  const [selectedCameraMode, setSelectedCameraMode] = useState<CameraModeNullable>(null);
 
   // Initialize form values when dialog opens
   useEffect(() => {
     if (isOpen && currentSpeakerId) {
       setSelectedSpeakerId(currentSpeakerId);
-      setSelectedCameraMode(currentCameraMode || "full");
+      setSelectedCameraMode(currentCameraMode);
     }
   }, [isOpen, currentSpeakerId, currentCameraMode]);
 
@@ -164,8 +164,18 @@ export function SpeakerEditDialog({
 
           {/* Camera Mode Selector */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">Camera View</label>
+            <label className="text-sm font-medium">Camera View (Optional)</label>
             <div className="flex gap-2">
+              {/* None option */}
+              <Button
+                type="button"
+                variant={selectedCameraMode === null ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedCameraMode(null)}
+                className="flex-1"
+              >
+                None
+              </Button>
               {(["full", "corner", "voiceover"] as CameraMode[]).map((mode) => (
                 <Button
                   key={mode}
@@ -211,12 +221,12 @@ export function useSpeakerEditDialog() {
   const [isOpen, setIsOpen] = useState(false);
   const [paragraphPos, setParagraphPos] = useState<number | null>(null);
   const [currentSpeakerId, setCurrentSpeakerId] = useState<string | null>(null);
-  const [currentCameraMode, setCurrentCameraMode] = useState<CameraMode | null>(null);
+  const [currentCameraMode, setCurrentCameraMode] = useState<CameraModeNullable>(null);
 
   const openDialog = useCallback((
     pos: number,
     speakerId: string,
-    cameraMode: CameraMode
+    cameraMode: CameraModeNullable
   ) => {
     setParagraphPos(pos);
     setCurrentSpeakerId(speakerId);

@@ -71,6 +71,10 @@ export function SpeakerLegend({
       toast.error("Please enter a speaker name");
       return;
     }
+    if (speakers.length >= 4) {
+      toast.error("Maximum of 4 speakers allowed");
+      return;
+    }
 
     const speaker: Speaker = {
       id: generateSpeakerId(),
@@ -154,6 +158,10 @@ export function SpeakerLegend({
   }, []);
 
   const openAddDialog = useCallback(() => {
+    if (speakers.length >= 4) {
+      toast.error("Maximum of 4 speakers allowed");
+      return;
+    }
     setNewSpeakerName("");
     setNewSpeakerColor(getNextSpeakerColor(speakers));
     setIsAddDialogOpen(true);
@@ -195,10 +203,11 @@ export function SpeakerLegend({
             </div>
           ) : (
             <div className="space-y-2">
-              {speakers.map((speaker) => (
+              {speakers.map((speaker, index) => (
                 <SpeakerCard
                   key={speaker.id}
                   speaker={speaker}
+                  number={index + 1}
                   onEdit={() => openEditDialog(speaker)}
                   onDelete={() => openDeleteDialog(speaker)}
                 />
@@ -213,9 +222,11 @@ export function SpeakerLegend({
             variant="outline"
             className="w-full"
             onClick={openAddDialog}
+            disabled={speakers.length >= 4}
           >
             <Plus className="mr-2 h-4 w-4" />
             Add Speaker
+            {speakers.length >= 4 && " (Max 4)"}
           </Button>
         </div>
       </div>
@@ -372,14 +383,19 @@ export function SpeakerLegend({
 
 interface SpeakerCardProps {
   speaker: Speaker;
+  number: number;
   onEdit: () => void;
   onDelete: () => void;
 }
 
-function SpeakerCard({ speaker, onEdit, onDelete }: SpeakerCardProps) {
+function SpeakerCard({ speaker, number, onEdit, onDelete }: SpeakerCardProps) {
   return (
     <div className="flex items-center justify-between rounded-lg border bg-background p-3">
       <div className="flex items-center gap-3">
+        {/* Number Badge */}
+        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">
+          {number}
+        </div>
         {/* Color Swatch */}
         <div
           className="h-6 w-6 rounded-full border"

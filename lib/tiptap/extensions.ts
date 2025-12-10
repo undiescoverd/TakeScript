@@ -4,6 +4,7 @@ import { ChapterNodeView } from "./ChapterNodeView";
 import { ScreenRecordingNodeView } from "./ScreenRecordingNodeView";
 import { DemonstrationNodeView } from "./DemonstrationNodeView";
 import { EditorNoteNodeView } from "./EditorNoteNodeView";
+import { ThumbnailTitleNodeView } from "./ThumbnailTitleNodeView";
 
 // Re-export SpeakerMark for use in components
 export { SpeakerMark } from "./speaker-mark";
@@ -11,10 +12,11 @@ export type { Speaker, CameraMode } from "./speaker-mark";
 export { cameraModeLabels, defaultSpeakerColors } from "./speaker-mark";
 
 // Chapter Block Extension
+// Supports wrapping block content (lists, paragraphs, etc.) while preserving formatting
 export const ChapterBlock = Node.create({
   name: "chapter",
   group: "block",
-  content: "inline*",
+  content: "block+",
   defining: true,
 
   addAttributes() {
@@ -62,50 +64,14 @@ export const ChapterBlock = Node.create({
   addNodeView() {
     return ReactNodeViewRenderer(ChapterNodeView);
   },
-
-  addKeyboardShortcuts() {
-    return {
-      Enter: ({ editor }) => {
-        const { $from, empty } = editor.state.selection;
-
-        // Only handle when selection is collapsed (no text selected)
-        if (!empty) {
-          return false;
-        }
-
-        // Check if we're actually inside a chapter node
-        const chapterNode = $from.node($from.depth - 1);
-        if (chapterNode?.type.name !== "chapter") {
-          return false;
-        }
-
-        // Check if cursor is at the end of the chapter content
-        const isAtEnd = $from.parentOffset === $from.parent.content.size;
-
-        if (isAtEnd) {
-          // Find the position after the chapter block and insert paragraph there
-          const chapterPos = $from.before($from.depth - 1);
-          const chapterEndPos = chapterPos + chapterNode.nodeSize;
-
-          return editor
-            .chain()
-            .insertContentAt(chapterEndPos, { type: "paragraph" })
-            .focus()
-            .run();
-        }
-
-        // Allow normal Enter behavior (soft break or default) inside chapter content
-        return false;
-      },
-    };
-  },
 });
 
 // Screen Recording Block Extension
+// Supports wrapping block content (lists, paragraphs, etc.) while preserving formatting
 export const ScreenRecordingBlock = Node.create({
   name: "screenRecording",
   group: "block",
-  content: "inline*",
+  content: "block+",
   defining: true,
 
   addAttributes() {
@@ -181,10 +147,11 @@ export const DemonstrationBlock = Node.create({
 });
 
 // Editor Note Block Extension
+// Supports wrapping block content (lists, paragraphs, etc.) while preserving formatting
 export const EditorNoteBlock = Node.create({
   name: "editorNote",
   group: "block",
-  content: "inline*",
+  content: "block+",
   defining: true,
 
   addAttributes() {
@@ -219,10 +186,60 @@ export const EditorNoteBlock = Node.create({
   },
 });
 
+// Thumbnail Title Block Extension
+// Supports wrapping block content with an editable title for video thumbnails
+export const ThumbnailTitleBlock = Node.create({
+  name: "thumbnailTitle",
+  group: "block",
+  content: "block+",
+  defining: true,
+
+  addAttributes() {
+    return {
+      title: {
+        default: "Thumbnail Title",
+      },
+      id: {
+        default: null,
+      },
+    };
+  },
+
+  parseHTML() {
+    return [
+      {
+        tag: 'div[data-type="thumbnailTitle"]',
+      },
+    ];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return [
+      "div",
+      mergeAttributes(HTMLAttributes, {
+        "data-type": "thumbnailTitle",
+        "data-id": HTMLAttributes.id,
+        class: "thumbnail-title-block",
+      }),
+      [
+        "span",
+        { class: "thumbnail-title-label" },
+        HTMLAttributes.title || "Thumbnail Title",
+      ],
+      ["div", { class: "thumbnail-title-content" }, 0],
+    ];
+  },
+
+  addNodeView() {
+    return ReactNodeViewRenderer(ThumbnailTitleNodeView);
+  },
+});
+
 // Export all extensions
 export const customExtensions = [
   ChapterBlock,
   ScreenRecordingBlock,
   DemonstrationBlock,
   EditorNoteBlock,
+  ThumbnailTitleBlock,
 ];

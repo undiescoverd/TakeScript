@@ -547,22 +547,25 @@
   margin-top: 0.5rem;
 }
 
-/* First paragraph of speaker run - extra margin for label */
-.ProseMirror p[data-show-label="true"] {
+/* First paragraph of speaker/camera run - extra margin for labels */
+.ProseMirror p[data-show-speaker-label="true"],
+.ProseMirror p[data-show-camera-label="true"] {
   margin-top: 2.5rem;
 }
 
-.ProseMirror p[data-show-label="true"]:first-child {
+.ProseMirror p[data-show-speaker-label="true"]:first-child,
+.ProseMirror p[data-show-camera-label="true"]:first-child {
   margin-top: 2rem;
 }
 
-/* CENTERED LABEL using ::before pseudo-element */
-.ProseMirror p[data-show-label="true"]::before {
-  content: attr(data-speaker-name) " - " attr(data-camera-mode);
+/* SPEAKER LABEL (LEFT OF CENTER) using ::before pseudo-element */
+.ProseMirror p[data-show-speaker-label="true"]::before {
+  content: attr(data-speaker-name);
   position: absolute;
   top: -1.75rem;
+  /* Center-split: position at 50% then shift left with gap */
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(calc(-100% - 0.5rem));
   font-size: 0.65rem;
   font-weight: 600;
   font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, sans-serif);
@@ -578,13 +581,42 @@
   color: var(--speaker-color);
 }
 
-.ProseMirror p[data-show-label="true"]::before:hover {
-  opacity: 0.8;
+/* CAMERA LABEL (RIGHT OF CENTER) using ::after pseudo-element */
+.ProseMirror p[data-show-camera-label="true"]::after {
+  content: attr(data-camera-mode);
+  position: absolute;
+  top: -1.75rem;
+  /* Center-split: position at 50% then shift right with gap */
+  left: 50%;
+  transform: translateX(0.5rem);
+  font-size: 0.65rem;
+  font-weight: 600;
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, sans-serif);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 3px 14px;
+  border-radius: 4px;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  /* Use dedicated camera color for styling - distinct from speaker colors */
+  background: color-mix(in oklch, var(--camera-color, #06b6d4) 20%, transparent);
+  color: var(--camera-color, #06b6d4);
+  opacity: 0.9;
+}
+
+.ProseMirror p[data-show-speaker-label="true"]::before:hover,
+.ProseMirror p[data-show-camera-label="true"]::after:hover {
+  opacity: 0.7;
 }
 
 /* Dark mode adjustments for speaker labels */
-.dark .ProseMirror p[data-show-label="true"]::before {
+.dark .ProseMirror p[data-show-speaker-label="true"]::before {
   background: color-mix(in oklch, var(--speaker-color) 25%, transparent);
+}
+
+.dark .ProseMirror p[data-show-camera-label="true"]::after {
+  background: color-mix(in oklch, var(--camera-color, #06b6d4) 25%, transparent);
 }
 
 /* ===== End Speaker Attribution System ===== */

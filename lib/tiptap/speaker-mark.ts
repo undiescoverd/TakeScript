@@ -1,10 +1,12 @@
 import { Mark, mergeAttributes } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
-import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { Fragment, Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { TextSelection } from "@tiptap/pm/state";
 
 // Camera mode types
 export type CameraMode = "full" | "corner" | "voiceover";
+export type CameraModeNullable = CameraMode | null;
 
 // Display labels for camera modes (used in editor UI)
 export const cameraModeLabels: Record<CameraMode, string> = {
@@ -13,12 +15,21 @@ export const cameraModeLabels: Record<CameraMode, string> = {
   voiceover: "Voiceover",
 };
 
+// Camera mode colors - distinct from speaker colors and each other for easy scanning
+// Speaker colors: blue, purple, green, amber, red, pink, cyan, lime
+// Camera colors use maximally distinct ranges for easy visual identification
+export const cameraModeColors: Record<CameraMode, string> = {
+  full: "#06b6d4", // cyan-500 - vibrant teal/cyan for full screen
+  corner: "#f97316", // orange-500 - warm orange for corner view
+  voiceover: "#a855f7", // purple-500 - vibrant purple for voiceover
+};
+
 // Speaker interface
 export interface Speaker {
   id: string;
   name: string;
   color: string;
-  defaultVisibility?: CameraMode;
+  defaultVisibility?: CameraModeNullable;
 }
 
 export interface SpeakerMarkOptions {
@@ -30,21 +41,25 @@ declare module "@tiptap/core" {
   interface Commands<ReturnType> {
     speakerMark: {
       /**
-       * Set a speaker mark on the selection
+       * Set a speaker mark on the selection (no default camera mode)
        */
       setSpeaker: (attributes: {
         speakerId: string;
-        cameraMode?: CameraMode;
+        cameraMode?: CameraModeNullable;
       }) => ReturnType;
+      /**
+       * Set camera mode on existing speaker mark (requires speaker to exist)
+       */
+      setCameraMode: (cameraMode: CameraModeNullable) => ReturnType;
       /**
        * Toggle a speaker mark
        */
       toggleSpeaker: (attributes: {
         speakerId: string;
-        cameraMode?: CameraMode;
+        cameraMode?: CameraModeNullable;
       }) => ReturnType;
       /**
-       * Remove speaker mark from selection
+       * Remove speaker mark from selection (removes both speaker and camera)
        */
       unsetSpeaker: () => ReturnType;
       /**
@@ -63,8 +78,8 @@ const SpeakerDecorationPluginKey = new PluginKey("speakerDecoration");
  */
 function findSpeakerInParagraph(
   node: ProseMirrorNode
-): { speakerId: string; cameraMode: CameraMode } | null {
-  let result: { speakerId: string; cameraMode: CameraMode } | null = null;
+): { speakerId: string; cameraMode: CameraModeNullable } | null {
+  let result: { speakerId: string; cameraMode: CameraModeNullable } | null = null;
 
   node.descendants((child) => {
     if (result) return false; // Stop if we found one
@@ -74,7 +89,7 @@ function findSpeakerInParagraph(
       if (speakerMark) {
         result = {
           speakerId: speakerMark.attrs.speakerId,
-          cameraMode: speakerMark.attrs.cameraMode || "full",
+          cameraMode: speakerMark.attrs.cameraMode || null,
         };
         return false;
       }
@@ -87,6 +102,7 @@ function findSpeakerInParagraph(
 
 /**
  * Build decorations for paragraphs with speaker marks
+ * Shows both labels when EITHER speaker or camera changes
  */
 function buildDecorations(
   doc: ProseMirrorNode,
@@ -95,6 +111,7 @@ function buildDecorations(
   const decorations: Decoration[] = [];
   const speakers = getSpeakers();
   let prevSpeakerId: string | null = null;
+  let prevCameraMode: CameraModeNullable = null;
 
   doc.descendants((node, pos) => {
     if (node.type.name === "paragraph") {
@@ -103,24 +120,43 @@ function buildDecorations(
       if (speakerInfo) {
         const { speakerId, cameraMode } = speakerInfo;
         const speaker = speakers.find((s) => s.id === speakerId);
-        const isFirstOfRun = speakerId !== prevSpeakerId;
+
+        // Track changes independently
+        const speakerChanged = speakerId !== prevSpeakerId;
+        const cameraChanged = cameraMode !== prevCameraMode;
+
+        // Show both labels when EITHER changes
+        const showLabels = speakerChanged || cameraChanged;
 
         const attrs: Record<string, string> = {
           "data-paragraph-speaker": speakerId,
           "data-speaker-name": speaker?.name.toUpperCase() || "UNKNOWN",
-          "data-camera-mode": cameraModeLabels[cameraMode],
           style: `--speaker-color: ${speaker?.color || "#3b82f6"}`,
         };
 
-        if (isFirstOfRun) {
-          attrs["data-show-label"] = "true";
+        // Show speaker label when either changes
+        if (showLabels) {
+          attrs["data-show-speaker-label"] = "true";
+        }
+
+        // Only add camera attributes if camera mode is assigned
+        if (cameraMode !== null) {
+          attrs["data-camera-mode"] = cameraModeLabels[cameraMode];
+          // Append camera color CSS variable to existing style
+          attrs.style = `${attrs.style}; --camera-color: ${cameraModeColors[cameraMode]}`;
+          // Show camera label when either changes (and camera is assigned)
+          if (showLabels) {
+            attrs["data-show-camera-label"] = "true";
+          }
         }
 
         decorations.push(Decoration.node(pos, pos + node.nodeSize, attrs));
         prevSpeakerId = speakerId;
+        prevCameraMode = cameraMode;
       } else {
         // Reset tracking when we hit a non-speaker paragraph
         prevSpeakerId = null;
+        prevCameraMode = null;
       }
     }
 
@@ -180,10 +216,16 @@ export const SpeakerMark = Mark.create<SpeakerMarkOptions>({
         },
       },
       cameraMode: {
-        default: "full" as CameraMode,
-        parseHTML: (element) =>
-          (element.getAttribute("data-camera-mode") as CameraMode) || "full",
+        default: null as CameraModeNullable,
+        parseHTML: (element) => {
+          const mode = element.getAttribute("data-camera-mode");
+          return mode || null;
+        },
         renderHTML: (attributes) => {
+          // Don't render attribute if camera mode is null
+          if (!attributes.cameraMode) {
+            return {};
+          }
           return {
             "data-camera-mode": attributes.cameraMode,
           };
@@ -214,11 +256,129 @@ export const SpeakerMark = Mark.create<SpeakerMarkOptions>({
     return {
       setSpeaker:
         (attributes) =>
-        ({ commands }) => {
-          return commands.setMark(this.name, {
+        ({ tr, state, dispatch, chain }) => {
+          const { selection } = state;
+          const { $from, $to, from, to } = selection;
+
+          // Check if selection is empty
+          if (from === to) {
+            // No selection - just set the mark at cursor
+            return chain()
+              .unsetMark(this.name)
+              .setMark(this.name, {
+                speakerId: attributes.speakerId,
+                cameraMode: attributes.cameraMode ?? null, // No default camera
+              })
+              .run();
+          }
+
+          // Check if selection spans multiple blocks (paragraphs)
+          // If so, use default setMark behavior
+          if ($from.parent !== $to.parent) {
+            return chain()
+              .unsetMark(this.name)
+              .setMark(this.name, {
+                speakerId: attributes.speakerId,
+                cameraMode: attributes.cameraMode ?? null, // No default camera
+              })
+              .run();
+          }
+
+          // Find paragraph boundaries
+          const paragraphStart = $from.start($from.depth);
+          const paragraphEnd = $to.end($to.depth);
+
+          // Check if selection spans the entire paragraph content
+          const selectionStartsAtParagraphStart = from === paragraphStart;
+          const selectionEndsAtParagraphEnd = to === paragraphEnd;
+
+          // If selection covers whole paragraph, just apply the mark
+          // First unset any existing speaker mark to ensure proper replacement
+          if (selectionStartsAtParagraphStart && selectionEndsAtParagraphEnd) {
+            return chain()
+              .unsetMark(this.name)
+              .setMark(this.name, {
+                speakerId: attributes.speakerId,
+                cameraMode: attributes.cameraMode ?? null, // No default camera
+              })
+              .run();
+          }
+
+          // Selection is partial within a single paragraph - need to split
+          if (!dispatch) return true;
+
+          // We need to handle three cases:
+          // 1. Selection starts in middle, ends at end -> split at start
+          // 2. Selection starts at start, ends in middle -> split at end
+          // 3. Selection is in middle -> split at both ends
+
+          const markType = state.schema.marks[this.name];
+          const mark = markType.create({
             speakerId: attributes.speakerId,
-            cameraMode: attributes.cameraMode || "full",
+            cameraMode: attributes.cameraMode ?? null, // No default camera
           });
+
+          // Get paragraph node type
+          const paragraphType = state.schema.nodes.paragraph;
+          if (!paragraphType) return false;
+
+          // Build the transaction step by step
+          // We need to:
+          // 1. Delete the selected content
+          // 2. Replace with split paragraphs containing the content with marks
+
+          const selectedText = state.doc.textBetween(from, to, "", "");
+          const textBefore = state.doc.textBetween(paragraphStart, from, "", "");
+          const textAfter = state.doc.textBetween(to, paragraphEnd, "", "");
+
+          // Build the replacement content
+          const nodes: ProseMirrorNode[] = [];
+
+          // Text before selection (if any) goes in its own paragraph
+          if (textBefore.length > 0) {
+            // Get marks from the original text before selection
+            const originalMarks = $from.parent.child(0)?.marks || [];
+            const textNode = state.schema.text(textBefore, originalMarks.filter(m => m.type.name !== "speaker"));
+            nodes.push(paragraphType.create(null, textNode));
+          }
+
+          // Selected text gets the speaker mark in its own paragraph
+          if (selectedText.length > 0) {
+            const textNode = state.schema.text(selectedText, [mark]);
+            nodes.push(paragraphType.create(null, textNode));
+          }
+
+          // Text after selection (if any) goes in its own paragraph
+          if (textAfter.length > 0) {
+            const originalMarks = $to.parent.lastChild?.marks || [];
+            const textNode = state.schema.text(textAfter, originalMarks.filter(m => m.type.name !== "speaker"));
+            nodes.push(paragraphType.create(null, textNode));
+          }
+
+          // Find the paragraph boundaries for replacement
+          const $startBlock = state.doc.resolve(paragraphStart);
+          const blockStart = $startBlock.before($startBlock.depth);
+          const blockEnd = blockStart + $from.parent.nodeSize;
+
+          // Create fragment from nodes
+          const replacementFragment = Fragment.from(nodes);
+
+          tr.replaceWith(blockStart, blockEnd, replacementFragment);
+
+          // Set cursor position to end of the marked paragraph
+          const markedParagraphIndex = textBefore.length > 0 ? 1 : 0;
+          let cursorPos = blockStart;
+          for (let i = 0; i <= markedParagraphIndex && i < nodes.length; i++) {
+            if (i < markedParagraphIndex) {
+              cursorPos += nodes[i].nodeSize;
+            } else {
+              cursorPos += 1 + selectedText.length; // +1 for paragraph opening
+            }
+          }
+          tr.setSelection(TextSelection.near(tr.doc.resolve(cursorPos)));
+
+          dispatch(tr);
+          return true;
         },
 
       toggleSpeaker:
@@ -226,8 +386,31 @@ export const SpeakerMark = Mark.create<SpeakerMarkOptions>({
         ({ commands }) => {
           return commands.toggleMark(this.name, {
             speakerId: attributes.speakerId,
-            cameraMode: attributes.cameraMode || "full",
+            cameraMode: attributes.cameraMode ?? null, // No default camera
           });
+        },
+
+      setCameraMode:
+        (cameraMode) =>
+        ({ state, chain }) => {
+          const { selection } = state;
+          const { $from } = selection;
+
+          // Check if current position has speaker mark
+          const speakerMark = $from.marks().find((m) => m.type.name === "speaker");
+
+          // Camera mode requires an existing speaker - silent fail if none
+          if (!speakerMark) {
+            return false;
+          }
+
+          // Update the mark with the new camera mode while keeping the speaker
+          return chain()
+            .setMark("speaker", {
+              speakerId: speakerMark.attrs.speakerId,
+              cameraMode: cameraMode,
+            })
+            .run();
         },
 
       unsetSpeaker:
@@ -285,6 +468,52 @@ export const SpeakerMark = Mark.create<SpeakerMarkOptions>({
         }
 
         return false; // Let default Enter behavior happen
+      },
+
+      // Speaker assignment shortcuts (Cmd+1-4)
+      "Mod-1": ({ editor }) => {
+        const speakers = this.options.getSpeakers();
+        if (speakers[0]) {
+          return editor.commands.setSpeaker({ speakerId: speakers[0].id });
+        }
+        return false;
+      },
+      "Mod-2": ({ editor }) => {
+        const speakers = this.options.getSpeakers();
+        if (speakers[1]) {
+          return editor.commands.setSpeaker({ speakerId: speakers[1].id });
+        }
+        return false;
+      },
+      "Mod-3": ({ editor }) => {
+        const speakers = this.options.getSpeakers();
+        if (speakers[2]) {
+          return editor.commands.setSpeaker({ speakerId: speakers[2].id });
+        }
+        return false;
+      },
+      "Mod-4": ({ editor }) => {
+        const speakers = this.options.getSpeakers();
+        if (speakers[3]) {
+          return editor.commands.setSpeaker({ speakerId: speakers[3].id });
+        }
+        return false;
+      },
+
+      // Camera mode shortcuts (Ctrl+1-3 on Mac, distinct from Cmd+1-3 for speakers)
+      "Ctrl-1": ({ editor }) => {
+        return editor.commands.setCameraMode("full");
+      },
+      "Ctrl-2": ({ editor }) => {
+        return editor.commands.setCameraMode("corner");
+      },
+      "Ctrl-3": ({ editor }) => {
+        return editor.commands.setCameraMode("voiceover");
+      },
+
+      // Remove speaker and camera (Cmd+J)
+      "Mod-j": ({ editor }) => {
+        return editor.commands.unsetSpeaker();
       },
     };
   },
