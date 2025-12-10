@@ -21,7 +21,8 @@ export function CommentsPanel({
   isOpen,
   onClose,
 }: CommentsPanelProps) {
-  const comments = useQuery(api.comments.list, { scriptId });
+  // Only subscribe to query when panel is open - saves bandwidth
+  const comments = useQuery(api.comments.list, isOpen ? { scriptId } : "skip");
   const createComment = useMutation(api.comments.create);
   const toggleResolve = useMutation(api.comments.toggleResolve);
   const removeComment = useMutation(api.comments.remove);
