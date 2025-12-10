@@ -79,6 +79,9 @@ export const ScreenRecordingBlock = Node.create({
       id: {
         default: null,
       },
+      description: {
+        default: null,
+      },
     };
   },
 
@@ -119,6 +122,9 @@ export const DemonstrationBlock = Node.create({
       id: {
         default: null,
       },
+      description: {
+        default: null,
+      },
     };
   },
 
@@ -157,6 +163,9 @@ export const EditorNoteBlock = Node.create({
   addAttributes() {
     return {
       id: {
+        default: null,
+      },
+      description: {
         default: null,
       },
     };

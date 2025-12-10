@@ -277,42 +277,44 @@ export const slashCommandItems: SlashCommandItem[] = [
     description: "Add a chapter heading.",
     icon: "Ch",
     command: ({ editor, range, selection }) => {
-      // Delete the slash command
-      editor.chain().focus().deleteRange(range).run();
-
       if (selection && !selection.isEmpty) {
-        // Wrap selected content in a chapter block
-        wrapSelectionInBlock(editor, selection, "chapter", {
-          title: "New Chapter",
-          id: generateBlockId("chapter"),
-        });
-      } else {
-        // No selection - insert new empty chapter and position cursor inside
-        const insertPos = editor.state.selection.from;
+        // Use selected text as the chapter title
+        const selectedText = selection.text.trim();
 
+        // Calculate the range that includes both the "/" and the selected text
+        // After Cmd+K, "/" is inserted at the start of selection, so:
+        // - range.from is where "/" starts
+        // - selection.to is where the selected text ends
+        const deleteFrom = Math.min(range.from, selection.from);
+        const deleteTo = Math.max(range.to, selection.to);
+
+        // Delete slash command and selected text in one operation, then insert chapter
         editor
           .chain()
           .focus()
+          .deleteRange({ from: deleteFrom, to: deleteTo })
+          .insertContent({
+            type: "chapter",
+            attrs: {
+              title: selectedText || "New Chapter",
+              id: generateBlockId("chapter"),
+            },
+            content: [{ type: "paragraph", content: [{ type: "text", text: "" }] }],
+          })
+          .run();
+      } else {
+        // No selection - delete slash and insert new empty chapter (will open in edit mode)
+        editor
+          .chain()
+          .focus()
+          .deleteRange(range)
           .insertContent({
             type: "chapter",
             attrs: {
               title: "New Chapter",
               id: generateBlockId("chapter"),
             },
-            content: [{ type: "paragraph" }],
-          })
-          .command(({ tr, dispatch }) => {
-            if (dispatch) {
-              // Position cursor inside the paragraph within the chapter
-              // The chapter node structure is: chapter > paragraph > text
-              // After insertion at insertPos, the structure is:
-              // insertPos: start of chapter node
-              // insertPos + 1: start of paragraph inside chapter
-              // We want cursor at the text position inside the paragraph
-              const newPos = insertPos + 2; // +1 for chapter, +1 for paragraph start
-              tr.setSelection(TextSelection.create(tr.doc, newPos));
-            }
-            return true;
+            content: [{ type: "paragraph", content: [{ type: "text", text: "" }] }],
           })
           .run();
       }

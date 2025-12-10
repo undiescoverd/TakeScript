@@ -100,9 +100,18 @@ function findSpeakerInParagraph(
   return result;
 }
 
+// Block types that need extra margin for following speaker labels
+const BLOCK_TYPES = new Set([
+  "chapter",
+  "screenRecording",
+  "demonstration",
+  "editorNote",
+  "thumbnailTitle",
+]);
+
 /**
  * Build decorations for paragraphs with speaker marks
- * Shows both labels when EITHER speaker or camera changes
+ * Shows both labels when EITHER speaker or camera changes, OR when following a block
  */
 function buildDecorations(
   doc: ProseMirrorNode,
@@ -112,10 +121,23 @@ function buildDecorations(
   const speakers = getSpeakers();
   let prevSpeakerId: string | null = null;
   let prevCameraMode: CameraModeNullable = null;
+  let lastBlockEndPos = -1; // Track where the last block ended
 
   doc.descendants((node, pos) => {
+    // Track when we see a block type and where it ends
+    if (BLOCK_TYPES.has(node.type.name)) {
+      lastBlockEndPos = pos + node.nodeSize;
+      // Reset speaker tracking after a block
+      prevSpeakerId = null;
+      prevCameraMode = null;
+      return false; // Don't descend into blocks - their content has its own context
+    }
+
     if (node.type.name === "paragraph") {
       const speakerInfo = findSpeakerInParagraph(node);
+
+      // Check if this paragraph directly follows a block
+      const isDirectlyAfterBlock = pos === lastBlockEndPos;
 
       if (speakerInfo) {
         const { speakerId, cameraMode } = speakerInfo;
@@ -125,8 +147,8 @@ function buildDecorations(
         const speakerChanged = speakerId !== prevSpeakerId;
         const cameraChanged = cameraMode !== prevCameraMode;
 
-        // Show both labels when EITHER changes
-        const showLabels = speakerChanged || cameraChanged;
+        // Show both labels when EITHER changes OR when following a block
+        const showLabels = speakerChanged || cameraChanged || isDirectlyAfterBlock;
 
         const attrs: Record<string, string> = {
           "data-paragraph-speaker": speakerId,
@@ -134,9 +156,14 @@ function buildDecorations(
           style: `--speaker-color: ${speaker?.color || "#3b82f6"}`,
         };
 
-        // Show speaker label when either changes
+        // Show speaker label when needed
         if (showLabels) {
           attrs["data-show-speaker-label"] = "true";
+        }
+
+        // Mark if following a block (for extra margin in CSS)
+        if (isDirectlyAfterBlock) {
+          attrs["data-after-block"] = "true";
         }
 
         // Only add camera attributes if camera mode is assigned
@@ -144,7 +171,7 @@ function buildDecorations(
           attrs["data-camera-mode"] = cameraModeLabels[cameraMode];
           // Append camera color CSS variable to existing style
           attrs.style = `${attrs.style}; --camera-color: ${cameraModeColors[cameraMode]}`;
-          // Show camera label when either changes (and camera is assigned)
+          // Show camera label when needed (and camera is assigned)
           if (showLabels) {
             attrs["data-show-camera-label"] = "true";
           }
@@ -177,7 +204,8 @@ function createSpeakerDecorationPlugin(getSpeakers: () => Speaker[]) {
         return buildDecorations(doc, getSpeakers);
       },
       apply(tr, oldSet) {
-        if (tr.docChanged) {
+        // Rebuild decorations when doc changes OR when speakers are updated
+        if (tr.docChanged || tr.getMeta("speakersUpdated")) {
           return buildDecorations(tr.doc, getSpeakers);
         }
         return oldSet;
@@ -392,9 +420,9 @@ export const SpeakerMark = Mark.create<SpeakerMarkOptions>({
 
       setCameraMode:
         (cameraMode) =>
-        ({ state, chain }) => {
+        ({ state, chain, dispatch }) => {
           const { selection } = state;
-          const { $from } = selection;
+          const { $from, from, to } = selection;
 
           // Check if current position has speaker mark
           const speakerMark = $from.marks().find((m) => m.type.name === "speaker");
@@ -404,7 +432,8 @@ export const SpeakerMark = Mark.create<SpeakerMarkOptions>({
             return false;
           }
 
-          // Update the mark with the new camera mode while keeping the speaker
+          // Ensure we're updating the mark across the entire selection
+          // Use setMark which will replace any existing speaker mark with the new camera mode
           return chain()
             .setMark("speaker", {
               speakerId: speakerMark.attrs.speakerId,
@@ -500,15 +529,29 @@ export const SpeakerMark = Mark.create<SpeakerMarkOptions>({
         return false;
       },
 
-      // Camera mode shortcuts (Ctrl+1-3 on Mac, distinct from Cmd+1-3 for speakers)
-      "Ctrl-1": ({ editor }) => {
-        return editor.commands.setCameraMode("full");
-      },
-      "Ctrl-2": ({ editor }) => {
-        return editor.commands.setCameraMode("corner");
-      },
-      "Ctrl-3": ({ editor }) => {
-        return editor.commands.setCameraMode("voiceover");
+      // Camera mode cycling shortcut (Cmd+0)
+      // Cycles through: full → voiceover → corner → null (remove) → full...
+      "Mod-0": ({ editor }) => {
+        const { selection } = editor.state;
+        const { $from } = selection;
+        const speakerMark = $from.marks().find((m) => m.type.name === "speaker");
+
+        // Camera mode requires an existing speaker
+        if (!speakerMark) {
+          return false;
+        }
+
+        // Define cycle order: full → voiceover → corner → null → full...
+        const cycleOrder: (CameraMode | null)[] = ["full", "voiceover", "corner", null];
+        const currentCameraMode = speakerMark.attrs.cameraMode as CameraModeNullable;
+
+        // Find current position in cycle and get next
+        const currentIndex = cycleOrder.indexOf(currentCameraMode);
+        const nextIndex = (currentIndex + 1) % cycleOrder.length;
+        const newCameraMode = cycleOrder[nextIndex];
+
+        // Update the mark with the new camera mode while preserving the speaker
+        return editor.commands.setCameraMode(newCameraMode);
       },
 
       // Remove speaker and camera (Cmd+J)

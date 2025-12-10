@@ -1,23 +1,69 @@
 "use client";
 
 import { NodeViewWrapper, NodeViewContent, NodeViewProps } from "@tiptap/react";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Edit2, Check, X } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Fragment } from "@tiptap/pm/model";
 
 export function ThumbnailTitleNodeView({ node, updateAttributes, editor, getPos }: NodeViewProps) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [title, setTitle] = useState(node.attrs.title || "Thumbnail Title");
+  // Auto-open edit mode ONLY for newly created thumbnail titles with the default placeholder title
+  const initialTitle = node.attrs.title || "Thumbnail Title";
+  const isNewThumbnailNeedingInput = initialTitle === "Thumbnail Title";
+  const [isEditing, setIsEditing] = useState(isNewThumbnailNeedingInput);
+  const [title, setTitle] = useState(isNewThumbnailNeedingInput ? "" : initialTitle);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
+  // Update local state when node attributes change (only when not editing to avoid interfering with user input)
+  useEffect(() => {
+    if (!isEditing) {
+      const currentTitle = node.attrs.title || "Thumbnail Title";
+      setTitle(currentTitle === "Thumbnail Title" ? "" : currentTitle);
+    }
+  }, [node.attrs.title, isEditing]);
+
+  // Focus the title input when entering edit mode (especially for new thumbnail titles)
+  useEffect(() => {
+    if (isEditing && titleInputRef.current) {
+      // Use setTimeout to ensure the DOM is fully rendered
+      const timeoutId = setTimeout(() => {
+        titleInputRef.current?.focus();
+        // Select all text if it's the default "Thumbnail Title"
+        if (title === "Thumbnail Title") {
+          titleInputRef.current?.select();
+        }
+      }, 0);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [isEditing, title]);
 
   const handleSave = () => {
-    updateAttributes({ title });
+    updateAttributes({ title: title.trim() || "Thumbnail Title" });
     setIsEditing(false);
   };
 
   const handleCancel = () => {
-    setTitle(node.attrs.title || "Thumbnail Title");
+    // If this is a new thumbnail title that was never saved (still has default title),
+    // remove the block entirely instead of just closing the dialog
+    const currentTitle = node.attrs.title || "Thumbnail Title";
+    if (currentTitle === "Thumbnail Title") {
+      handleRemoveBlock();
+      return;
+    }
+
+    setTitle(currentTitle);
     setIsEditing(false);
+  };
+
+  const handleStartEditing = () => {
+    // Clear the title if it's the default placeholder
+    const currentTitle = node.attrs.title || "Thumbnail Title";
+    if (currentTitle === "Thumbnail Title") {
+      setTitle("");
+    } else {
+      setTitle(currentTitle);
+    }
+    setIsEditing(true);
   };
 
   const handleRemoveBlock = () => {
@@ -55,10 +101,11 @@ export function ThumbnailTitleNodeView({ node, updateAttributes, editor, getPos 
   if (isEditing) {
     return (
       <NodeViewWrapper className="thumbnail-title-node-view">
-        <div className="mb-6 mt-8 space-y-3 rounded-lg border-2 border-primary bg-accent p-4">
+        <div className="mb-6 mt-8 space-y-3 rounded-lg border-2 bg-accent p-4" style={{ borderColor: '#8b5cf6' }}>
           <div className="space-y-2">
             <label className="text-sm font-medium">Thumbnail Title</label>
             <input
+              ref={titleInputRef}
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
@@ -80,7 +127,8 @@ export function ThumbnailTitleNodeView({ node, updateAttributes, editor, getPos 
           <div className="flex gap-2">
             <button
               onClick={handleSave}
-              className="flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90"
+              className="flex items-center gap-1 rounded-md px-3 py-1.5 text-sm text-white hover:opacity-90"
+              style={{ backgroundColor: '#8b5cf6' }}
             >
               <Check className="h-3 w-3" />
               Save
@@ -101,13 +149,14 @@ export function ThumbnailTitleNodeView({ node, updateAttributes, editor, getPos 
   return (
     <NodeViewWrapper className="thumbnail-title-node-view">
       <div
-        className="group relative mb-6 mt-8 border-l-4 border-primary pl-4 py-2 cursor-pointer hover:bg-accent/50 rounded-r-lg transition-colors"
+        className="group relative mb-6 mt-8 border-l-4 pl-4 py-2 cursor-pointer hover:bg-accent/50 rounded-r-lg transition-colors"
+        style={{ borderLeftColor: '#8b5cf6' }}
         data-id={node.attrs.id}
-        onClick={() => setIsEditing(true)}
+        onClick={handleStartEditing}
       >
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <div className="text-lg font-bold uppercase text-primary">
+            <div className="text-lg font-bold uppercase" style={{ color: '#8b5cf6' }}>
               {node.attrs.title || "Thumbnail Title"}
             </div>
           </div>
@@ -118,7 +167,7 @@ export function ThumbnailTitleNodeView({ node, updateAttributes, editor, getPos 
                   className="p-1.5 hover:bg-accent rounded"
                   onClick={(e) => {
                     e.stopPropagation();
-                    setIsEditing(true);
+                    handleStartEditing();
                   }}
                 >
                   <Edit2 className="h-4 w-4 text-muted-foreground" />

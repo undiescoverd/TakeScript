@@ -115,16 +115,161 @@ export function AnnotationsPanel({
     setEditContent("");
   };
 
-  const handleAnnotationClick = (annotationId: string, from: number) => {
+  const handleAnnotationClick = (annotationId: string, from: number, to: number) => {
     setSelectedAnnotationId(annotationId);
 
     // Scroll to the annotation in the editor
     if (editor && editor.view) {
       try {
-        editor.commands.setTextSelection(from);
-        editor.commands.scrollIntoView();
-      } catch {
-        // Editor view not ready, skip scrolling
+        const { state } = editor;
+        let foundFrom: number | null = null;
+        let foundTo: number | null = null;
+
+        // Search through the document for the annotation mark by ID
+        // This finds the actual current position, even if the document has changed
+        state.doc.descendants((node, pos) => {
+          if (node.isText && node.marks) {
+            const annotationMark = node.marks.find(
+              (mark) => mark.type.name === "annotation" && mark.attrs.annotationId === annotationId
+            );
+            
+            if (annotationMark) {
+              // Found a text node with this annotation
+              // Track the start and end of the annotation range
+              if (foundFrom === null) {
+                foundFrom = pos;
+              }
+              foundTo = pos + node.nodeSize;
+            }
+          }
+        });
+
+        // If we found the annotation in the document, use those positions
+        // Otherwise, fall back to the stored positions from the database
+        const selectionFrom = foundFrom !== null ? foundFrom : from;
+        const selectionTo = foundTo !== null ? foundTo : to;
+
+        // Select the full range of the annotation
+        editor
+          .chain()
+          .focus()
+          .setTextSelection({ from: selectionFrom, to: selectionTo })
+          .run();
+
+        // Custom scroll to center the annotation in the viewport
+        setTimeout(() => {
+          try {
+            const { view } = editor;
+            const { state } = view;
+            const selection = state.selection;
+            
+            // Get the DOM coordinates of the selection
+            const start = view.coordsAtPos(selection.from);
+            const end = view.coordsAtPos(selection.to);
+            
+            // Calculate the center point of the selection
+            const selectionCenterY = (start.top + end.top) / 2;
+            
+            // Find the scrollable container - look for overflow-auto or check parent elements
+            let scrollContainer: HTMLElement | null = null;
+            let current: HTMLElement | null = view.dom.parentElement;
+            
+            while (current) {
+              const style = window.getComputedStyle(current);
+              if (style.overflowY === 'auto' || style.overflowY === 'scroll' || 
+                  current.classList.contains('overflow-auto') || 
+                  current.classList.contains('overflow-y-auto')) {
+                scrollContainer = current;
+                break;
+              }
+              current = current.parentElement;
+            }
+            
+            if (!scrollContainer) {
+              // Fallback to window scroll
+              const viewportHeight = window.innerHeight;
+              const scrollY = window.scrollY + selectionCenterY - (viewportHeight / 2);
+              window.scrollTo({ top: Math.max(0, scrollY), behavior: 'smooth' });
+              return;
+            }
+            
+            // Get viewport dimensions
+            const containerRect = scrollContainer.getBoundingClientRect();
+            const viewportHeight = containerRect.height;
+            const containerScrollTop = scrollContainer.scrollTop;
+            
+            // Calculate the position of the selection relative to the container
+            // selectionCenterY is relative to viewport, so we need to add scrollTop
+            const selectionRelativeY = selectionCenterY - containerRect.top + containerScrollTop;
+            
+            // Calculate scroll position to center the selection
+            const targetScrollTop = selectionRelativeY - (viewportHeight / 2);
+            
+            // Scroll to center the selection
+            scrollContainer.scrollTo({
+              top: Math.max(0, targetScrollTop),
+              behavior: 'smooth'
+            });
+          } catch (error) {
+            console.error("Failed to center annotation:", error);
+            // Fallback to default scrollIntoView
+            editor.commands.scrollIntoView();
+          }
+        }, 50); // Small delay to ensure DOM is updated
+      } catch (error) {
+        console.error("Failed to scroll to annotation:", error);
+        // If the above fails, try a simpler approach with just the from position
+        try {
+          editor
+            .chain()
+            .focus()
+            .setTextSelection(from)
+            .run();
+          
+          // Center the selection
+          setTimeout(() => {
+            try {
+              const { view } = editor;
+              const coords = view.coordsAtPos(from);
+              
+              // Find the scrollable container
+              let scrollContainer: HTMLElement | null = null;
+              let current: HTMLElement | null = view.dom.parentElement;
+              
+              while (current) {
+                const style = window.getComputedStyle(current);
+                if (style.overflowY === 'auto' || style.overflowY === 'scroll' || 
+                    current.classList.contains('overflow-auto') || 
+                    current.classList.contains('overflow-y-auto')) {
+                  scrollContainer = current;
+                  break;
+                }
+                current = current.parentElement;
+              }
+              
+              if (scrollContainer) {
+                const containerRect = scrollContainer.getBoundingClientRect();
+                const viewportHeight = containerRect.height;
+                const containerScrollTop = scrollContainer.scrollTop;
+                const selectionRelativeY = coords.top - containerRect.top + containerScrollTop;
+                const targetScrollTop = selectionRelativeY - (viewportHeight / 2);
+                
+                scrollContainer.scrollTo({
+                  top: Math.max(0, targetScrollTop),
+                  behavior: 'smooth'
+                });
+              } else {
+                const viewportHeight = window.innerHeight;
+                const scrollY = window.scrollY + coords.top - (viewportHeight / 2);
+                window.scrollTo({ top: Math.max(0, scrollY), behavior: 'smooth' });
+              }
+            } catch {
+              editor.commands.scrollIntoView();
+            }
+          }, 50);
+        } catch {
+          // Editor view not ready, skip scrolling
+        }
       }
     }
   };
@@ -189,7 +334,7 @@ export function AnnotationsPanel({
                 editContent={editContent}
                 onEditContentChange={setEditContent}
                 onClick={() =>
-                  handleAnnotationClick(annotation._id, annotation.from)
+                  handleAnnotationClick(annotation._id, annotation.from, annotation.to)
                 }
                 onStartEdit={() =>
                   handleStartEdit(annotation._id, annotation.content)
@@ -232,7 +377,7 @@ export function AnnotationsPanel({
                         editContent={editContent}
                         onEditContentChange={setEditContent}
                         onClick={() =>
-                          handleAnnotationClick(annotation._id, annotation.from)
+                          handleAnnotationClick(annotation._id, annotation.from, annotation.to)
                         }
                         onStartEdit={() =>
                           handleStartEdit(annotation._id, annotation.content)

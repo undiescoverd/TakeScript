@@ -118,29 +118,46 @@
   padding: 0;
 }
 
-/* Chapter Block */
+/* Chapter Block - Minimalist Divider Style */
 .ProseMirror [data-type="chapter"],
 .chapter-block {
-  font-size: 14pt;
-  font-weight: bold;
+  text-align: center;
+  font-size: 11pt;
+  font-weight: 600;
   text-transform: uppercase;
-  margin-top: 2rem;
-  margin-bottom: 1rem;
-  border-left: 4px solid #3b82f6;
-  padding-left: 1rem;
+  margin: 2.5rem 0 1.5rem 0;
+  padding: 0;
+  color: var(--muted-foreground);
+  letter-spacing: 0.2em;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.ProseMirror [data-type="chapter"]::before,
+.ProseMirror [data-type="chapter"]::after,
+.chapter-block::before,
+.chapter-block::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
 }
 
 .chapter-block .chapter-title {
-  font-size: 14pt;
-  font-weight: bold;
+  font-size: 11pt;
+  font-weight: 600;
   text-transform: uppercase;
+  letter-spacing: 0.2em;
 }
 
 .chapter-block .chapter-duration {
-  font-size: 10pt;
+  font-size: 9pt;
   font-weight: normal;
   color: var(--muted-foreground);
   margin-left: 0.5rem;
+  text-transform: none;
+  letter-spacing: normal;
 }
 
 /* Screen Recording Block */
@@ -545,6 +562,7 @@
   border-left: 3px solid var(--speaker-color, #3b82f6);
   padding-left: 1rem;
   margin-top: 0.5rem;
+  overflow: visible; /* Ensure labels can extend above the paragraph */
 }
 
 /* First paragraph of speaker/camera run - extra margin for labels */
@@ -558,13 +576,19 @@
   margin-top: 2rem;
 }
 
+/* Speaker paragraphs directly after blocks need extra margin to prevent label clipping */
+.ProseMirror p[data-after-block="true"][data-show-speaker-label="true"],
+.ProseMirror p[data-after-block="true"][data-show-camera-label="true"] {
+  margin-top: 3rem;
+}
+
 /* SPEAKER LABEL (LEFT OF CENTER) using ::before pseudo-element */
 .ProseMirror p[data-show-speaker-label="true"]::before {
   content: attr(data-speaker-name);
   position: absolute;
   top: -1.75rem;
-  /* Center-split: position at 50% then shift left with gap */
-  left: 50%;
+  /* Center-split: offset left by half of (border 3px + padding 1rem) to align with true page center */
+  left: calc(50% - 0.5rem - 1.5px);
   transform: translateX(calc(-100% - 0.5rem));
   font-size: 0.65rem;
   font-weight: 600;
@@ -586,8 +610,8 @@
   content: attr(data-camera-mode);
   position: absolute;
   top: -1.75rem;
-  /* Center-split: position at 50% then shift right with gap */
-  left: 50%;
+  /* Center-split: offset left by half of (border 3px + padding 1rem) to align with true page center */
+  left: calc(50% - 0.5rem - 1.5px);
   transform: translateX(0.5rem);
   font-size: 0.65rem;
   font-weight: 600;

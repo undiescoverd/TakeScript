@@ -17,29 +17,33 @@ function getTemplateContent(templateType?: string): string {
         {
           type: "chapter",
           attrs: { title: "Introduction", duration: "30s", id: generateBlockId("chapter") },
-        },
-        {
-          type: "paragraph",
           content: [
-            { type: "text", text: "Welcome to this tutorial. In this guide, we'll cover..." },
+            {
+              type: "paragraph",
+              content: [
+                { type: "text", text: "Welcome to this tutorial. In this guide, we'll cover..." },
+              ],
+            },
           ],
         },
         {
           type: "chapter",
           attrs: { title: "Step 1: Getting Started", duration: "2m", id: generateBlockId("chapter") },
-        },
-        {
-          type: "paragraph",
-          content: [{ type: "text", text: "First, let's start by..." }],
-        },
-        {
-          type: "screenRecording",
-          attrs: { id: generateBlockId("screenRecording") },
           content: [
             {
               type: "paragraph",
+              content: [{ type: "text", text: "First, let's start by..." }],
+            },
+            {
+              type: "screenRecording",
+              attrs: { id: generateBlockId("screenRecording") },
               content: [
-                { type: "text", text: "Show the initial setup process..." },
+                {
+                  type: "paragraph",
+                  content: [
+                    { type: "text", text: "Show the initial setup process..." },
+                  ],
+                },
               ],
             },
           ],
@@ -47,19 +51,21 @@ function getTemplateContent(templateType?: string): string {
         {
           type: "chapter",
           attrs: { title: "Step 2: Main Content", duration: "3m", id: generateBlockId("chapter") },
-        },
-        {
-          type: "paragraph",
-          content: [{ type: "text", text: "Now let's dive into..." }],
-        },
-        {
-          type: "editorNote",
-          attrs: { id: generateBlockId("editorNote") },
           content: [
             {
               type: "paragraph",
+              content: [{ type: "text", text: "Now let's dive into..." }],
+            },
+            {
+              type: "editorNote",
+              attrs: { id: generateBlockId("editorNote") },
               content: [
-                { type: "text", text: "Remember to highlight key features here" },
+                {
+                  type: "paragraph",
+                  content: [
+                    { type: "text", text: "Remember to highlight key features here" },
+                  ],
+                },
               ],
             },
           ],
@@ -72,21 +78,23 @@ function getTemplateContent(templateType?: string): string {
         {
           type: "chapter",
           attrs: { title: "Product Demo", duration: "1m", id: generateBlockId("chapter") },
-        },
-        {
-          type: "paragraph",
-          content: [
-            { type: "text", text: "In this demo, we'll show you how our product solves..." },
-          ],
-        },
-        {
-          type: "screenRecording",
-          attrs: { id: generateBlockId("screenRecording") },
           content: [
             {
               type: "paragraph",
               content: [
-                { type: "text", text: "Navigate to the main dashboard and show..." },
+                { type: "text", text: "In this demo, we'll show you how our product solves..." },
+              ],
+            },
+            {
+              type: "screenRecording",
+              attrs: { id: generateBlockId("screenRecording") },
+              content: [
+                {
+                  type: "paragraph",
+                  content: [
+                    { type: "text", text: "Navigate to the main dashboard and show..." },
+                  ],
+                },
               ],
             },
           ],
@@ -94,21 +102,23 @@ function getTemplateContent(templateType?: string): string {
         {
           type: "chapter",
           attrs: { title: "Key Features", duration: "2m", id: generateBlockId("chapter") },
-        },
-        {
-          type: "paragraph",
-          content: [
-            { type: "text", text: "Let's explore the key features..." },
-          ],
-        },
-        {
-          type: "screenRecording",
-          attrs: { id: generateBlockId("screenRecording") },
           content: [
             {
               type: "paragraph",
               content: [
-                { type: "text", text: "Demonstrate feature 1..." },
+                { type: "text", text: "Let's explore the key features..." },
+              ],
+            },
+            {
+              type: "screenRecording",
+              attrs: { id: generateBlockId("screenRecording") },
+              content: [
+                {
+                  type: "paragraph",
+                  content: [
+                    { type: "text", text: "Demonstrate feature 1..." },
+                  ],
+                },
               ],
             },
           ],
@@ -121,31 +131,35 @@ function getTemplateContent(templateType?: string): string {
         {
           type: "chapter",
           attrs: { title: "Training Overview", duration: "1m", id: generateBlockId("chapter") },
-        },
-        {
-          type: "paragraph",
           content: [
-            { type: "text", text: "Welcome to this training session. Today we'll learn..." },
+            {
+              type: "paragraph",
+              content: [
+                { type: "text", text: "Welcome to this training session. Today we'll learn..." },
+              ],
+            },
           ],
         },
         {
           type: "chapter",
           attrs: { title: "Core Concepts", duration: "3m", id: generateBlockId("chapter") },
-        },
-        {
-          type: "paragraph",
-          content: [
-            { type: "text", text: "Let's start with the fundamental concepts..." },
-          ],
-        },
-        {
-          type: "demonstration",
-          attrs: { id: generateBlockId("demonstration") },
           content: [
             {
               type: "paragraph",
               content: [
-                { type: "text", text: "Demonstrate the core workflow step-by-step..." },
+                { type: "text", text: "Let's start with the fundamental concepts..." },
+              ],
+            },
+            {
+              type: "demonstration",
+              attrs: { id: generateBlockId("demonstration") },
+              content: [
+                {
+                  type: "paragraph",
+                  content: [
+                    { type: "text", text: "Demonstrate the core workflow step-by-step..." },
+                  ],
+                },
               ],
             },
           ],
@@ -153,21 +167,23 @@ function getTemplateContent(templateType?: string): string {
         {
           type: "chapter",
           attrs: { title: "Practice Exercise", duration: "4m", id: generateBlockId("chapter") },
-        },
-        {
-          type: "paragraph",
-          content: [
-            { type: "text", text: "Now it's time to practice what you've learned..." },
-          ],
-        },
-        {
-          type: "editorNote",
-          attrs: { id: generateBlockId("editorNote") },
           content: [
             {
               type: "paragraph",
               content: [
-                { type: "text", text: "Add interactive exercises or quizzes here" },
+                { type: "text", text: "Now it's time to practice what you've learned..." },
+              ],
+            },
+            {
+              type: "editorNote",
+              attrs: { id: generateBlockId("editorNote") },
+              content: [
+                {
+                  type: "paragraph",
+                  content: [
+                    { type: "text", text: "Add interactive exercises or quizzes here" },
+                  ],
+                },
               ],
             },
           ],
@@ -180,25 +196,29 @@ function getTemplateContent(templateType?: string): string {
         {
           type: "chapter",
           attrs: { title: "Product Introduction", duration: "1m", id: generateBlockId("chapter") },
-        },
-        {
-          type: "paragraph",
           content: [
-            { type: "text", text: "Welcome! Let's take a comprehensive tour of our product..." },
+            {
+              type: "paragraph",
+              content: [
+                { type: "text", text: "Welcome! Let's take a comprehensive tour of our product..." },
+              ],
+            },
           ],
         },
         {
           type: "chapter",
           attrs: { title: "Feature 1: Dashboard", duration: "2m", id: generateBlockId("chapter") },
-        },
-        {
-          type: "screenRecording",
-          attrs: { id: generateBlockId("screenRecording") },
           content: [
             {
-              type: "paragraph",
+              type: "screenRecording",
+              attrs: { id: generateBlockId("screenRecording") },
               content: [
-                { type: "text", text: "Show the dashboard overview and key metrics..." },
+                {
+                  type: "paragraph",
+                  content: [
+                    { type: "text", text: "Show the dashboard overview and key metrics..." },
+                  ],
+                },
               ],
             },
           ],
@@ -206,15 +226,17 @@ function getTemplateContent(templateType?: string): string {
         {
           type: "chapter",
           attrs: { title: "Feature 2: Analytics", duration: "2m", id: generateBlockId("chapter") },
-        },
-        {
-          type: "screenRecording",
-          attrs: { id: generateBlockId("screenRecording") },
           content: [
             {
-              type: "paragraph",
+              type: "screenRecording",
+              attrs: { id: generateBlockId("screenRecording") },
               content: [
-                { type: "text", text: "Navigate to analytics and explain data visualization..." },
+                {
+                  type: "paragraph",
+                  content: [
+                    { type: "text", text: "Navigate to analytics and explain data visualization..." },
+                  ],
+                },
               ],
             },
           ],
@@ -222,15 +244,17 @@ function getTemplateContent(templateType?: string): string {
         {
           type: "chapter",
           attrs: { title: "Feature 3: Settings", duration: "1m", id: generateBlockId("chapter") },
-        },
-        {
-          type: "screenRecording",
-          attrs: { id: generateBlockId("screenRecording") },
           content: [
             {
-              type: "paragraph",
+              type: "screenRecording",
+              attrs: { id: generateBlockId("screenRecording") },
               content: [
-                { type: "text", text: "Show customization options and preferences..." },
+                {
+                  type: "paragraph",
+                  content: [
+                    { type: "text", text: "Show customization options and preferences..." },
+                  ],
+                },
               ],
             },
           ],

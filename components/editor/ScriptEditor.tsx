@@ -4,7 +4,7 @@ import { useEditor, EditorContent, JSONContent, Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Highlight from "@tiptap/extension-highlight";
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useEditorStore } from "@/store/editor-store";
 import { useSpeakerStore, Speaker } from "@/store/speaker-store";
 import { customExtensions, SpeakerMark } from "@/lib/tiptap/extensions";
@@ -27,7 +27,7 @@ export function ScriptEditor({
   onEditorReady,
   scriptId,
 }: ScriptEditorProps) {
-  const { mode } = useEditorStore();
+  const { mode, setAnnotationsOpen, setSelectedAnnotationId } = useEditorStore();
   const { speakers } = useSpeakerStore();
   const isFirstRender = useRef(true);
 
@@ -38,6 +38,15 @@ export function ScriptEditor({
   }, [speakers]);
 
   const getSpeakers = useMemo(() => () => speakersRef.current, []);
+
+  // Handler for annotation clicks
+  const handleAnnotationClick = useCallback(
+    (annotationId: string) => {
+      setSelectedAnnotationId(annotationId);
+      setAnnotationsOpen(true);
+    },
+    [setSelectedAnnotationId, setAnnotationsOpen]
+  );
 
   const [editorError, setEditorError] = useState<Error | null>(null);
   const [isTimedOut, setIsTimedOut] = useState(false);
@@ -55,7 +64,9 @@ export function ScriptEditor({
       }),
       Highlight,
       ...customExtensions,
-      AnnotationMark,
+      AnnotationMark.configure({
+        onAnnotationClick: handleAnnotationClick,
+      }),
       SpeakerMark.configure({
         getSpeakers,
       }),

@@ -314,27 +314,22 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
 
   const insertChapter = () => {
     const { from, to } = editor.state.selection;
-    const { startBlockPos, endBlockPos, selectedContent } = collectBlocksInSelection(editor.state, from, to);
 
-    // If we have selected content, wrap it; otherwise create empty paragraph
-    const content = selectedContent.length > 0
-      ? selectedContent
-      : [{ type: "paragraph" }];
+    // Get the selected text to use as the chapter title
+    const selectedText = editor.state.doc.textBetween(from, to).trim();
 
+    // Delete the selection and insert chapter with selected text as title
     editor
       .chain()
       .focus()
-      .command(({ tr }) => {
-        tr.delete(startBlockPos, endBlockPos);
-        return true;
-      })
+      .deleteRange({ from, to })
       .insertContent({
         type: "chapter",
         attrs: {
-          title: "New Chapter",
+          title: selectedText || "New Chapter",
           id: generateBlockId("chapter"),
         },
-        content: content,
+        content: [{ type: "paragraph", content: [{ type: "text", text: "" }] }],
       })
       .run();
   };

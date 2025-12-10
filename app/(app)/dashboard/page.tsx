@@ -1,6 +1,8 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useQuery, useMutation } from "convex/react";
 import { UserButton } from "@clerk/nextjs";
 import { ScriptGrid } from "@/components/dashboard/ScriptGrid";
 import { NewScriptDialog } from "@/components/dashboard/NewScriptDialog";
@@ -8,13 +10,33 @@ import { StatsCard } from "@/components/dashboard/StatsCard";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { TemplateLibrary } from "@/components/templates/TemplateLibrary";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { api } from "@/convex/_generated/api";
-import { FileText, TrendingUp, CheckCircle, Activity, FolderOpen, Layout } from "lucide-react";
+import { FileText, TrendingUp, CheckCircle, Activity, FolderOpen, Layout, FilePlus } from "lucide-react";
 import { useFeatureFlag } from "@/hooks/use-feature-flags";
+import { toast } from "sonner";
 
 export default function DashboardPage() {
   const stats = useQuery(api.analytics.getUserStats);
   const templatesEnabled = useFeatureFlag("templatesLibraryEnabled");
+  const router = useRouter();
+  const createScript = useMutation(api.scripts.create);
+  const [isCreatingBlank, setIsCreatingBlank] = useState(false);
+
+  const handleCreateBlankScript = async () => {
+    setIsCreatingBlank(true);
+    try {
+      const scriptId = await createScript({
+        title: "Untitled Script",
+      });
+      router.push(`/script/${scriptId}`);
+      toast.success("Blank script created");
+    } catch {
+      toast.error("Failed to create script");
+    } finally {
+      setIsCreatingBlank(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -90,7 +112,17 @@ export default function DashboardPage() {
                     Create and manage your tutorial scripts
                   </p>
                 </div>
-                <NewScriptDialog />
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleCreateBlankScript}
+                    disabled={isCreatingBlank}
+                  >
+                    <FilePlus className="mr-2 h-4 w-4" />
+                    {isCreatingBlank ? "Creating..." : "Blank Script"}
+                  </Button>
+                  <NewScriptDialog />
+                </div>
               </div>
 
               <ScriptGrid />
@@ -118,7 +150,17 @@ export default function DashboardPage() {
                   Create and manage your tutorial scripts
                 </p>
               </div>
-              <NewScriptDialog />
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleCreateBlankScript}
+                  disabled={isCreatingBlank}
+                >
+                  <FilePlus className="mr-2 h-4 w-4" />
+                  {isCreatingBlank ? "Creating..." : "Blank Script"}
+                </Button>
+                <NewScriptDialog />
+              </div>
             </div>
 
             <ScriptGrid />

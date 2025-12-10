@@ -1,7 +1,9 @@
 import { Mark, mergeAttributes } from "@tiptap/core";
+import { Plugin, PluginKey } from "@tiptap/pm/state";
 
 export interface AnnotationMarkOptions {
   HTMLAttributes: Record<string, unknown>;
+  onAnnotationClick?: (annotationId: string) => void;
 }
 
 declare module "@tiptap/core" {
@@ -39,6 +41,7 @@ export const AnnotationMark = Mark.create<AnnotationMarkOptions>({
   addOptions() {
     return {
       HTMLAttributes: {},
+      onAnnotationClick: undefined,
     };
   },
 
@@ -131,6 +134,47 @@ export const AnnotationMark = Mark.create<AnnotationMarkOptions>({
           return true;
         },
     };
+  },
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: new PluginKey("annotationClickHandler"),
+        props: {
+          handleClick: (view, pos, event) => {
+            const target = event.target as HTMLElement;
+            
+            // Check if the clicked element or its parent has an annotation
+            let annotationElement: HTMLElement | null = null;
+            if (target.hasAttribute("data-annotation-id")) {
+              annotationElement = target;
+            } else {
+              // Check parent elements
+              let current: HTMLElement | null = target.parentElement;
+              while (current && current !== view.dom) {
+                if (current.hasAttribute("data-annotation-id")) {
+                  annotationElement = current;
+                  break;
+                }
+                current = current.parentElement;
+              }
+            }
+
+            if (annotationElement) {
+              const annotationId = annotationElement.getAttribute("data-annotation-id");
+              if (annotationId && this.options.onAnnotationClick) {
+                event.preventDefault();
+                event.stopPropagation();
+                this.options.onAnnotationClick(annotationId);
+                return true;
+              }
+            }
+
+            return false;
+          },
+        },
+      }),
+    ];
   },
 });
 
