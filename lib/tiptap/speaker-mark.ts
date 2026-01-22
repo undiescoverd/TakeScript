@@ -201,6 +201,61 @@ function buildDecorations(
 }
 
 /**
+ * Helper function to handle speaker shortcuts (Mod-1 through Mod-4)
+ * When selection exists: applies speaker to selection
+ * When no selection: sets pending speaker for next typed text
+ */
+function handleSpeakerShortcut(
+  editor: any,
+  speaker: Speaker,
+  markName: string
+): boolean {
+  const { selection } = editor.state;
+  const { from, to } = selection;
+  const speakerStore = typeof window !== "undefined" ? (window as any).__speakerStore : null;
+
+  // Check if there's a text selection
+  if (from !== to) {
+    // Selection exists - apply speaker to selection normally
+    const result = editor.commands.setSpeaker({
+      speakerId: speaker.id,
+      cameraMode: speaker.defaultVisibility || null,
+    });
+    if (result && speakerStore) {
+      speakerStore.setLastUsed(speaker.id, speaker.defaultVisibility || null);
+      speakerStore.clearPendingSpeaker();
+    }
+    return result;
+  }
+
+  // No selection - handle pending speaker
+  if (!speakerStore) return false;
+
+  const currentPendingSpeakerId = speakerStore.pendingSpeakerId;
+  const cameraMode = speaker.defaultVisibility || null;
+
+  if (currentPendingSpeakerId === speaker.id) {
+    // Same speaker pressed again - toggle off (clear pending)
+    speakerStore.clearPendingSpeaker();
+    // Also clear stored marks in the editor
+    editor.commands.unsetMark(markName);
+    return true;
+  }
+
+  // Set pending speaker and stored marks for next typed text
+  speakerStore.setPendingSpeaker(speaker.id, cameraMode);
+  speakerStore.setLastUsed(speaker.id, cameraMode);
+
+  // Set stored marks so typed text gets the speaker mark
+  const result = editor.commands.setSpeaker({
+    speakerId: speaker.id,
+    cameraMode: cameraMode,
+  });
+
+  return result;
+}
+
+/**
  * Create the decoration plugin for speaker marks
  */
 function createSpeakerDecorationPlugin(getSpeakers: () => Speaker[]) {
@@ -428,6 +483,10 @@ export const SpeakerMark = Mark.create<SpeakerMarkOptions>({
       setCameraMode:
         (cameraMode) =>
         ({ state, chain, dispatch }) => {
+          // #region agent log
+          const logData = {timestamp:Date.now(),sessionId:'debug-session',runId:'run3'};
+          fetch('http://127.0.0.1:7244/ingest/0ece4300-b996-4da9-a315-0f26d3f66b9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'speaker-mark.ts:428',message:'setCameraMode entry',data:{cameraMode,cameraModeType:typeof cameraMode,isNull:cameraMode===null,isUndefined:cameraMode===undefined},hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
           const { selection } = state;
           const { $from, from, to } = selection;
 
@@ -436,17 +495,30 @@ export const SpeakerMark = Mark.create<SpeakerMarkOptions>({
 
           // Camera mode requires an existing speaker - silent fail if none
           if (!speakerMark) {
+            // #region agent log
+            fetch('http://127.0.0.1:7244/ingest/0ece4300-b996-4da9-a315-0f26d3f66b9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'speaker-mark.ts:438',message:'setCameraMode: no speaker mark',hypothesisId:'B'})}).catch(()=>{});
+            // #endregion
             return false;
           }
 
+          // #region agent log
+          fetch('http://127.0.0.1:7244/ingest/0ece4300-b996-4da9-a315-0f26d3f66b9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'speaker-mark.ts:442',message:'setCameraMode: before setMark',data:{speakerId:speakerMark.attrs.speakerId,oldCameraMode:speakerMark.attrs.cameraMode,newCameraMode:cameraMode},hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
+
           // Ensure we're updating the mark across the entire selection
           // Use setMark which will replace any existing speaker mark with the new camera mode
-          return chain()
+          const result = chain()
             .setMark("speaker", {
               speakerId: speakerMark.attrs.speakerId,
               cameraMode: cameraMode,
             })
             .run();
+
+          // #region agent log
+          fetch('http://127.0.0.1:7244/ingest/0ece4300-b996-4da9-a315-0f26d3f66b9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'speaker-mark.ts:449',message:'setCameraMode: after setMark',data:{result,cameraMode},hypothesisId:'B'})}).catch(()=>{});
+          // #endregion
+
+          return result;
         },
 
       unsetSpeaker:
@@ -506,84 +578,77 @@ export const SpeakerMark = Mark.create<SpeakerMarkOptions>({
         return false; // Let default Enter behavior happen
       },
 
-      // Speaker assignment shortcuts (Cmd+1-4)
-      "Mod-1": ({ editor }) => {
+      // Speaker cycling shortcut (Cmd+9)
+      // Cycles through all available speakers
+      // When selection exists: applies speaker to selection, then cycles on repeat
+      // When no selection: sets pending speaker for next typed text
+      // When no speakers exist: opens the Add Speaker dialog
+      "Mod-9": ({ editor }) => {
         const speakers = this.options.getSpeakers();
-        if (speakers[0]) {
-          const result = editor.commands.setSpeaker({
-            speakerId: speakers[0].id,
-            cameraMode: speakers[0].defaultVisibility || null,
-          });
-          // Track last used
-          if (result && typeof window !== "undefined" && (window as any).__speakerStore) {
-            (window as any).__speakerStore.setLastUsed(speakers[0].id, speakers[0].defaultVisibility || null);
+        if (speakers.length === 0) {
+          // No speakers - open the Add Speaker sidebar/dialog
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new CustomEvent("speaker:openSidebar"));
           }
-          return result;
+          return true;
         }
-        return false;
-      },
-      "Mod-2": ({ editor }) => {
-        const speakers = this.options.getSpeakers();
-        if (speakers[1]) {
-          const result = editor.commands.setSpeaker({
-            speakerId: speakers[1].id,
-            cameraMode: speakers[1].defaultVisibility || null,
-          });
-          // Track last used
-          if (result && typeof window !== "undefined" && (window as any).__speakerStore) {
-            (window as any).__speakerStore.setLastUsed(speakers[1].id, speakers[1].defaultVisibility || null);
+
+        const speakerStore = typeof window !== "undefined" ? (window as any).__speakerStore : null;
+        const { selection } = editor.state;
+        const { $from, from, to } = selection;
+
+        // Find current speaker (from selection or pending)
+        let currentSpeakerId: string | null = null;
+
+        // Check if there's a speaker mark at cursor
+        const existingMark = $from.marks().find((m) => m.type.name === "speaker");
+        if (existingMark) {
+          currentSpeakerId = existingMark.attrs.speakerId;
+        } else if (speakerStore?.pendingSpeakerId) {
+          currentSpeakerId = speakerStore.pendingSpeakerId;
+        }
+
+        // Find next speaker in cycle
+        let nextSpeakerIndex = 0;
+        if (currentSpeakerId) {
+          const currentIndex = speakers.findIndex((s: Speaker) => s.id === currentSpeakerId);
+          if (currentIndex !== -1) {
+            nextSpeakerIndex = (currentIndex + 1) % speakers.length;
           }
-          return result;
         }
-        return false;
-      },
-      "Mod-3": ({ editor }) => {
-        const speakers = this.options.getSpeakers();
-        if (speakers[2]) {
-          const result = editor.commands.setSpeaker({
-            speakerId: speakers[2].id,
-            cameraMode: speakers[2].defaultVisibility || null,
-          });
-          // Track last used
-          if (result && typeof window !== "undefined" && (window as any).__speakerStore) {
-            (window as any).__speakerStore.setLastUsed(speakers[2].id, speakers[2].defaultVisibility || null);
-          }
-          return result;
-        }
-        return false;
-      },
-      "Mod-4": ({ editor }) => {
-        const speakers = this.options.getSpeakers();
-        if (speakers[3]) {
-          const result = editor.commands.setSpeaker({
-            speakerId: speakers[3].id,
-            cameraMode: speakers[3].defaultVisibility || null,
-          });
-          // Track last used
-          if (result && typeof window !== "undefined" && (window as any).__speakerStore) {
-            (window as any).__speakerStore.setLastUsed(speakers[3].id, speakers[3].defaultVisibility || null);
-          }
-          return result;
-        }
-        return false;
+
+        const nextSpeaker = speakers[nextSpeakerIndex];
+        return handleSpeakerShortcut(editor, nextSpeaker, this.name);
       },
 
       // Camera mode cycling shortcut (Cmd+0)
       // Cycles through: full → voiceover → corner → null (remove) → full...
       "Mod-0": ({ editor }) => {
+        // #region agent log
+        const logData = {timestamp:Date.now(),sessionId:'debug-session',runId:'run3'};
+        fetch('http://127.0.0.1:7244/ingest/0ece4300-b996-4da9-a315-0f26d3f66b9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'speaker-mark.ts:573',message:'Mod-0 handler entry',hypothesisId:'A,C,D'})}).catch(()=>{});
+        // #endregion
         const { selection } = editor.state;
         const { $from } = selection;
         const speakerMark = $from.marks().find((m) => m.type.name === "speaker");
 
         // Camera mode requires an existing speaker
         if (!speakerMark) {
+          // #region agent log
+          fetch('http://127.0.0.1:7244/ingest/0ece4300-b996-4da9-a315-0f26d3f66b9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'speaker-mark.ts:579',message:'No speaker mark found',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
           return false;
         }
 
         // Define cycle order: full → voiceover → corner → null → full...
         const cycleOrder: (CameraMode | null)[] = ["full", "voiceover", "corner", null];
         // Normalize undefined to null for consistent comparison
-        const currentCameraMode = (speakerMark.attrs.cameraMode ?? null) as CameraModeNullable;
+        const rawCameraMode = speakerMark.attrs.cameraMode;
+        const currentCameraMode = (rawCameraMode ?? null) as CameraModeNullable;
+
+        // #region agent log
+        fetch('http://127.0.0.1:7244/ingest/0ece4300-b996-4da9-a315-0f26d3f66b9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'speaker-mark.ts:586',message:'Before cycle calculation',data:{rawCameraMode,currentCameraMode,rawType:typeof rawCameraMode,normalizedType:typeof currentCameraMode,cycleOrder:JSON.stringify(cycleOrder)},hypothesisId:'A'})}).catch(()=>{});
+        // #endregion
 
         // Find current position in cycle and get next
         // If not found (shouldn't happen, but handle gracefully), start at "full" (index 0)
@@ -591,8 +656,16 @@ export const SpeakerMark = Mark.create<SpeakerMarkOptions>({
         const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % cycleOrder.length;
         const newCameraMode = cycleOrder[nextIndex];
 
+        // #region agent log
+        fetch('http://127.0.0.1:7244/ingest/0ece4300-b996-4da9-a315-0f26d3f66b9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'speaker-mark.ts:591',message:'Cycle calculation result',data:{currentIndex,nextIndex,newCameraMode,newCameraModeType:typeof newCameraMode,newCameraModeValue:newCameraMode===null?'null':newCameraMode,cycleOrderLength:cycleOrder.length},hypothesisId:'C,D'})}).catch(()=>{});
+        // #endregion
+
         // Update the mark with the new camera mode while preserving the speaker
         const result = editor.commands.setCameraMode(newCameraMode);
+
+        // #region agent log
+        fetch('http://127.0.0.1:7244/ingest/0ece4300-b996-4da9-a315-0f26d3f66b9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'speaker-mark.ts:595',message:'After setCameraMode call',data:{result,newCameraMode,newCameraModeType:typeof newCameraMode},hypothesisId:'B'})}).catch(()=>{});
+        // #endregion
 
         // Track last used camera mode
         if (result && typeof window !== "undefined" && (window as any).__speakerStore) {
@@ -603,7 +676,12 @@ export const SpeakerMark = Mark.create<SpeakerMarkOptions>({
       },
 
       // Remove speaker and camera (Cmd+J)
+      // Also clears pending speaker if set
       "Mod-j": ({ editor }) => {
+        // Clear pending speaker
+        if (typeof window !== "undefined" && (window as any).__speakerStore) {
+          (window as any).__speakerStore.clearPendingSpeaker();
+        }
         return editor.commands.unsetSpeaker();
       },
     };

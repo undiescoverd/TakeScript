@@ -14,12 +14,17 @@ interface SpeakerState {
   speakers: Speaker[];
   lastUsedSpeakerId: string | null;
   lastUsedCameraMode: CameraModeNullable;
+  // Pending speaker - set via shortcut, applied to next typed text
+  pendingSpeakerId: string | null;
+  pendingCameraMode: CameraModeNullable;
   setSpeakers: (speakers: Speaker[]) => void;
   addSpeaker: (speaker: Speaker) => void;
   updateSpeaker: (id: string, updates: Partial<Speaker>) => void;
   removeSpeaker: (id: string) => void;
   getSpeakerById: (id: string) => Speaker | undefined;
   setLastUsed: (speakerId: string, cameraMode: CameraModeNullable) => void;
+  setPendingSpeaker: (speakerId: string | null, cameraMode: CameraModeNullable) => void;
+  clearPendingSpeaker: () => void;
 }
 
 // Default speaker colors palette
@@ -50,6 +55,8 @@ export const useSpeakerStore = create<SpeakerState>((set, get) => ({
   speakers: [],
   lastUsedSpeakerId: null,
   lastUsedCameraMode: null,
+  pendingSpeakerId: null,
+  pendingCameraMode: null,
 
   setSpeakers: (speakers) => set({ speakers }),
 
@@ -74,4 +81,10 @@ export const useSpeakerStore = create<SpeakerState>((set, get) => ({
 
   setLastUsed: (speakerId, cameraMode) =>
     set({ lastUsedSpeakerId: speakerId, lastUsedCameraMode: cameraMode }),
+
+  setPendingSpeaker: (speakerId, cameraMode) =>
+    set({ pendingSpeakerId: speakerId, pendingCameraMode: cameraMode }),
+
+  clearPendingSpeaker: () =>
+    set({ pendingSpeakerId: null, pendingCameraMode: null }),
 }));

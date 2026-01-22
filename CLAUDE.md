@@ -161,13 +161,27 @@ TakeScript includes a sophisticated speaker attribution system for dialogue in t
 - **Keyboard Shortcuts**: Fast speaker assignment and management via keyboard
 
 **Keyboard Shortcuts** (Cmd on Mac, Ctrl on Windows/Linux):
-- **Cmd+1 through Cmd+4**: Assign speakers 1-4 to selected text with intelligent toggle/swap behavior:
-  - **No speaker assigned**: Adds speaker to selection
-  - **Same speaker assigned**: Removes speaker (toggle off)
-  - **Different speaker assigned**: Swaps to new speaker
-- **Cmd+J**: Remove speaker from current selection
+- **Cmd+9**: Cycle through speakers with intelligent behavior:
+  - **No speakers defined**: Opens the Add Speaker dialog
+  - **With selection**: Applies speaker to selected text, press again to cycle to next speaker
+  - **Without selection**: Sets "pending speaker" - next typed text receives the attribution
+  - **Single speaker**: Just applies that speaker
+  - **Multiple speakers**: Cycles through them in order
 - **Cmd+0**: Cycle camera mode (full → voiceover → corner → none)
-- **Selection Required**: All shortcuts require text selection. To add speaker without selection, use slash commands.
+- **Cmd+J**: Remove speaker from selection OR clear pending speaker
+- **Escape**: Clear pending speaker indicator
+
+**Pending Speaker Indicator**:
+When you press Cmd+9 without a selection, a small floating badge appears near your cursor showing which speaker will be applied to your next typed text. The badge includes:
+- Speaker name in their color
+- Camera mode if set (e.g., "[Voiceover]")
+- Pulsing dot to indicate active pending state
+
+The pending speaker clears automatically when you:
+- Type any text (the mark is applied)
+- Press Escape
+- Press Cmd+J
+- Click outside the editor
 
 **Slash Commands for Speakers**:
 - **/speaker** or **/sp**: Assigns the first speaker to the current paragraph (no selection needed)
@@ -186,7 +200,8 @@ TakeScript includes a sophisticated speaker attribution system for dialogue in t
 - `lib/tiptap/speaker-mark.ts` - Mark extension with commands and decoration plugin
 - `components/editor/SpeakerLegend.tsx` - Speaker management sidebar
 - `components/editor/SpeakerEditDialog.tsx` - Edit speaker assignments dialog
-- `store/speaker-store.ts` - Global speaker state
+- `components/editor/PendingSpeakerIndicator.tsx` - Floating indicator for pending speaker
+- `store/speaker-store.ts` - Global speaker state (includes pending speaker)
 - `styles/editor.css` - Speaker visual styles (lines 431-548)
 
 #### 4. Autosave System

@@ -13,6 +13,7 @@ import { createSlashCommandsRender } from "@/lib/tiptap/suggestion-render";
 import { AnnotationMark } from "@/lib/tiptap/annotation-mark";
 import { SelectionToolbar } from "@/components/editor/SelectionToolbar";
 import { SpeakerSelectionHandler } from "@/components/editor/SpeakerSelectionHandler";
+import { PendingSpeakerIndicator } from "@/components/editor/PendingSpeakerIndicator";
 import { Id } from "@/convex/_generated/dataModel";
 
 interface ScriptEditorProps {
@@ -131,6 +132,23 @@ export function ScriptEditor({
     }
   }, [editor, speakers]);
 
+  // Clear pending speaker when text is typed (document changes)
+  useEffect(() => {
+    if (!editor) return;
+
+    const handleTransaction = ({ transaction }: { transaction: any }) => {
+      // Only clear pending on actual document changes (typing), not selection changes
+      if (transaction.docChanged && speakerStore.pendingSpeakerId) {
+        speakerStore.clearPendingSpeaker();
+      }
+    };
+
+    editor.on("transaction", handleTransaction);
+    return () => {
+      editor.off("transaction", handleTransaction);
+    };
+  }, [editor, speakerStore]);
+
   // Update editor content when initialContent changes (e.g., version restore)
   useEffect(() => {
     if (editor && !isFirstRender.current) {
@@ -211,6 +229,7 @@ export function ScriptEditor({
       <EditorContent editor={editor} />
       <SelectionToolbar editor={editor} scriptId={scriptId} />
       <SpeakerSelectionHandler editor={editor} />
+      <PendingSpeakerIndicator editor={editor} />
     </div>
   );
 }

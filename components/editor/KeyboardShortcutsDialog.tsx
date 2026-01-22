@@ -62,28 +62,16 @@ export function KeyboardShortcutsDialog({
       title: "Speaker Shortcuts",
       shortcuts: [
         {
-          keys: formatShortcut("Mod-1", isMacPlatform),
-          description: "Assign speaker 1 to selected text",
-        },
-        {
-          keys: formatShortcut("Mod-2", isMacPlatform),
-          description: "Assign speaker 2 to selected text",
-        },
-        {
-          keys: formatShortcut("Mod-3", isMacPlatform),
-          description: "Assign speaker 3 to selected text",
-        },
-        {
-          keys: formatShortcut("Mod-4", isMacPlatform),
-          description: "Assign speaker 4 to selected text",
-        },
-        {
-          keys: formatShortcut("Mod-J", isMacPlatform),
-          description: "Remove speaker from selection",
+          keys: formatShortcut("Mod-9", isMacPlatform),
+          description: "Cycle through speakers (or set pending for next typed text)",
         },
         {
           keys: formatShortcut("Mod-0", isMacPlatform),
           description: "Cycle camera mode (full → voiceover → corner → none)",
+        },
+        {
+          keys: formatShortcut("Mod-J", isMacPlatform),
+          description: "Remove speaker from selection or clear pending",
         },
       ],
     },
