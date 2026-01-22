@@ -1,4 +1,4 @@
-import { Mark, mergeAttributes } from "@tiptap/core";
+import { Mark, mergeAttributes, getMarkRange } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import { Fragment, Node as ProseMirrorNode } from "@tiptap/pm/model";
@@ -256,6 +256,33 @@ function handleSpeakerShortcut(
 }
 
 /**
+ * Find the full range of a speaker mark at a given position
+ * Returns the from/to positions and the mark itself, or null if no speaker mark found
+ */
+function findSpeakerMarkRange(
+  state: any,
+  pos: number
+): { from: number; to: number; speakerId: string; cameraMode: CameraModeNullable } | null {
+  const $pos = state.doc.resolve(pos);
+  const markType = state.schema.marks.speaker;
+
+  // Use getMarkRange to find the extent of the mark
+  const range = getMarkRange($pos, markType);
+  if (!range) return null;
+
+  // Get the mark attributes
+  const mark = $pos.marks().find((m: any) => m.type === markType);
+  if (!mark) return null;
+
+  return {
+    from: range.from,
+    to: range.to,
+    speakerId: mark.attrs.speakerId,
+    cameraMode: mark.attrs.cameraMode ?? null,
+  };
+}
+
+/**
  * Create the decoration plugin for speaker marks
  */
 function createSpeakerDecorationPlugin(getSpeakers: () => Speaker[]) {
@@ -276,6 +303,101 @@ function createSpeakerDecorationPlugin(getSpeakers: () => Speaker[]) {
     props: {
       decorations(state) {
         return this.getState(state);
+      },
+      handleDOMEvents: {
+        click: (view, event) => {
+          // Check if click target or its parent is the paragraph with labels
+          const target = event.target as HTMLElement;
+          const paragraphEl = target.closest("p[data-paragraph-speaker]") as HTMLElement;
+
+          if (!paragraphEl) return false;
+
+          // Only handle if labels are shown
+          const showsSpeakerLabel = paragraphEl.hasAttribute("data-show-speaker-label");
+          const showsCameraLabel = paragraphEl.hasAttribute("data-show-camera-label");
+          if (!showsSpeakerLabel && !showsCameraLabel) return false;
+
+          // Get paragraph rect for click detection
+          const rect = paragraphEl.getBoundingClientRect();
+          const labelZoneTop = rect.top - 28; // Labels at top: -1.75rem = 28px
+          const labelZoneBottom = rect.top;
+
+          // Check if click is in label zone (above the paragraph)
+          if (event.clientY < labelZoneTop || event.clientY > labelZoneBottom) {
+            return false;
+          }
+
+          // Calculate which label was clicked based on X position
+          const speakerName = paragraphEl.getAttribute("data-speaker-name") || "";
+          const cameraMode = paragraphEl.getAttribute("data-camera-mode");
+          const speakerId = paragraphEl.getAttribute("data-paragraph-speaker");
+          const clickX = event.clientX - rect.left;
+
+          // Estimate speaker label width (char width ~7.2px for 0.65rem font + padding 28px)
+          const speakerLabelWidth = speakerName.length * 7.2 + 28;
+
+          // Find the paragraph position in the document
+          const pos = view.posAtDOM(paragraphEl, 0);
+          if (pos === null || pos === undefined) return false;
+
+          const { state, dispatch } = view;
+          const $pos = state.doc.resolve(pos);
+          const paragraphStart = $pos.start($pos.depth);
+
+          if (showsSpeakerLabel && clickX < speakerLabelWidth) {
+            // Clicked speaker label - cycle speaker
+            const speakers = getSpeakers();
+            if (speakers.length === 0) return false;
+
+            const currentIndex = speakers.findIndex((s) => s.id === speakerId);
+            const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % speakers.length;
+            const nextSpeaker = speakers[nextIndex];
+
+            // Find mark range and apply new speaker
+            const markRange = findSpeakerMarkRange(state, paragraphStart + 1);
+            if (markRange) {
+              const tr = state.tr;
+              const markType = state.schema.marks.speaker;
+              const newMark = markType.create({
+                speakerId: nextSpeaker.id,
+                cameraMode: markRange.cameraMode, // Preserve camera mode
+              });
+
+              tr.removeMark(markRange.from, markRange.to, markType);
+              tr.addMark(markRange.from, markRange.to, newMark);
+              dispatch(tr);
+              event.preventDefault();
+              return true;
+            }
+          } else if (showsCameraLabel && cameraMode) {
+            // Clicked camera label - cycle camera mode
+            const cycleOrder: (CameraMode | null)[] = ["full", "voiceover", "corner", null];
+
+            // Find mark range to get current camera mode
+            const markRange = findSpeakerMarkRange(state, paragraphStart + 1);
+            if (markRange) {
+              const currentCameraMode = (markRange.cameraMode ?? null) as CameraModeNullable;
+              const currentIndex = cycleOrder.indexOf(currentCameraMode);
+              const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % cycleOrder.length;
+              const newCameraMode = cycleOrder[nextIndex];
+
+              const tr = state.tr;
+              const markType = state.schema.marks.speaker;
+              const newMark = markType.create({
+                speakerId: markRange.speakerId, // Preserve speaker
+                cameraMode: newCameraMode,
+              });
+
+              tr.removeMark(markRange.from, markRange.to, markType);
+              tr.addMark(markRange.from, markRange.to, newMark);
+              dispatch(tr);
+              event.preventDefault();
+              return true;
+            }
+          }
+
+          return false;
+        },
       },
     },
   });
@@ -483,10 +605,6 @@ export const SpeakerMark = Mark.create<SpeakerMarkOptions>({
       setCameraMode:
         (cameraMode) =>
         ({ state, chain, dispatch }) => {
-          // #region agent log
-          const logData = {timestamp:Date.now(),sessionId:'debug-session',runId:'run3'};
-          fetch('http://127.0.0.1:7244/ingest/0ece4300-b996-4da9-a315-0f26d3f66b9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'speaker-mark.ts:428',message:'setCameraMode entry',data:{cameraMode,cameraModeType:typeof cameraMode,isNull:cameraMode===null,isUndefined:cameraMode===undefined},hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
           const { selection } = state;
           const { $from, from, to } = selection;
 
@@ -495,15 +613,8 @@ export const SpeakerMark = Mark.create<SpeakerMarkOptions>({
 
           // Camera mode requires an existing speaker - silent fail if none
           if (!speakerMark) {
-            // #region agent log
-            fetch('http://127.0.0.1:7244/ingest/0ece4300-b996-4da9-a315-0f26d3f66b9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'speaker-mark.ts:438',message:'setCameraMode: no speaker mark',hypothesisId:'B'})}).catch(()=>{});
-            // #endregion
             return false;
           }
-
-          // #region agent log
-          fetch('http://127.0.0.1:7244/ingest/0ece4300-b996-4da9-a315-0f26d3f66b9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'speaker-mark.ts:442',message:'setCameraMode: before setMark',data:{speakerId:speakerMark.attrs.speakerId,oldCameraMode:speakerMark.attrs.cameraMode,newCameraMode:cameraMode},hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
 
           // Ensure we're updating the mark across the entire selection
           // Use setMark which will replace any existing speaker mark with the new camera mode
@@ -513,10 +624,6 @@ export const SpeakerMark = Mark.create<SpeakerMarkOptions>({
               cameraMode: cameraMode,
             })
             .run();
-
-          // #region agent log
-          fetch('http://127.0.0.1:7244/ingest/0ece4300-b996-4da9-a315-0f26d3f66b9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'speaker-mark.ts:449',message:'setCameraMode: after setMark',data:{result,cameraMode},hypothesisId:'B'})}).catch(()=>{});
-          // #endregion
 
           return result;
         },
@@ -581,7 +688,8 @@ export const SpeakerMark = Mark.create<SpeakerMarkOptions>({
       // Speaker cycling shortcut (Cmd+9)
       // Cycles through all available speakers
       // When selection exists: applies speaker to selection, then cycles on repeat
-      // When no selection: sets pending speaker for next typed text
+      // When cursor inside marked text (no selection): cycles speaker for entire mark range
+      // When no selection and no mark: sets pending speaker for next typed text
       // When no speakers exist: opens the Add Speaker dialog
       "Mod-9": ({ editor }) => {
         const speakers = this.options.getSpeakers();
@@ -594,16 +702,18 @@ export const SpeakerMark = Mark.create<SpeakerMarkOptions>({
         }
 
         const speakerStore = typeof window !== "undefined" ? (window as any).__speakerStore : null;
-        const { selection } = editor.state;
+        const { selection, tr } = editor.state;
         const { $from, from, to } = selection;
 
         // Find current speaker (from selection or pending)
         let currentSpeakerId: string | null = null;
+        let currentCameraMode: CameraModeNullable = null;
 
         // Check if there's a speaker mark at cursor
         const existingMark = $from.marks().find((m) => m.type.name === "speaker");
         if (existingMark) {
           currentSpeakerId = existingMark.attrs.speakerId;
+          currentCameraMode = existingMark.attrs.cameraMode ?? null;
         } else if (speakerStore?.pendingSpeakerId) {
           currentSpeakerId = speakerStore.pendingSpeakerId;
         }
@@ -618,25 +728,42 @@ export const SpeakerMark = Mark.create<SpeakerMarkOptions>({
         }
 
         const nextSpeaker = speakers[nextSpeakerIndex];
+
+        // NEW: Special case - cursor inside marked text with no selection
+        // Apply cycled speaker to entire mark range instead of setting pending
+        if (from === to && existingMark) {
+          const markRange = findSpeakerMarkRange(editor.state, from);
+          if (markRange) {
+            // Apply new speaker to the full marked range, preserving camera mode
+            const result = editor.chain()
+              .setTextSelection({ from: markRange.from, to: markRange.to })
+              .setSpeaker({
+                speakerId: nextSpeaker.id,
+                cameraMode: currentCameraMode, // Preserve existing camera mode
+              })
+              .setTextSelection(from) // Restore cursor position
+              .run();
+
+            if (result && speakerStore) {
+              speakerStore.setLastUsed(nextSpeaker.id, currentCameraMode);
+            }
+            return result;
+          }
+        }
+
+        // Original behavior for selection or no mark
         return handleSpeakerShortcut(editor, nextSpeaker, this.name);
       },
 
       // Camera mode cycling shortcut (Cmd+0)
       // Cycles through: full → voiceover → corner → null (remove) → full...
       "Mod-0": ({ editor }) => {
-        // #region agent log
-        const logData = {timestamp:Date.now(),sessionId:'debug-session',runId:'run3'};
-        fetch('http://127.0.0.1:7244/ingest/0ece4300-b996-4da9-a315-0f26d3f66b9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'speaker-mark.ts:573',message:'Mod-0 handler entry',hypothesisId:'A,C,D'})}).catch(()=>{});
-        // #endregion
         const { selection } = editor.state;
-        const { $from } = selection;
+        const { $from, from, to } = selection;
         const speakerMark = $from.marks().find((m) => m.type.name === "speaker");
 
         // Camera mode requires an existing speaker
         if (!speakerMark) {
-          // #region agent log
-          fetch('http://127.0.0.1:7244/ingest/0ece4300-b996-4da9-a315-0f26d3f66b9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'speaker-mark.ts:579',message:'No speaker mark found',hypothesisId:'A'})}).catch(()=>{});
-          // #endregion
           return false;
         }
 
@@ -646,26 +773,37 @@ export const SpeakerMark = Mark.create<SpeakerMarkOptions>({
         const rawCameraMode = speakerMark.attrs.cameraMode;
         const currentCameraMode = (rawCameraMode ?? null) as CameraModeNullable;
 
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/0ece4300-b996-4da9-a315-0f26d3f66b9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'speaker-mark.ts:586',message:'Before cycle calculation',data:{rawCameraMode,currentCameraMode,rawType:typeof rawCameraMode,normalizedType:typeof currentCameraMode,cycleOrder:JSON.stringify(cycleOrder)},hypothesisId:'A'})}).catch(()=>{});
-        // #endregion
-
         // Find current position in cycle and get next
         // If not found (shouldn't happen, but handle gracefully), start at "full" (index 0)
         const currentIndex = cycleOrder.indexOf(currentCameraMode);
         const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % cycleOrder.length;
         const newCameraMode = cycleOrder[nextIndex];
 
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/0ece4300-b996-4da9-a315-0f26d3f66b9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'speaker-mark.ts:591',message:'Cycle calculation result',data:{currentIndex,nextIndex,newCameraMode,newCameraModeType:typeof newCameraMode,newCameraModeValue:newCameraMode===null?'null':newCameraMode,cycleOrderLength:cycleOrder.length},hypothesisId:'C,D'})}).catch(()=>{});
-        // #endregion
+        // NEW: When cursor inside marked text (no selection), find full range and apply to entire range
+        if (from === to) {
+          const markRange = findSpeakerMarkRange(editor.state, from);
+          if (markRange) {
+            // Apply new camera mode to the full marked range, preserving speaker
+            const result = editor.chain()
+              .setTextSelection({ from: markRange.from, to: markRange.to })
+              .setSpeaker({
+                speakerId: markRange.speakerId,
+                cameraMode: newCameraMode,
+              })
+              .setTextSelection(from) // Restore cursor position
+              .run();
 
-        // Update the mark with the new camera mode while preserving the speaker
+            // Track last used camera mode
+            if (result && typeof window !== "undefined" && (window as any).__speakerStore) {
+              (window as any).__speakerStore.setLastUsed(markRange.speakerId, newCameraMode);
+            }
+
+            return result;
+          }
+        }
+
+        // Original behavior with selection - use setCameraMode command
         const result = editor.commands.setCameraMode(newCameraMode);
-
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/0ece4300-b996-4da9-a315-0f26d3f66b9c',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...logData,location:'speaker-mark.ts:595',message:'After setCameraMode call',data:{result,newCameraMode,newCameraModeType:typeof newCameraMode},hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
 
         // Track last used camera mode
         if (result && typeof window !== "undefined" && (window as any).__speakerStore) {
