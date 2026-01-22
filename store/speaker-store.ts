@@ -12,11 +12,14 @@ export interface Speaker {
 
 interface SpeakerState {
   speakers: Speaker[];
+  lastUsedSpeakerId: string | null;
+  lastUsedCameraMode: CameraModeNullable;
   setSpeakers: (speakers: Speaker[]) => void;
   addSpeaker: (speaker: Speaker) => void;
   updateSpeaker: (id: string, updates: Partial<Speaker>) => void;
   removeSpeaker: (id: string) => void;
   getSpeakerById: (id: string) => Speaker | undefined;
+  setLastUsed: (speakerId: string, cameraMode: CameraModeNullable) => void;
 }
 
 // Default speaker colors palette
@@ -45,6 +48,8 @@ export function generateSpeakerId(): string {
 
 export const useSpeakerStore = create<SpeakerState>((set, get) => ({
   speakers: [],
+  lastUsedSpeakerId: null,
+  lastUsedCameraMode: null,
 
   setSpeakers: (speakers) => set({ speakers }),
 
@@ -66,4 +71,7 @@ export const useSpeakerStore = create<SpeakerState>((set, get) => ({
     })),
 
   getSpeakerById: (id) => get().speakers.find((s) => s.id === id),
+
+  setLastUsed: (speakerId, cameraMode) =>
+    set({ lastUsedSpeakerId: speakerId, lastUsedCameraMode: cameraMode }),
 }));

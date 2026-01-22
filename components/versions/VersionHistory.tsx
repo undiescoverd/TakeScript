@@ -18,19 +18,6 @@ import {
 import { X, History } from "lucide-react";
 import { toast } from "sonner";
 
-interface Version {
-  _id: Id<"scriptVersions">;
-  _creationTime: number;
-  scriptId: Id<"scripts">;
-  versionNumber: number;
-  content: string;
-  contentUrl?: string;
-  contentSize?: number;
-  changedBy: Id<"users">;
-  changeNote?: string;
-  createdAt: number;
-}
-
 interface VersionHistoryProps {
   scriptId: Id<"scripts">;
 }
@@ -40,12 +27,28 @@ export function VersionHistory({ scriptId }: VersionHistoryProps) {
   // Only subscribe to query when panel is open - saves bandwidth
   const versions = useQuery(api.versions.list, versionHistoryOpen ? { scriptId } : "skip");
   const restoreVersion = useAction(api.versions.restore);
+  const loadVersionContent = useAction(api.versions.loadVersionContent);
   const [viewingVersion, setViewingVersion] = useState<string | null>(null);
   const [viewingContent, setViewingContent] = useState<string>("");
+  const [viewLoading, setViewLoading] = useState(false);
 
-  const handleView = (content: string) => {
-    setViewingContent(content);
+  const handleView = async (versionId: Id<"scriptVersions">) => {
+    setViewLoading(true);
     setViewingVersion("viewing");
+    try {
+      const v = await loadVersionContent({ versionId });
+      if (v?.content) {
+        setViewingContent(v.content);
+      } else {
+        toast.error("Could not load version content");
+        setViewingVersion(null);
+      }
+    } catch {
+      toast.error("Failed to load version");
+      setViewingVersion(null);
+    } finally {
+      setViewLoading(false);
+    }
   };
 
   const handleRestore = async (versionId: Id<"scriptVersions">) => {
@@ -96,11 +99,11 @@ export function VersionHistory({ scriptId }: VersionHistoryProps) {
             </div>
           ) : (
             <div className="space-y-3">
-              {versions.map((version: Version) => (
+              {versions.map((version) => (
                 <VersionCard
                   key={version._id}
                   version={version}
-                  onView={() => handleView(version.content)}
+                  onView={() => handleView(version._id)}
                   onRestore={() => handleRestore(version._id)}
                 />
               ))}
@@ -118,21 +121,28 @@ export function VersionHistory({ scriptId }: VersionHistoryProps) {
           <DialogHeader>
             <DialogTitle>Version Preview</DialogTitle>
           </DialogHeader>
-          {(() => {
-            try {
-              const content = JSON.parse(viewingContent) as JSONContent;
-              return <VersionPreview content={content} />;
-            } catch {
-              return (
-                <div className="rounded-lg border bg-destructive/10 p-4 text-destructive">
-                  <p className="font-semibold">Error parsing version content</p>
-                  <p className="mt-2 text-sm">
-                    This version may be corrupted or in an invalid format.
-                  </p>
-                </div>
-              );
-            }
-          })()}
+          {viewLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            </div>
+          ) : (
+            (() => {
+              try {
+                if (!viewingContent) return null;
+                const content = JSON.parse(viewingContent) as JSONContent;
+                return <VersionPreview content={content} />;
+              } catch {
+                return (
+                  <div className="rounded-lg border bg-destructive/10 p-4 text-destructive">
+                    <p className="font-semibold">Error parsing version content</p>
+                    <p className="mt-2 text-sm">
+                      This version may be corrupted or in an invalid format.
+                    </p>
+                  </div>
+                );
+              }
+            })()
+          )}
         </DialogContent>
       </Dialog>
     </>

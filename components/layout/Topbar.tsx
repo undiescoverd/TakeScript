@@ -29,12 +29,14 @@ import {
   FileSearch,
   Layers,
   Circle,
+  HelpCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ShareDialog } from "@/components/collaboration/ShareDialog";
 import { SaveTemplateDialog } from "@/components/templates/SaveTemplateDialog";
 import { useFeatureFlag } from "@/hooks/use-feature-flags";
 import { getFeatureFlags } from "@/lib/feature-flags";
+import { KeyboardShortcutsDialog } from "@/components/editor/KeyboardShortcutsDialog";
 
 interface TopbarProps {
   scriptId: Id<"scripts">;
@@ -53,6 +55,7 @@ export function Topbar({ scriptId, title, content, onSaveNow, onOpenAIChat, onGr
   const [titleValue, setTitleValue] = useState(title);
   const [showSavedMessage, setShowSavedMessage] = useState(false);
   const [wasSaving, setWasSaving] = useState(false);
+  const [shortcutsDialogOpen, setShortcutsDialogOpen] = useState(false);
   const updateTitle = useMutation(api.scripts.updateTitle);
   const saveVersion = useAction(api.versions.save);
   const { isSaving, toggleVersionHistory, toggleComments, toggleAnnotations, toggleSpeakers, speakersOpen, lastSavedAt, collaborationEnabled, toggleCollaboration, viewMode, setViewMode } = useEditorStore();
@@ -288,9 +291,23 @@ export function Topbar({ scriptId, title, content, onSaveNow, onOpenAIChat, onGr
           </>
         )}
 
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setShortcutsDialogOpen(true)}
+          title="Keyboard Shortcuts"
+        >
+          <HelpCircle className="h-4 w-4" />
+        </Button>
+
         <ThemeToggle />
         <UserButton afterSignOutUrl="/login" />
       </div>
+
+      <KeyboardShortcutsDialog
+        open={shortcutsDialogOpen}
+        onOpenChange={setShortcutsDialogOpen}
+      />
     </header>
   );
 }

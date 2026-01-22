@@ -396,6 +396,11 @@ export function SelectionToolbar({ editor, scriptId }: SelectionToolbarProps) {
       .setSpeaker({ speakerId, cameraMode })
       .run();
 
+    // Track last used speaker and camera mode
+    if (typeof window !== "undefined" && (window as any).__speakerStore) {
+      (window as any).__speakerStore.setLastUsed(speakerId, cameraMode);
+    }
+
     const speaker = speakers.find(s => s.id === speakerId);
     const modeLabel = cameraMode ? cameraModeLabels[cameraMode] : "no camera";
     toast.success(`Assigned to ${speaker?.name || "speaker"} (${modeLabel})`);

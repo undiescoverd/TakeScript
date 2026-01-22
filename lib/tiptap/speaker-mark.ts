@@ -510,28 +510,60 @@ export const SpeakerMark = Mark.create<SpeakerMarkOptions>({
       "Mod-1": ({ editor }) => {
         const speakers = this.options.getSpeakers();
         if (speakers[0]) {
-          return editor.commands.setSpeaker({ speakerId: speakers[0].id });
+          const result = editor.commands.setSpeaker({
+            speakerId: speakers[0].id,
+            cameraMode: speakers[0].defaultVisibility || null,
+          });
+          // Track last used
+          if (result && typeof window !== "undefined" && (window as any).__speakerStore) {
+            (window as any).__speakerStore.setLastUsed(speakers[0].id, speakers[0].defaultVisibility || null);
+          }
+          return result;
         }
         return false;
       },
       "Mod-2": ({ editor }) => {
         const speakers = this.options.getSpeakers();
         if (speakers[1]) {
-          return editor.commands.setSpeaker({ speakerId: speakers[1].id });
+          const result = editor.commands.setSpeaker({
+            speakerId: speakers[1].id,
+            cameraMode: speakers[1].defaultVisibility || null,
+          });
+          // Track last used
+          if (result && typeof window !== "undefined" && (window as any).__speakerStore) {
+            (window as any).__speakerStore.setLastUsed(speakers[1].id, speakers[1].defaultVisibility || null);
+          }
+          return result;
         }
         return false;
       },
       "Mod-3": ({ editor }) => {
         const speakers = this.options.getSpeakers();
         if (speakers[2]) {
-          return editor.commands.setSpeaker({ speakerId: speakers[2].id });
+          const result = editor.commands.setSpeaker({
+            speakerId: speakers[2].id,
+            cameraMode: speakers[2].defaultVisibility || null,
+          });
+          // Track last used
+          if (result && typeof window !== "undefined" && (window as any).__speakerStore) {
+            (window as any).__speakerStore.setLastUsed(speakers[2].id, speakers[2].defaultVisibility || null);
+          }
+          return result;
         }
         return false;
       },
       "Mod-4": ({ editor }) => {
         const speakers = this.options.getSpeakers();
         if (speakers[3]) {
-          return editor.commands.setSpeaker({ speakerId: speakers[3].id });
+          const result = editor.commands.setSpeaker({
+            speakerId: speakers[3].id,
+            cameraMode: speakers[3].defaultVisibility || null,
+          });
+          // Track last used
+          if (result && typeof window !== "undefined" && (window as any).__speakerStore) {
+            (window as any).__speakerStore.setLastUsed(speakers[3].id, speakers[3].defaultVisibility || null);
+          }
+          return result;
         }
         return false;
       },
@@ -558,7 +590,14 @@ export const SpeakerMark = Mark.create<SpeakerMarkOptions>({
         const newCameraMode = cycleOrder[nextIndex];
 
         // Update the mark with the new camera mode while preserving the speaker
-        return editor.commands.setCameraMode(newCameraMode);
+        const result = editor.commands.setCameraMode(newCameraMode);
+
+        // Track last used camera mode
+        if (result && typeof window !== "undefined" && (window as any).__speakerStore) {
+          (window as any).__speakerStore.setLastUsed(speakerMark.attrs.speakerId, newCameraMode);
+        }
+
+        return result;
       },
 
       // Remove speaker and camera (Cmd+J)

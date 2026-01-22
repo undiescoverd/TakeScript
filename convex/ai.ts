@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { action, ActionCtx } from "./_generated/server";
 import { api } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
 
 /**
  * Tiptap JSON node structure
@@ -229,7 +230,7 @@ async function callOpenRouter(
  */
 async function trackAIRequest(
   ctx: ActionCtx,
-  scriptId: string | undefined,
+  scriptId: Id<"scripts"> | undefined,
   requestType: string,
   model: string
 ) {
@@ -245,7 +246,7 @@ async function trackAIRequest(
     await ctx.runMutation(api.aiRequests.create, {
       userId: user._id,
       organizationId: user.organizationId,
-      scriptId,
+      scriptId: scriptId,
       requestType,
       provider: "openrouter",
       model,

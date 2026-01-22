@@ -12,6 +12,7 @@ import { SlashCommands } from "@/lib/tiptap/slash-commands";
 import { createSlashCommandsRender } from "@/lib/tiptap/suggestion-render";
 import { AnnotationMark } from "@/lib/tiptap/annotation-mark";
 import { SelectionToolbar } from "@/components/editor/SelectionToolbar";
+import { SpeakerSelectionHandler } from "@/components/editor/SpeakerSelectionHandler";
 import { Id } from "@/convex/_generated/dataModel";
 
 interface ScriptEditorProps {
@@ -28,7 +29,8 @@ export function ScriptEditor({
   scriptId,
 }: ScriptEditorProps) {
   const { mode, setAnnotationsOpen, setSelectedAnnotationId } = useEditorStore();
-  const { speakers } = useSpeakerStore();
+  const speakerStore = useSpeakerStore();
+  const { speakers } = speakerStore;
   const isFirstRender = useRef(true);
 
   // Create a stable reference to getSpeakers that the extension can use
@@ -108,6 +110,18 @@ export function ScriptEditor({
 
     return () => clearTimeout(timeout);
   }, [editor, editorError]);
+
+  // Expose speaker store to window for slash command access
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      (window as any).__speakerStore = speakerStore;
+    }
+    return () => {
+      if (typeof window !== "undefined") {
+        delete (window as any).__speakerStore;
+      }
+    };
+  }, [speakerStore]);
 
   // Force decoration recalculation when speakers change
   useEffect(() => {
@@ -196,6 +210,7 @@ export function ScriptEditor({
     <div className="relative h-full overflow-auto bg-background" data-mode={mode}>
       <EditorContent editor={editor} />
       <SelectionToolbar editor={editor} scriptId={scriptId} />
+      <SpeakerSelectionHandler editor={editor} />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Editor } from "@tiptap/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -166,6 +166,26 @@ export function SpeakerLegend({
     setNewSpeakerColor(getNextSpeakerColor(speakers));
     setIsAddDialogOpen(true);
   }, [speakers]);
+
+  // Listen for events to open speaker sidebar
+  useEffect(() => {
+    const handleOpenSidebar = () => {
+      // Open the sidebar if not already open
+      if (!isOpen) {
+        // This will be handled by the parent component that controls isOpen
+        // We just need to open the add dialog
+        openAddDialog();
+      } else {
+        // Already open, just open the add dialog
+        openAddDialog();
+      }
+    };
+
+    window.addEventListener("speaker:openSidebar", handleOpenSidebar);
+    return () => {
+      window.removeEventListener("speaker:openSidebar", handleOpenSidebar);
+    };
+  }, [isOpen, openAddDialog]);
 
   if (!isOpen) return null;
 

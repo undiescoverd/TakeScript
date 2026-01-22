@@ -1,12 +1,19 @@
 "use client";
 
-import { Doc } from "@/convex/_generated/dataModel";
+import { Id } from "@/convex/_generated/dataModel";
 import { formatDistanceToNow, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Eye, RotateCcw } from "lucide-react";
 
+interface VersionListItem {
+  _id: Id<"scriptVersions">;
+  versionNumber: number;
+  createdAt: number;
+  changeNote?: string;
+}
+
 interface VersionCardProps {
-  version: Doc<"scriptVersions">;
+  version: VersionListItem;
   onView: () => void;
   onRestore: () => void;
 }

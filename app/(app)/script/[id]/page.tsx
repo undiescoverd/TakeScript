@@ -455,6 +455,18 @@ export default function ScriptPage() {
     };
   }, [localContent, saveNow]);
 
+  // Listen for event to open speaker sidebar
+  useEffect(() => {
+    const handleOpenSidebar = () => {
+      setSpeakersOpen(true);
+    };
+
+    window.addEventListener("speaker:openSidebar", handleOpenSidebar);
+    return () => {
+      window.removeEventListener("speaker:openSidebar", handleOpenSidebar);
+    };
+  }, [setSpeakersOpen]);
+
   // Loading state
   if (script === undefined) {
     console.log(`[Script ${scriptId}] Waiting for script to load from Convex...`);

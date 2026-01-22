@@ -87,6 +87,11 @@ export function SpeakerEditDialog({
       })
       .run();
 
+    // Track last used speaker and camera mode
+    if (typeof window !== "undefined" && (window as any).__speakerStore) {
+      (window as any).__speakerStore.setLastUsed(selectedSpeakerId, selectedCameraMode);
+    }
+
     onClose();
     toast.success(`Updated to ${speaker.name}`);
   }, [editor, paragraphPos, selectedSpeakerId, selectedCameraMode, getSpeakerById, onClose]);

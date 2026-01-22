@@ -408,49 +408,39 @@ export const slashCommandItems: SlashCommandItem[] = [
   // Speaker commands
   {
     name: "Speaker",
-    description: "Assign first speaker to current paragraph.",
+    description: "Select speaker with camera mode.",
     icon: "Sp",
     command: ({ editor, range }) => {
+      console.log("[SlashCommand] Speaker command triggered");
       editor.chain().focus().deleteRange(range).run();
 
-      // Get speakers from the store
-      // We need to import useSpeakerStore dynamically or access it via a different method
-      // For now, we'll use a simple approach: try to get the first speaker via a custom command
-
-      // Check if there are any speakers available
-      const { state } = editor;
-      const { $from } = state.selection;
-
-      // Find the paragraph boundaries
-      const paragraphStart = $from.start();
-      const paragraphEnd = $from.end();
-
-      // Try to apply first speaker mark to the current paragraph
-      // The editor extension should have access to getSpeakers
+      // Try to get speakers from the speaker extension
       const extension = editor.extensionManager.extensions.find(
         (ext) => ext.name === "speaker"
       );
 
       if (extension && typeof extension.options.getSpeakers === "function") {
         const speakers = extension.options.getSpeakers();
+        console.log("[SlashCommand] Found speakers:", speakers.length);
 
         if (speakers.length === 0) {
-          // No speakers available - show error
-          toast.error("No speakers available. Add a speaker first.");
+          // No speakers available - open the speaker legend sidebar
+          toast.error("No speakers yet. Opening sidebar to add speakers...", {
+            duration: 3000,
+          });
+
+          // Dispatch event to open speaker sidebar
+          window.dispatchEvent(new CustomEvent("speaker:openSidebar"));
           return;
         }
 
-        // Apply the first speaker to the current paragraph
-        const firstSpeaker = speakers[0];
-        editor
-          .chain()
-          .focus()
-          .setTextSelection({ from: paragraphStart, to: paragraphEnd })
-          .setSpeaker({
-            speakerId: firstSpeaker.id,
-            cameraMode: firstSpeaker.defaultVisibility || null,
+        // Dispatch event to show speaker selection menu (will show camera menu after)
+        console.log("[SlashCommand] Dispatching speaker:showSelection event");
+        window.dispatchEvent(
+          new CustomEvent("speaker:showSelection", {
+            detail: { editor, range },
           })
-          .run();
+        );
       }
     },
   },
