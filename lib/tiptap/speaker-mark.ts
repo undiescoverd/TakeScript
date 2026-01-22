@@ -582,11 +582,13 @@ export const SpeakerMark = Mark.create<SpeakerMarkOptions>({
 
         // Define cycle order: full → voiceover → corner → null → full...
         const cycleOrder: (CameraMode | null)[] = ["full", "voiceover", "corner", null];
-        const currentCameraMode = speakerMark.attrs.cameraMode as CameraModeNullable;
+        // Normalize undefined to null for consistent comparison
+        const currentCameraMode = (speakerMark.attrs.cameraMode ?? null) as CameraModeNullable;
 
         // Find current position in cycle and get next
+        // If not found (shouldn't happen, but handle gracefully), start at "full" (index 0)
         const currentIndex = cycleOrder.indexOf(currentCameraMode);
-        const nextIndex = (currentIndex + 1) % cycleOrder.length;
+        const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % cycleOrder.length;
         const newCameraMode = cycleOrder[nextIndex];
 
         // Update the mark with the new camera mode while preserving the speaker

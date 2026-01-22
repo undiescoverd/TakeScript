@@ -24,6 +24,8 @@ import { SpeakerLegend } from "@/components/editor/SpeakerLegend";
 import { getFeatureFlags } from "@/lib/feature-flags";
 import { toast } from "sonner";
 import { useSpeakerStore, Speaker } from "@/store/speaker-store";
+import { Button } from "@/components/ui/button";
+import { Layers } from "lucide-react";
 
 interface GrammarCheckResult {
   issues?: Array<{
@@ -380,7 +382,7 @@ export default function ScriptPage() {
     };
   }, []);
 
-  // Focus Mode keyboard shortcut: Cmd+Shift+F
+  // Focus Mode keyboard shortcut: Cmd+Shift+F / Ctrl+Shift+F
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
@@ -522,6 +524,23 @@ export default function ScriptPage() {
       {/* Extends from top down to bottom of BeatBoard when visible */}
       {viewMode === "focus" && (
         <div className="topbar-hover-zone fixed top-0 left-0 right-0 h-28 z-60 pointer-events-none" />
+      )}
+
+      {/* Exit Focus Mode Button - Floating in top-right corner */}
+      {viewMode === "focus" && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            toggleViewMode();
+            toast.success("Edit Mode activated");
+          }}
+          className="fixed top-4 right-4 z-50 gap-2 shadow-lg bg-background/95 backdrop-blur-sm border-border hover:bg-accent"
+          title="Exit Focus Mode (Cmd+Shift+F)"
+        >
+          <Layers className="h-4 w-4" />
+          <span className="text-sm">Exit Focus</span>
+        </Button>
       )}
 
       {/* Topbar */}

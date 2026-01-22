@@ -33,6 +33,7 @@ function formatKey(key: string, isMac: boolean): string {
   if (key === "Shift") {
     return isMac ? "⇧" : "Shift";
   }
+  if (key === "/") return "/";
   return key.toUpperCase();
 }
 
@@ -99,16 +100,20 @@ export function KeyboardShortcutsDialog({
       title: "General Shortcuts",
       shortcuts: [
         {
+          keys: formatShortcut("Mod-/", isMacPlatform),
+          description: "Open keyboard shortcuts",
+        },
+        {
+          keys: formatShortcut("Mod-Shift-F", isMacPlatform),
+          description: "Toggle Focus Mode",
+        },
+        {
           keys: formatShortcut("Mod-S", isMacPlatform),
           description: "Save version",
         },
         {
           keys: formatShortcut("Mod-P", isMacPlatform),
           description: "Export to clipboard",
-        },
-        {
-          keys: formatShortcut("Mod-Shift-F", isMacPlatform),
-          description: "Toggle Focus Mode",
         },
       ],
     },

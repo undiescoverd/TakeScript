@@ -137,6 +137,9 @@ export function Topbar({ scriptId, title, content, onSaveNow, onOpenAIChat, onGr
       } else if ((e.ctrlKey || e.metaKey) && e.key === "p") {
         e.preventDefault();
         handleExport();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === "/") {
+        e.preventDefault();
+        setShortcutsDialogOpen((open) => !open);
       }
     };
 
@@ -295,7 +298,7 @@ export function Topbar({ scriptId, title, content, onSaveNow, onOpenAIChat, onGr
           variant="ghost"
           size="icon"
           onClick={() => setShortcutsDialogOpen(true)}
-          title="Keyboard Shortcuts"
+          title="Keyboard Shortcuts (⌘/ or Ctrl+/)"
         >
           <HelpCircle className="h-4 w-4" />
         </Button>
