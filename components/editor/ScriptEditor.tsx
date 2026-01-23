@@ -15,6 +15,7 @@ import { SelectionToolbar } from "@/components/editor/SelectionToolbar";
 import { SpeakerSelectionHandler } from "@/components/editor/SpeakerSelectionHandler";
 import { PendingSpeakerIndicator } from "@/components/editor/PendingSpeakerIndicator";
 import { Id } from "@/convex/_generated/dataModel";
+import equal from "fast-deep-equal";
 
 interface ScriptEditorProps {
   initialContent: JSONContent;
@@ -155,22 +156,9 @@ export function ScriptEditor({
       const currentContent = editor.getJSON();
       const newContent = initialContent;
 
-      const deepEqual = (a: any, b: any): boolean => {
-        if (a === b) return true;
-        if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) {
-          return false;
-        }
-        const keysA = Object.keys(a);
-        const keysB = Object.keys(b);
-        if (keysA.length !== keysB.length) return false;
-        for (const key of keysA) {
-          if (!keysB.includes(key)) return false;
-          if (!deepEqual(a[key], b[key])) return false;
-        }
-        return true;
-      };
-
-      if (!deepEqual(currentContent, newContent) && !editor.isFocused) {
+      // Use fast-deep-equal for optimized O(n) comparison
+      // Previously used custom O(n²) implementation with .includes()
+      if (!equal(currentContent, newContent) && !editor.isFocused) {
         editor.commands.setContent(initialContent, { emitUpdate: false });
       }
     }

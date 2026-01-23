@@ -70,19 +70,27 @@ vi.mock('@tiptap/react', () => ({
 
 // Mock Tiptap extensions
 vi.mock('@tiptap/starter-kit', () => ({
-  default: vi.fn(),
+  default: {
+    configure: vi.fn(() => ({})),
+  },
 }));
 
 vi.mock('@tiptap/extension-placeholder', () => ({
-  default: vi.fn(),
+  default: {
+    configure: vi.fn(() => ({})),
+  },
 }));
 
 vi.mock('@tiptap/extension-typography', () => ({
-  default: vi.fn(),
+  default: {},
 }));
 
 vi.mock('@tiptap/extension-underline', () => ({
-  default: vi.fn(),
+  default: {},
+}));
+
+vi.mock('@tiptap/extension-highlight', () => ({
+  default: {},
 }));
 
 // Mock toast notifications
