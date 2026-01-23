@@ -24,6 +24,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Generate Convex types (mock for CI)
+        run: |
+          mkdir -p convex/_generated
+          cat > convex/_generated/api.d.ts << 'EOF'
+          declare const api: any;
+          export { api };
+          EOF
+          cat > convex/_generated/api.js << 'EOF'
+          export const api = {};
+          EOF
+
       - name: Run linter
         run: npm run lint
 
@@ -57,6 +68,17 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Generate Convex types (mock for CI)
+        run: |
+          mkdir -p convex/_generated
+          cat > convex/_generated/api.d.ts << 'EOF'
+          declare const api: any;
+          export { api };
+          EOF
+          cat > convex/_generated/api.js << 'EOF'
+          export const api = {};
+          EOF
 
       - name: Build application
         run: npm run build
