@@ -1,0 +1,4 @@
+{
+  "*.{ts,tsx}": ["eslint --fix", "vitest related --run --reporter=verbose"],
+  "*.{js,jsx,ts,tsx,json,css,md}": ["prettier --write"]
+}
