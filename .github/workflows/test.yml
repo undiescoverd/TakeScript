@@ -32,7 +32,24 @@ jobs:
           export { api };
           EOF
           cat > convex/_generated/api.js << 'EOF'
-          export const api = {};
+          // Mock Convex API for CI environments
+          const createMockFunctionReference = () => ({
+            _name: 'mock',
+            toString: () => 'mock:function'
+          });
+
+          const createMockNamespace = () => new Proxy({}, {
+            get: () => createMockFunctionReference()
+          });
+
+          export const api = new Proxy({}, {
+            get: (target, prop) => {
+              if (!(prop in target)) {
+                target[prop] = createMockNamespace();
+              }
+              return target[prop];
+            }
+          });
           EOF
 
       - name: Run linter
@@ -77,7 +94,24 @@ jobs:
           export { api };
           EOF
           cat > convex/_generated/api.js << 'EOF'
-          export const api = {};
+          // Mock Convex API for CI environments
+          const createMockFunctionReference = () => ({
+            _name: 'mock',
+            toString: () => 'mock:function'
+          });
+
+          const createMockNamespace = () => new Proxy({}, {
+            get: () => createMockFunctionReference()
+          });
+
+          export const api = new Proxy({}, {
+            get: (target, prop) => {
+              if (!(prop in target)) {
+                target[prop] = createMockNamespace();
+              }
+              return target[prop];
+            }
+          });
           EOF
 
       - name: Build application
