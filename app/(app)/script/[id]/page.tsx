@@ -24,6 +24,7 @@ import { SpeakerLegend } from "@/components/editor/SpeakerLegend";
 import { getFeatureFlags } from "@/lib/feature-flags";
 import { toast } from "sonner";
 import { useSpeakerStore, Speaker } from "@/store/speaker-store";
+import { logError } from "@/lib/logger";
 import { Button } from "@/components/ui/button";
 import { Layers } from "lucide-react";
 
@@ -120,14 +121,22 @@ export default function ScriptPage() {
           });
         }
       } catch (parseError) {
-        console.error(`[Script ${scriptId}] Failed to parse script content:`, parseError, "Content preview:", script.content?.substring(0, 200));
+        logError(
+          parseError,
+          `Failed to parse script content for script ${scriptId}`,
+          {
+            scriptId,
+            contentPreview: script.content?.substring(0, 200),
+          },
+          true // Show toast to user
+        );
       }
     } else {
       console.log(`[Script ${scriptId}] Empty or null content, using empty document`);
     }
 
     return emptyContent;
-  }, [script, scriptId]);
+  }, [script?.content, scriptId]);
   
   // Local content state - starts from initial content, then tracks user edits
   const [localContent, setLocalContent] = useState<JSONContent | null>(() => initialContent);
@@ -249,8 +258,16 @@ export default function ScriptPage() {
           setLocalContent(initialContent);
         });
         isRestoringVersionRef.current = false;
-      } catch {
-        // ignore parse errors
+      } catch (error) {
+        logError(
+          error,
+          'Failed to update local content from script changes',
+          {
+            scriptId,
+            scriptContentPreview: script.content?.substring(0, 100),
+          },
+          false // Don't show toast - this is background operation
+        );
       }
     }
   }, [script?.content, initialContent, getLastSavedContent]);
@@ -261,11 +278,19 @@ export default function ScriptPage() {
         const parsed = JSON.parse(content);
         setLocalContent(parsed);
         scheduleAutosave(content);
-      } catch {
-        // ignore parse errors
+      } catch (error) {
+        logError(
+          error,
+          'Failed to parse editor content update',
+          {
+            scriptId,
+            contentPreview: content?.substring(0, 100),
+          },
+          true // Show toast - this affects user's current editing
+        );
       }
     },
-    [scheduleAutosave]
+    [scheduleAutosave, scriptId]
   );
 
   // Mark version restore when it happens (version restore will set this before calling restore)
