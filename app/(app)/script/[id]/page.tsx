@@ -144,6 +144,18 @@ export default function ScriptPage() {
   const isRestoringVersionRef = useRef(false);
   const lastScriptContentRef = useRef<string | null>(null);
 
+  // Refs for stable event listener dependencies
+  const localContentRef = useRef(localContent);
+  const saveNowRef = useRef(saveNow);
+  const viewModeRef = useRef(viewMode);
+
+  // Keep refs in sync with current values
+  useEffect(() => {
+    localContentRef.current = localContent;
+    saveNowRef.current = saveNow;
+    viewModeRef.current = viewMode;
+  }, [localContent, saveNow, viewMode]);
+
   // AI Panel States
   const [aiChatOpen, setAiChatOpen] = useState(false);
   const [grammarCheckResults, setGrammarCheckResults] = useState<GrammarCheckResult | null>(null);
@@ -413,14 +425,15 @@ export default function ScriptPage() {
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
         e.preventDefault();
         toggleViewMode();
-        const newMode = viewMode === "focus" ? "edit" : "focus";
+        // Use ref to get current mode - prevents stale closure
+        const newMode = viewModeRef.current === "focus" ? "edit" : "focus";
         toast.success(`${newMode === "focus" ? "Focus" : "Edit"} Mode activated`);
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [viewMode, toggleViewMode]);
+  }, [toggleViewMode]); // Stable dependency - toggleViewMode is from zustand
 
   // Show onboarding tooltip on first Focus Mode activation
   useEffect(() => {
@@ -453,9 +466,10 @@ export default function ScriptPage() {
     if (!editorElement) return;
 
     const handleBlur = () => {
-      if (localContent) {
+      // Use refs to get current values - prevents stale closures
+      if (localContentRef.current) {
         // Save immediately when editor loses focus
-        saveNow(JSON.stringify(localContent)).catch((error) => {
+        saveNowRef.current(JSON.stringify(localContentRef.current)).catch((error) => {
           console.error("Failed to save on blur:", error);
         });
       }
@@ -468,19 +482,20 @@ export default function ScriptPage() {
         editorElement.removeEventListener("blur", handleBlur, true);
       }
     };
-  }, [editorRef, localContent, saveNow]);
+  }, [editorRef]); // Stable dependency - only re-register if editor changes
 
   // Save on navigation away
   useEffect(() => {
     return () => {
       // Save any pending changes when component unmounts (navigation)
-      if (localContent) {
-        saveNow(JSON.stringify(localContent)).catch((error) => {
+      // Use refs to get current values - prevents re-registration on every content change
+      if (localContentRef.current) {
+        saveNowRef.current(JSON.stringify(localContentRef.current)).catch((error) => {
           console.error("Failed to save on navigation:", error);
         });
       }
     };
-  }, [localContent, saveNow]);
+  }, []); // Empty deps - only register once, cleanup on unmount
 
   // Listen for event to open speaker sidebar
   useEffect(() => {

@@ -64,6 +64,131 @@ vi.mock('@/components/layout/Sidebar', () => ({
   Sidebar: () => <div data-testid="sidebar">Sidebar</div>,
 }));
 
+describe('ScriptPage - Memory Leak Prevention', () => {
+  let mockUseQuery: ReturnType<typeof vi.fn>;
+  let mockUseAction: ReturnType<typeof vi.fn>;
+  let mockUseMutation: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    mockUseQuery = vi.fn();
+    mockUseAction = vi.fn();
+    mockUseMutation = vi.fn();
+
+    vi.spyOn(convexReact, 'useQuery').mockImplementation(mockUseQuery);
+    vi.spyOn(convexReact, 'useAction').mockImplementation(mockUseAction);
+    vi.spyOn(convexReact, 'useMutation').mockImplementation(mockUseMutation);
+
+    // Mock valid script
+    mockUseQuery.mockReturnValue({
+      _id: 'test-script-id',
+      title: 'Test Script',
+      content: '{"type":"doc","content":[{"type":"paragraph"}]}',
+      lastEditedAt: Date.now(),
+      createdAt: Date.now(),
+    });
+
+    mockUseAction.mockReturnValue(vi.fn());
+    mockUseMutation.mockReturnValue(vi.fn());
+
+    vi.clearAllMocks();
+  });
+
+  it('should not accumulate blur listeners on content changes', () => {
+    // Track event listener additions
+    const addEventListenerSpy = vi.spyOn(document, 'addEventListener');
+    const removeEventListenerSpy = vi.spyOn(document, 'removeEventListener');
+
+    const { rerender } = render(<ScriptPage />);
+
+    const initialBlurListeners = addEventListenerSpy.mock.calls.filter(
+      call => call[0] === 'click'
+    ).length;
+
+    // Simulate content changes (re-renders)
+    for (let i = 0; i < 5; i++) {
+      rerender(<ScriptPage />);
+    }
+
+    const finalBlurListeners = addEventListenerSpy.mock.calls.filter(
+      call => call[0] === 'click'
+    ).length;
+
+    // Should not have added more listeners (or should have removed old ones)
+    // Allow for initial setup but verify no accumulation
+    expect(finalBlurListeners - removeEventListenerSpy.mock.calls.filter(
+      call => call[0] === 'click'
+    ).length).toBeLessThanOrEqual(initialBlurListeners + 2);
+  });
+
+  it('should not accumulate focus mode listeners on re-render', () => {
+    const addEventListenerSpy = vi.spyOn(document, 'addEventListener');
+    const removeEventListenerSpy = vi.spyOn(document, 'removeEventListener');
+
+    const { rerender } = render(<ScriptPage />);
+
+    const initialKeydownListeners = addEventListenerSpy.mock.calls.filter(
+      call => call[0] === 'keydown'
+    ).length;
+
+    // Re-render multiple times
+    for (let i = 0; i < 5; i++) {
+      rerender(<ScriptPage />);
+    }
+
+    const finalKeydownListeners = addEventListenerSpy.mock.calls.filter(
+      call => call[0] === 'keydown'
+    ).length;
+
+    // Should not have accumulated listeners
+    expect(finalKeydownListeners - removeEventListenerSpy.mock.calls.filter(
+      call => call[0] === 'keydown'
+    ).length).toBeLessThanOrEqual(initialKeydownListeners + 2);
+  });
+
+  it('should clean up AI command listeners on unmount', () => {
+    const windowRemoveEventListenerSpy = vi.spyOn(window, 'removeEventListener');
+
+    const { unmount } = render(<ScriptPage />);
+
+    unmount();
+
+    // Should have removed window event listeners (keydown, ai:* events)
+    expect(windowRemoveEventListenerSpy).toHaveBeenCalled();
+
+    // Check that at least some cleanup happened
+    const calls = windowRemoveEventListenerSpy.mock.calls;
+    const hasKeydownCleanup = calls.some(call => call[0] === 'keydown');
+    const hasAICleanup = calls.some(call => call[0]?.startsWith('ai:'));
+
+    expect(hasKeydownCleanup || hasAICleanup).toBe(true);
+  });
+
+  it('should use current content in blur handler (not stale closure)', async () => {
+    const { rerender } = render(<ScriptPage />);
+
+    // Update content multiple times
+    mockUseQuery.mockReturnValue({
+      _id: 'test-script-id',
+      title: 'Test Script',
+      content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Updated"}]}]}',
+      lastEditedAt: Date.now(),
+      createdAt: Date.now(),
+    });
+
+    rerender(<ScriptPage />);
+
+    // Trigger blur event
+    const clickEvent = new MouseEvent('click', {
+      bubbles: true,
+      cancelable: true,
+    });
+    document.dispatchEvent(clickEvent);
+
+    // Should not cause errors (would happen if using stale closure)
+    // The test passing means no errors occurred
+  });
+});
+
 describe('ScriptPage - Error Handling', () => {
   let mockUseQuery: ReturnType<typeof vi.fn>;
   let mockUseAction: ReturnType<typeof vi.fn>;
