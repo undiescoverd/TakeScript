@@ -43,7 +43,12 @@ vi.mock('@clerk/nextjs', () => ({
 vi.mock('convex/react', () => ({
   useQuery: vi.fn(() => null),
   useMutation: vi.fn(() => vi.fn()),
+  useAction: vi.fn(() => vi.fn()),
   useConvex: vi.fn(),
+  useConvexAuth: vi.fn(() => ({
+    isAuthenticated: true,
+    isLoading: false,
+  })),
   ConvexProvider: ({ children }: { children: React.ReactNode }) => children,
   ConvexReactClient: vi.fn(),
 }));

@@ -1,16 +1,23 @@
 "use client";
 
-import { useAction } from "convex/react";
+import { useAction, useConvexAuth } from "convex/react";
 import { useCallback, useEffect, useRef } from "react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useEditorStore } from "@/store/editor-store";
+import { toast } from "sonner";
 
 const AUTOSAVE_DELAY = 2000; // 2 seconds after typing stops (like Google Docs)
 const SAVE_INDICATOR_DELAY = 500; // Show "Saving..." after 500ms of continuous typing
 
+interface SaveRequest {
+  content: string;
+  skipAuthCheck?: boolean;
+}
+
 export function useAutosave(scriptId: Id<"scripts">) {
   const updateScript = useAction(api.scripts.updateWithR2);
+  const { isAuthenticated, isLoading } = useConvexAuth();
   const { setIsSaving, setLastSavedAt } = useEditorStore();
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const savingIndicatorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -19,11 +26,22 @@ export function useAutosave(scriptId: Id<"scripts">) {
   const lastSavedContentRef = useRef<string | null>(null);
   const onSaveCompleteRef = useRef<((content: string) => void) | null>(null);
   const isSavingRef = useRef(false);
+  const saveQueueRef = useRef<SaveRequest[]>([]);
+  const isProcessingQueueRef = useRef(false);
 
-  const save = useCallback(
-    async (content: string) => {
-      // Prevent concurrent saves
-      if (isSavingRef.current) {
+  // Perform the actual save operation
+  const performSave = useCallback(
+    async (content: string, skipAuthCheck = false) => {
+      // Check authentication before attempting save (unless explicitly skipped for cleanup saves)
+      if (!skipAuthCheck && !isAuthenticated) {
+        console.warn("Save skipped: User not authenticated");
+        if (!isLoading) {
+          // Only show error if auth is fully loaded and user is definitely not authenticated
+          toast.error("Unable to save: Please sign in again", {
+            description: "Your session may have expired",
+            duration: 5000,
+          });
+        }
         return;
       }
 
@@ -39,12 +57,77 @@ export function useAutosave(scriptId: Id<"scripts">) {
         }
       } catch (error) {
         console.error("Failed to save:", error);
+
+        // Check if error is authentication-related
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage.includes("Not authenticated") || errorMessage.includes("Unauthenticated")) {
+          toast.error("Unable to save: Authentication required", {
+            description: "Please refresh the page and sign in again",
+            duration: 7000,
+          });
+        } else {
+          // Other errors - show generic message
+          toast.error("Failed to save changes", {
+            description: "Your changes may not be saved. Please try again.",
+            duration: 5000,
+          });
+        }
       } finally {
         isSavingRef.current = false;
         setIsSaving(false);
       }
     },
-    [scriptId, updateScript, setIsSaving, setLastSavedAt]
+    [scriptId, updateScript, setIsSaving, setLastSavedAt, isAuthenticated, isLoading]
+  );
+
+  // Process the save queue sequentially
+  const processSaveQueue = useCallback(async () => {
+    if (isProcessingQueueRef.current || saveQueueRef.current.length === 0) {
+      return;
+    }
+
+    isProcessingQueueRef.current = true;
+
+    while (saveQueueRef.current.length > 0) {
+      const request = saveQueueRef.current[0];
+
+      // Deduplicate: skip if content matches what we just saved
+      if (request.content === lastSavedContentRef.current) {
+        saveQueueRef.current.shift();
+        continue;
+      }
+
+      // Remove duplicates from queue (keep only the last occurrence of each unique content)
+      const uniqueContent = new Set<string>();
+      saveQueueRef.current = saveQueueRef.current.filter((req) => {
+        if (uniqueContent.has(req.content)) {
+          return false; // Remove duplicates
+        }
+        uniqueContent.add(req.content);
+        return true;
+      });
+
+      // Recheck after deduplication
+      if (saveQueueRef.current.length === 0) {
+        break;
+      }
+
+      const nextRequest = saveQueueRef.current.shift()!;
+      await performSave(nextRequest.content, nextRequest.skipAuthCheck);
+    }
+
+    isProcessingQueueRef.current = false;
+  }, [performSave]);
+
+  const save = useCallback(
+    async (content: string, skipAuthCheck = false) => {
+      // Add to queue
+      saveQueueRef.current.push({ content, skipAuthCheck });
+
+      // Process queue
+      await processSaveQueue();
+    },
+    [processSaveQueue]
   );
 
   // Keep save function in ref for event listeners
@@ -145,8 +228,8 @@ export function useAutosave(scriptId: Id<"scripts">) {
   // Save pending content when page becomes hidden (browser close, tab switch, navigation)
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "hidden" && pendingContentRef.current && saveRef.current) {
-        // Use sendBeacon for reliable save on page unload
+      if (document.visibilityState === "hidden" && pendingContentRef.current && saveRef.current && isAuthenticated) {
+        // Only attempt save if authenticated
         const content = pendingContentRef.current;
         // Clear the timeouts since we're saving now
         if (timeoutRef.current) {
@@ -157,8 +240,8 @@ export function useAutosave(scriptId: Id<"scripts">) {
           clearTimeout(savingIndicatorTimeoutRef.current);
           savingIndicatorTimeoutRef.current = null;
         }
-        // Save synchronously
-        saveRef.current(content).catch((error) => {
+        // Save synchronously (skip auth check since we already checked)
+        saveRef.current(content, true).catch((error) => {
           console.error("Failed to save on visibility change:", error);
         });
         pendingContentRef.current = null;
@@ -166,7 +249,7 @@ export function useAutosave(scriptId: Id<"scripts">) {
     };
 
     const handlePageHide = () => {
-      if (pendingContentRef.current && saveRef.current) {
+      if (pendingContentRef.current && saveRef.current && isAuthenticated) {
         const content = pendingContentRef.current;
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current);
@@ -176,8 +259,8 @@ export function useAutosave(scriptId: Id<"scripts">) {
           clearTimeout(savingIndicatorTimeoutRef.current);
           savingIndicatorTimeoutRef.current = null;
         }
-        // Try to save, but don't block page unload
-        saveRef.current(content).catch((error) => {
+        // Try to save, but don't block page unload (skip auth check since we already checked)
+        saveRef.current(content, true).catch((error) => {
           console.error("Failed to save on page hide:", error);
         });
         pendingContentRef.current = null;
@@ -185,7 +268,7 @@ export function useAutosave(scriptId: Id<"scripts">) {
     };
 
     const handleBeforeUnload = () => {
-      if (pendingContentRef.current && saveRef.current) {
+      if (pendingContentRef.current && saveRef.current && isAuthenticated) {
         const content = pendingContentRef.current;
         if (timeoutRef.current) {
           clearTimeout(timeoutRef.current);
@@ -195,8 +278,8 @@ export function useAutosave(scriptId: Id<"scripts">) {
           clearTimeout(savingIndicatorTimeoutRef.current);
           savingIndicatorTimeoutRef.current = null;
         }
-        // Use sendBeacon or synchronous save attempt
-        saveRef.current(content).catch((error) => {
+        // Use sendBeacon or synchronous save attempt (skip auth check since we already checked)
+        saveRef.current(content, true).catch((error) => {
           console.error("Failed to save on beforeunload:", error);
         });
         pendingContentRef.current = null;
@@ -212,7 +295,7 @@ export function useAutosave(scriptId: Id<"scripts">) {
       window.removeEventListener("pagehide", handlePageHide);
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, []);
+  }, [isAuthenticated]);
 
   // Cleanup on unmount (navigation away)
   useEffect(() => {
@@ -223,13 +306,13 @@ export function useAutosave(scriptId: Id<"scripts">) {
       if (savingIndicatorTimeoutRef.current) {
         clearTimeout(savingIndicatorTimeoutRef.current);
       }
-      // Save any pending content on unmount (navigation)
-      if (pendingContentRef.current && saveRef.current) {
-        saveRef.current(pendingContentRef.current);
+      // Save any pending content on unmount (navigation) - only if authenticated
+      if (pendingContentRef.current && saveRef.current && isAuthenticated) {
+        saveRef.current(pendingContentRef.current, true);
         pendingContentRef.current = null;
       }
     };
-  }, []);
+  }, [isAuthenticated]);
 
   // Set callback to be notified when save completes
   const setOnSaveComplete = useCallback((callback: ((content: string) => void) | null) => {
