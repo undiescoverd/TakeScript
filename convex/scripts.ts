@@ -304,6 +304,7 @@ export const create = mutation({
 
     const now = Date.now();
     let initialContent: string;
+    let scriptTitle = args.title;
 
     // Try to get content from template ID first (new system)
     if (args.templateId) {
@@ -311,6 +312,11 @@ export const create = mutation({
       if (template) {
         // Sanitize template content to regenerate block IDs
         initialContent = sanitizeTemplateContent(template.content);
+
+        // If title is default/empty, use template name
+        if (scriptTitle === "Untitled Script" || !scriptTitle.trim()) {
+          scriptTitle = template.name;
+        }
 
         // Update lastUsedAt timestamp for the template
         await ctx.db.patch(args.templateId, {
@@ -323,10 +329,19 @@ export const create = mutation({
     } else {
       // Fall back to old templateType system
       initialContent = getTemplateContent(args.templateType);
+
+      // If using old template type and title is default, use template type as title
+      if (args.templateType && (scriptTitle === "Untitled Script" || !scriptTitle.trim())) {
+        // Capitalize and format template type (e.g., "tutorial" -> "Tutorial")
+        scriptTitle = args.templateType
+          .split("-")
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(" ");
+      }
     }
 
     const scriptId = await ctx.db.insert("scripts", {
-      title: args.title,
+      title: scriptTitle,
       userId: user._id,
       content: initialContent,
       templateType: args.templateType,

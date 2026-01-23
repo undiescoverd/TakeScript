@@ -202,12 +202,14 @@ export function ChapterNodeView({ node, updateAttributes, editor, getPos }: Node
   return (
     <NodeViewWrapper className="chapter-node-view">
       <div
-        className="group relative my-10 cursor-pointer"
+        className="group relative w-full"
         data-id={node.attrs.id}
-        onClick={() => setIsEditing(true)}
       >
         {/* Minimalist divider chapter header - stacked layout for multi-line support */}
-        <div className="relative">
+        <div 
+          className="relative cursor-pointer py-1"
+          onClick={() => setIsEditing(true)}
+        >
           {/* Horizontal line that spans full width */}
           <div className="absolute left-0 right-0 top-1/2 h-px bg-border" />
 
@@ -263,7 +265,7 @@ export function ChapterNodeView({ node, updateAttributes, editor, getPos }: Node
         </div>
 
         {/* Chapter content (if any) */}
-        <div className="mt-4">
+        <div>
           <NodeViewContent className="chapter-content" />
         </div>
       </div>

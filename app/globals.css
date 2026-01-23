@@ -191,6 +191,16 @@
   padding-bottom: 0.5rem;
 }
 
+/* Override for React NodeView - remove all margins to make bounding box tight */
+.chapter-node-view {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.chapter-node-view > div {
+  margin: 0 !important;
+}
+
 /* Screen Recording Block */
 .ProseMirror [data-type="screenRecording"],
 .screen-recording-block {

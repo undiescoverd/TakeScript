@@ -8,16 +8,14 @@ import { JSONContent } from "@tiptap/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useEditorStore } from "@/store/editor-store";
-import { getWordCount, getReadTime, exportToPlainText } from "@/lib/tiptap/export";
+import { getWordCount, getReadTime } from "@/lib/tiptap/export";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ThemeToggle } from "./ThemeToggle";
-import { ModeToggle } from "@/components/editor/ModeToggle";
 import {
   ArrowLeft,
   Save,
   History,
-  Download,
   Loader2,
   MessageSquare,
   Highlighter,
@@ -112,7 +110,7 @@ export function Topbar({ scriptId, title, content, onSaveNow, onOpenAIChat, onGr
     }
   };
 
-  const handleSaveVersion = async () => {
+  const handleSaveVersion = useCallback(async () => {
     try {
       await onSaveNow();
       await saveVersion({ scriptId });
@@ -120,13 +118,7 @@ export function Topbar({ scriptId, title, content, onSaveNow, onOpenAIChat, onGr
     } catch {
       toast.error("Failed to save version");
     }
-  };
-
-  const handleExport = useCallback(() => {
-    const plainText = exportToPlainText(content);
-    navigator.clipboard.writeText(plainText);
-    toast.success("Copied to clipboard for PrompSmart!");
-  }, [content]);
+  }, [onSaveNow, saveVersion, scriptId]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -134,9 +126,6 @@ export function Topbar({ scriptId, title, content, onSaveNow, onOpenAIChat, onGr
       if ((e.ctrlKey || e.metaKey) && e.key === "s") {
         e.preventDefault();
         handleSaveVersion();
-      } else if ((e.ctrlKey || e.metaKey) && e.key === "p") {
-        e.preventDefault();
-        handleExport();
       } else if ((e.ctrlKey || e.metaKey) && e.key === "/") {
         e.preventDefault();
         setShortcutsDialogOpen((open) => !open);
@@ -145,7 +134,7 @@ export function Topbar({ scriptId, title, content, onSaveNow, onOpenAIChat, onGr
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [handleExport]);
+  }, [handleSaveVersion]);
 
   return (
     <header className="flex h-14 items-center justify-between border-b bg-background px-4">
@@ -216,8 +205,6 @@ export function Topbar({ scriptId, title, content, onSaveNow, onOpenAIChat, onGr
             Edit
           </Button>
         </div>
-
-        <ModeToggle />
       </div>
 
       {/* Right section */}
@@ -228,11 +215,6 @@ export function Topbar({ scriptId, title, content, onSaveNow, onOpenAIChat, onGr
 
         {viewMode === "edit" && (
           <>
-            <Button variant="outline" size="sm" onClick={handleExport}>
-              <Download className="mr-2 h-4 w-4" />
-              Export
-            </Button>
-
             {templatesSaveEnabled && (
               <SaveTemplateDialog content={JSON.stringify(content)} />
             )}

@@ -29,7 +29,7 @@ export function ScriptEditor({
   onEditorReady,
   scriptId,
 }: ScriptEditorProps) {
-  const { mode, setAnnotationsOpen, setSelectedAnnotationId } = useEditorStore();
+  const { setAnnotationsOpen, setSelectedAnnotationId } = useEditorStore();
   const speakerStore = useSpeakerStore();
   const { speakers } = speakerStore;
   const isFirstRender = useRef(true);
@@ -225,7 +225,7 @@ export function ScriptEditor({
   console.log("[ScriptEditor] Editor initialized successfully, rendering content");
 
   return (
-    <div className="relative h-full overflow-auto bg-background" data-mode={mode}>
+    <div className="relative h-full overflow-auto bg-background">
       <EditorContent editor={editor} />
       <SelectionToolbar editor={editor} scriptId={scriptId} />
       <SpeakerSelectionHandler editor={editor} />

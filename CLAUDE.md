@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 # TakeScript
 
-A professional tutorial script editor for SaaS companies and content creators. Replaces Google Docs for video tutorial script writing with specialized features including rich text editing, custom content blocks (chapters, screen recordings, demonstrations, editor notes), recording mode, version history, and teleprompter export.
+A professional tutorial script editor for SaaS companies and content creators. Replaces Google Docs for video tutorial script writing with specialized features including rich text editing, custom content blocks (chapters, screen recordings, demonstrations, editor notes), speaker attribution, version history, and focus mode.
 
 ## Development Commands
 
@@ -224,9 +224,10 @@ Managed in `convex/versions.ts`:
 
 #### 6. State Management (Zustand)
 `store/editor-store.ts` manages:
-- **mode**: `"editing"` | `"recording"` (hides editor notes in recording mode)
+- **viewMode**: `"focus"` | `"edit"` (focus mode provides distraction-free writing)
 - **sidebarOpen**: Sidebar visibility
 - **versionHistoryOpen**: Version panel visibility
+- **speakersOpen**: Speaker legend panel visibility
 - **isSaving** / **lastSavedAt**: Autosave status
 
 #### 7. Route Structure
@@ -291,19 +292,13 @@ Restore:
 ### Export System
 
 `lib/tiptap/export.ts` provides:
-- **exportToPlainText()**: Converts Tiptap JSON to plain text for teleprompter
+- **exportToPlainText()**: Converts Tiptap JSON to plain text
   - Formats chapters as `[CHAPTER TITLE]`
   - Strips all formatting
+  - Used internally for word count and other text analysis
 - **getWordCount()**: Counts words in document
 - **getReadTime()**: Estimates read time (150 words/minute)
 - **extractChapters()**: Returns array of chapter metadata for navigation
-
-### Recording Mode
-
-When `mode === "recording"`:
-- Editor notes should be visually hidden (CSS or rendering logic)
-- Clean teleprompter view for video recording
-- Toggled via `useEditorStore().toggleMode()`
 
 ## Important Implementation Notes
 

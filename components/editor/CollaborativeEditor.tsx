@@ -6,7 +6,6 @@ import Placeholder from "@tiptap/extension-placeholder";
 import Collaboration from "@tiptap/extension-collaboration";
 import CollaborationCursor from "@tiptap/extension-collaboration-cursor";
 import { useEffect, useState, useRef } from "react";
-import { useEditorStore } from "@/store/editor-store";
 import { customExtensions } from "@/lib/tiptap/extensions";
 import { SlashCommands } from "@/lib/tiptap/slash-commands";
 import { createSlashCommandsRender } from "@/lib/tiptap/suggestion-render";
@@ -26,7 +25,6 @@ export function CollaborativeEditor({
   scriptId,
   onEditorReady,
 }: CollaborativeEditorProps) {
-  const { mode } = useEditorStore();
   const [showSyncStatus, setShowSyncStatus] = useState(true);
   const syncStatusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -160,7 +158,7 @@ export function CollaborativeEditor({
   }
 
   return (
-    <div className="h-full overflow-auto bg-background" data-mode={mode}>
+    <div className="h-full overflow-auto bg-background">
       {/* Collaboration status bar - only show when needed (Google Docs style) */}
       {(showSyncStatus || collaborators.length > 0) && (
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-border bg-background/95 px-4 py-2 backdrop-blur supports-backdrop-filter:bg-background/60">

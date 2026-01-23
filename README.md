@@ -6,8 +6,7 @@ A professional tutorial script editor designed for SaaS companies and content cr
 
 - **Rich Text Editor** - Professional screenplay-style formatting with Tiptap
 - **Custom Blocks** - Chapters, Screen Recording sections, Demonstrations, and Editor Notes
-- **Recording Mode** - Hide editor notes for clean teleprompter view
-- **Export for PrompSmart** - One-click export to plain text for teleprompter
+- **Speaker Attribution** - Assign dialogue to different speakers with visual indicators
 - **Version History** - Save and restore previous versions of your scripts
 - **Real-time Autosave** - Never lose your work
 - **Beat Board** - Visual timeline of chapters

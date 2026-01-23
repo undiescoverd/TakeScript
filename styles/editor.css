@@ -134,6 +134,16 @@
   gap: 1.5rem;
 }
 
+/* Override for React NodeView - remove all margins to make bounding box tight */
+.chapter-node-view {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.chapter-node-view > div {
+  margin: 0 !important;
+}
+
 .ProseMirror [data-type="chapter"]::before,
 .ProseMirror [data-type="chapter"]::after,
 .chapter-block::before,

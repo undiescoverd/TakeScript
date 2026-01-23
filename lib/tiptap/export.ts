@@ -1,8 +1,8 @@
 import { JSONContent } from "@tiptap/react";
 
 /**
- * Export Tiptap document to plain text for teleprompter (PrompSmart)
- * Excludes editor notes and strips formatting
+ * Export Tiptap document to plain text
+ * Strips formatting and returns clean text content
  */
 export function exportToPlainText(doc: JSONContent): string {
   const lines: string[] = [];

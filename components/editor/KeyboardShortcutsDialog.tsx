@@ -99,10 +99,6 @@ export function KeyboardShortcutsDialog({
           keys: formatShortcut("Mod-S", isMacPlatform),
           description: "Save version",
         },
-        {
-          keys: formatShortcut("Mod-P", isMacPlatform),
-          description: "Export to clipboard",
-        },
       ],
     },
   ];
