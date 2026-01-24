@@ -61,6 +61,25 @@ jobs:
           export const Id = (id) => id;
           export const Doc = {};
           EOF
+          cat > convex/_generated/server.d.ts << 'EOF'
+          export declare const query: any;
+          export declare const mutation: any;
+          export declare const action: any;
+          export declare const internalMutation: any;
+          export declare const internalQuery: any;
+          export declare const internalAction: any;
+          export type ActionCtx = any;
+          export type QueryCtx = any;
+          export type MutationCtx = any;
+          EOF
+          cat > convex/_generated/server.js << 'EOF'
+          export const query = () => {};
+          export const mutation = () => {};
+          export const action = () => {};
+          export const internalMutation = () => {};
+          export const internalQuery = () => {};
+          export const internalAction = () => {};
+          EOF
 
       - name: Run linter
         run: npm run lint
@@ -132,6 +151,25 @@ jobs:
           cat > convex/_generated/dataModel.js << 'EOF'
           export const Id = (id) => id;
           export const Doc = {};
+          EOF
+          cat > convex/_generated/server.d.ts << 'EOF'
+          export declare const query: any;
+          export declare const mutation: any;
+          export declare const action: any;
+          export declare const internalMutation: any;
+          export declare const internalQuery: any;
+          export declare const internalAction: any;
+          export type ActionCtx = any;
+          export type QueryCtx = any;
+          export type MutationCtx = any;
+          EOF
+          cat > convex/_generated/server.js << 'EOF'
+          export const query = () => {};
+          export const mutation = () => {};
+          export const action = () => {};
+          export const internalMutation = () => {};
+          export const internalQuery = () => {};
+          export const internalAction = () => {};
           EOF
 
       - name: Build application
