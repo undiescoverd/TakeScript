@@ -62,7 +62,8 @@ export default function ScriptPage() {
   const loadScriptWithContent = useAction(api.scripts.loadWithContent);
   const [script, setScript] = useState<typeof scriptMetadata>(undefined);
   const [contentLoaded, setContentLoaded] = useState(false);
-  const { scheduleAutosave, saveNow, setOnSaveComplete, getLastSavedContent, initializeLastSaved } = useAutosave(scriptId);
+  const { scheduleAutosave, saveNow, setOnSaveComplete, getLastSavedContent, initializeLastSaved } =
+    useAutosave(scriptId);
 
   // Load content from R2 when metadata is available
   useEffect(() => {
@@ -94,11 +95,21 @@ export default function ScriptPage() {
       }
     }
   }, [scriptMetadata, contentLoaded, loadScriptWithContent, scriptId]);
-  const { mode, viewMode, toggleViewMode, commentsOpen, setCommentsOpen, annotationsOpen, setAnnotationsOpen, collaborationEnabled, speakersOpen, setSpeakersOpen } = useEditorStore();
+  const {
+    viewMode,
+    toggleViewMode,
+    commentsOpen,
+    setCommentsOpen,
+    annotationsOpen,
+    setAnnotationsOpen,
+    collaborationEnabled,
+    speakersOpen,
+    setSpeakersOpen,
+  } = useEditorStore();
   const { setSpeakers } = useSpeakerStore();
   const updateSpeakers = useMutation(api.scripts.updateSpeakers);
   const [editorRef, setEditorRef] = useState<Editor | null>(null);
-  
+
   // Compute initial content from script using useMemo (no effect needed)
   const initialContent = useMemo<JSONContent | null>(() => {
     if (script === undefined || script === null) return null;
@@ -109,15 +120,17 @@ export default function ScriptPage() {
       try {
         console.log(`[Script ${scriptId}] Parsing content, length: ${script.content.length}`);
         const parsed = JSON.parse(script.content);
-        console.log(`[Script ${scriptId}] Parse successful, type: ${parsed?.type}, content items: ${parsed?.content?.length || 0}`);
+        console.log(
+          `[Script ${scriptId}] Parse successful, type: ${parsed?.type}, content items: ${parsed?.content?.length || 0}`
+        );
 
-        if (parsed && typeof parsed === 'object' && parsed.type === 'doc') {
+        if (parsed && typeof parsed === "object" && parsed.type === "doc") {
           return parsed;
         } else {
           console.error(`[Script ${scriptId}] Invalid document structure:`, {
             hasType: !!parsed?.type,
             type: parsed?.type,
-            hasContent: !!parsed?.content
+            hasContent: !!parsed?.content,
           });
         }
       } catch (parseError) {
@@ -137,7 +150,7 @@ export default function ScriptPage() {
 
     return emptyContent;
   }, [script?.content, scriptId]);
-  
+
   // Local content state - starts from initial content, then tracks user edits
   const [localContent, setLocalContent] = useState<JSONContent | null>(() => initialContent);
   const contentInitialized = useRef(false);
@@ -161,7 +174,9 @@ export default function ScriptPage() {
   const [grammarCheckResults, setGrammarCheckResults] = useState<GrammarCheckResult | null>(null);
   const [reviewResults, setReviewResults] = useState<ScriptReviewResult | null>(null);
   const [generationDialogOpen, setGenerationDialogOpen] = useState(false);
-  const [generationTask, setGenerationTask] = useState<"generate" | "expand" | "rephrase" | "summarize">("generate");
+  const [generationTask, setGenerationTask] = useState<
+    "generate" | "expand" | "rephrase" | "summarize"
+  >("generate");
   const [generationPrompt, setGenerationPrompt] = useState("");
 
   // AI Actions
@@ -208,9 +223,10 @@ export default function ScriptPage() {
   // Initialize localContent and autosave when script first loads
   useEffect(() => {
     if (script !== undefined && script !== null && !contentInitialized.current && initialContent) {
-      const contentString = script.content && script.content.trim() !== ""
-        ? script.content
-        : JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] });
+      const contentString =
+        script.content && script.content.trim() !== ""
+          ? script.content
+          : JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] });
 
       // Update local content - use startTransition to avoid cascading renders
       // This is required by React best practices for setState in effects
@@ -219,7 +235,7 @@ export default function ScriptPage() {
       });
 
       // Initialize autosave
-      if (typeof initializeLastSaved === 'function') {
+      if (typeof initializeLastSaved === "function") {
         try {
           initializeLastSaved(contentString);
           lastScriptContentRef.current = contentString;
@@ -232,14 +248,13 @@ export default function ScriptPage() {
     }
   }, [script, initialContent, initializeLastSaved]);
 
-
   // Update local content when script changes (e.g., version restore)
   // BUT only if it's different from what we last saved (to avoid feedback loop)
   useEffect(() => {
     if (script?.content && contentInitialized.current && initialContent) {
       try {
         const lastSaved = getLastSavedContent();
-        
+
         // Deep comparison helper to handle JSON key ordering differences
         const contentEqual = (a: string, b: string | null): boolean => {
           if (!b) return false;
@@ -252,17 +267,17 @@ export default function ScriptPage() {
             return a === b;
           }
         };
-        
+
         // Skip update if this is the same content we just saved (autosave feedback loop)
         if (contentEqual(script.content, lastSaved) && !isRestoringVersionRef.current) {
           return;
         }
-        
+
         // Skip if this is the same as what we already have
         if (script.content === lastScriptContentRef.current && !isRestoringVersionRef.current) {
           return;
         }
-        
+
         // This is a real external change (version restore, etc.)
         // Update via initialContent memo which will trigger the effect above
         lastScriptContentRef.current = script.content;
@@ -273,7 +288,7 @@ export default function ScriptPage() {
       } catch (error) {
         logError(
           error,
-          'Failed to update local content from script changes',
+          "Failed to update local content from script changes",
           {
             scriptId,
             scriptContentPreview: script.content?.substring(0, 100),
@@ -293,7 +308,7 @@ export default function ScriptPage() {
       } catch (error) {
         logError(
           error,
-          'Failed to parse editor content update',
+          "Failed to parse editor content update",
           {
             scriptId,
             contentPreview: content?.substring(0, 100),
@@ -314,16 +329,13 @@ export default function ScriptPage() {
     }
   }, [localContent, saveNow]);
 
-  const handleChapterClick = useCallback(
-    (chapterId: string) => {
-      // Scroll to chapter in editor
-      const element = document.querySelector(`[data-id="${chapterId}"]`);
-      if (element) {
-        element.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-    },
-    []
-  );
+  const handleChapterClick = useCallback((chapterId: string) => {
+    // Scroll to chapter in editor
+    const element = document.querySelector(`[data-id="${chapterId}"]`);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, []);
 
   // AI Handler Functions
   const handleOpenAIChat = useCallback(() => {
@@ -338,9 +350,11 @@ export default function ScriptPage() {
       const result = await checkGrammar({ scriptId });
 
       // Validate issues have originalText
-      const validIssues = result.issues?.filter(
-        (issue: { originalText?: string }) => issue.originalText && issue.originalText.trim() !== ""
-      ) || [];
+      const validIssues =
+        result.issues?.filter(
+          (issue: { originalText?: string }) =>
+            issue.originalText && issue.originalText.trim() !== ""
+        ) || [];
 
       setGrammarCheckResults({ ...result, issues: validIssues });
 
@@ -422,7 +436,7 @@ export default function ScriptPage() {
   // Focus Mode keyboard shortcut: Cmd+Shift+F / Ctrl+Shift+F
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'f') {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "f") {
         e.preventDefault();
         toggleViewMode();
         // Use ref to get current mode - prevents stale closure
@@ -431,8 +445,8 @@ export default function ScriptPage() {
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [toggleViewMode]); // Stable dependency - toggleViewMode is from zustand
 
   // Show onboarding tooltip on first Focus Mode activation
@@ -514,9 +528,7 @@ export default function ScriptPage() {
     console.log(`[Script ${scriptId}] Waiting for script to load from Convex...`);
     return (
       <div className="flex h-screen items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">
-          Loading script...
-        </div>
+        <div className="animate-pulse text-muted-foreground">Loading script...</div>
       </div>
     );
   }
@@ -528,14 +540,11 @@ export default function ScriptPage() {
       <div className="flex h-screen flex-col items-center justify-center gap-4">
         <h1 className="text-2xl font-bold">Script not found</h1>
         <p className="text-muted-foreground text-center max-w-md">
-          This script may not exist, or you may not have permission to view it.
-          Make sure you&apos;re signed in and that the link is correct.
+          This script may not exist, or you may not have permission to view it. Make sure
+          you&apos;re signed in and that the link is correct.
         </p>
         <div className="flex gap-2">
-          <button
-            onClick={() => router.push("/dashboard")}
-            className="text-primary underline"
-          >
+          <button onClick={() => router.push("/dashboard")} className="text-primary underline">
             Back to dashboard
           </button>
         </div>
@@ -545,21 +554,20 @@ export default function ScriptPage() {
 
   // Wait for content to be initialized
   if (!localContent) {
-    console.log(`[Script ${scriptId}] Waiting for content to initialize. Script loaded: ${!!script}, initialContent: ${!!initialContent}`);
+    console.log(
+      `[Script ${scriptId}] Waiting for content to initialize. Script loaded: ${!!script}, initialContent: ${!!initialContent}`
+    );
     return (
       <div className="flex h-screen items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">
-          Loading editor...
-        </div>
+        <div className="animate-pulse text-muted-foreground">Loading editor...</div>
       </div>
     );
   }
 
   console.log(`[Script ${scriptId}] Rendering editor with content`);
 
-
   return (
-    <div className="flex h-screen flex-col bg-background" data-mode={mode} data-view-mode={viewMode}>
+    <div className="flex h-screen flex-col bg-background" data-view-mode={viewMode}>
       {/* Combined Hover Zone for Topbar + BeatBoard (Focus Mode only) */}
       {/* Extends from top down to bottom of BeatBoard when visible */}
       {viewMode === "focus" && (
@@ -605,10 +613,7 @@ export default function ScriptPage() {
         {/* Editor */}
         <div className="flex-1 overflow-auto">
           {collaborationEnabled ? (
-            <CollaborativeEditor
-              scriptId={scriptId}
-              onEditorReady={setEditorRef}
-            />
+            <CollaborativeEditor scriptId={scriptId} onEditorReady={setEditorRef} />
           ) : (
             <ScriptEditor
               initialContent={localContent}
@@ -695,7 +700,6 @@ export default function ScriptPage() {
             initialTask={generationTask}
           />
         )}
-
       </div>
     </div>
   );
