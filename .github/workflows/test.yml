@@ -90,7 +90,7 @@ jobs:
         run: npm run lint
 
       - name: Check TypeScript
-        run: npx tsc --noEmit
+        run: npx tsc --noEmit --project tsconfig.ci.json
 
       - name: Run tests
         run: npm run test:run

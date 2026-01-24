@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": ["node_modules", "convex/**/*", "**/*.test.ts", "**/*.test.tsx"],
+  "compilerOptions": {
+    "skipLibCheck": true
+  }
+}
