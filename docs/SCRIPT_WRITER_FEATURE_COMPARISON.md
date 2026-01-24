@@ -6,24 +6,24 @@ Research into features script writers use daily (Final Draft, Celtx, WriterDuet,
 
 ## What TakeScript Already Has (Strengths)
 
-| Feature | TakeScript | Notes |
-|--------|------------|--------|
-| Rich text + custom blocks | ✓ | Chapters, screen recording, demonstration, editor notes |
-| Recording mode | ✓ | Hide editor notes for clean teleprompter view |
-| Version history | ✓ | Save/restore snapshots with notes |
-| Teleprompter-style export | ✓ | Plain text, copy for PrompSmart |
-| Word count & read time | ✓ | 150 wpm estimate |
-| Chapter navigation (Beat Board) | ✓ | Click to scroll, extractChapters |
-| Speaker attribution | ✓ | Speakers, camera mode, Cmd+9/0/J, pending speaker |
-| Slash commands | ✓ | Blocks, /speaker, AI commands |
-| AI assistance | ✓ | Chat, grammar check, script review, generate; brand guidelines; OpenRouter |
-| Autosave | ✓ | 30s debounce |
-| Comments | ✓ | CommentsPanel |
-| Annotations | ✓ | Highlight + notes, resolve, colors |
-| Real-time collaboration | ✓ | Hocuspocus + Yjs, CollaborationCursor, Collaborators |
-| Sharing / team | ✓ | ShareDialog, orgs, invitations |
-| Templates | ✓ | Save, library, system templates |
-| Brand guidelines | ✓ | Org-level, AI-aware |
+| Feature                         | TakeScript | Notes                                                                      |
+| ------------------------------- | ---------- | -------------------------------------------------------------------------- |
+| Rich text + custom blocks       | ✓          | Chapters, screen recording, demonstration, editor notes                    |
+| Recording mode                  | ✓          | Hide editor notes for clean teleprompter view                              |
+| Version history                 | ✓          | Save/restore snapshots with notes                                          |
+| Teleprompter-style export       | ✓          | Plain text, copy for PrompSmart                                            |
+| Word count & read time          | ✓          | 150 wpm estimate                                                           |
+| Chapter navigation (Beat Board) | ✓          | Click to scroll, extractChapters                                           |
+| Speaker attribution             | ✓          | Speakers, camera mode, Cmd+9/0/J, pending speaker                          |
+| Slash commands                  | ✓          | Blocks, /speaker, AI commands                                              |
+| AI assistance                   | ✓          | Chat, grammar check, script review, generate; brand guidelines; OpenRouter |
+| Autosave                        | ✓          | 30s debounce                                                               |
+| Comments                        | ✓          | CommentsPanel                                                              |
+| Annotations                     | ✓          | Highlight + notes, resolve, colors                                         |
+| Real-time collaboration         | ✓          | Hocuspocus + Yjs, CollaborationCursor, Collaborators                       |
+| Sharing / team                  | ✓          | ShareDialog, orgs, invitations                                             |
+| Templates                       | ✓          | Save, library, system templates                                            |
+| Brand guidelines                | ✓          | Org-level, AI-aware                                                        |
 
 ---
 
@@ -98,7 +98,7 @@ Research into features script writers use daily (Final Draft, Celtx, WriterDuet,
 
 3. **Speaker / block autocomplete**
    - **Why:** High daily use (speaker names, block types); low effort, high perceived value (like SmartType/Scrivener).
-   - **What:** 
+   - **What:**
      - Suggest speaker names while typing (from current script’s speakers).
      - Suggest block types or slash-style inserts (e.g. `/chapter`, `/screen`).
    - **Scope:** Tiptap suggestion extension; trigger on `@` or `/` or after space in relevant contexts.
@@ -107,7 +107,7 @@ Research into features script writers use daily (Final Draft, Celtx, WriterDuet,
 
 4. **Track-changes-style workflow**
    - **Why:** Aligns with client/team review; version history exists but no per-change visibility.
-   - **What:** 
+   - **What:**
      - “Suggesting” or “review” mode: edits stored as suggestions (insertions/deletions).
      - Simple accept/reject (all or per change).
      - Optional visual diff view for a version vs current.
@@ -155,18 +155,18 @@ Research into features script writers use daily (Final Draft, Celtx, WriterDuet,
 
 ## Summary Table
 
-| Priority | Improvement | Rationale |
-|----------|-------------|-----------|
-| **P0** | PDF export | Universal expectation; unblocks review/print |
-| **P0** | In-app teleprompter | Core tutorial workflow; less app switching |
-| **P0** | Speaker/block autocomplete | Daily use; similar to SmartType/Scrivener |
-| **P1** | Track-changes-style workflow | Better review cycles; diff + suggest mode |
-| **P1** | “New from template” with structure | Makes templates immediately actionable |
-| **P1** | Outline → AI first draft | Strong fit for “idea → script” |
-| **P2** | Print-optimized layout | Complements PDF |
-| **P2** | Section/chapter-only export | Flexible export for long scripts |
-| **P2** | Lightweight breakdown/tags | Lightweight production-style planning |
-| **P3** | Offline / PWA, mobile editor, extra export formats | Quality of life and power-user features |
+| Priority | Improvement                                        | Rationale                                    |
+| -------- | -------------------------------------------------- | -------------------------------------------- |
+| **P0**   | PDF export                                         | Universal expectation; unblocks review/print |
+| **P0**   | In-app teleprompter                                | Core tutorial workflow; less app switching   |
+| **P0**   | Speaker/block autocomplete                         | Daily use; similar to SmartType/Scrivener    |
+| **P1**   | Track-changes-style workflow                       | Better review cycles; diff + suggest mode    |
+| **P1**   | “New from template” with structure                 | Makes templates immediately actionable       |
+| **P1**   | Outline → AI first draft                           | Strong fit for “idea → script”               |
+| **P2**   | Print-optimized layout                             | Complements PDF                              |
+| **P2**   | Section/chapter-only export                        | Flexible export for long scripts             |
+| **P2**   | Lightweight breakdown/tags                         | Lightweight production-style planning        |
+| **P3**   | Offline / PWA, mobile editor, extra export formats | Quality of life and power-user features      |
 
 ---
 

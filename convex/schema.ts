@@ -72,11 +72,15 @@ export default defineSchema({
         })
       )
     ),
+    // Folder organization fields
+    parentFolderId: v.optional(v.id("scripts")), // null/undefined = root level
+    isFolder: v.optional(v.boolean()), // true for folders, undefined/false for scripts
   })
     .index("by_user", ["userId"])
     .index("by_user_and_edited", ["userId", "lastEditedAt"])
     .index("by_user_and_category", ["userId", "category"])
-    .index("by_organization", ["organizationId"]),
+    .index("by_organization", ["organizationId"])
+    .index("by_user_and_parent", ["userId", "parentFolderId"]),
 
   scriptVersions: defineTable({
     scriptId: v.id("scripts"),

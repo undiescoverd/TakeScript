@@ -8,6 +8,7 @@ import { Id } from "@/convex/_generated/dataModel";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -28,6 +29,7 @@ import { TemplateCard } from "./TemplateCard";
 import { cn } from "@/lib/utils";
 import { getTemplateIcon } from "@/lib/template-icons";
 import { useFeatureFlag } from "@/hooks/use-feature-flags";
+import { useFolderStore } from "@/store/folder-store";
 import { Doc } from "@/convex/_generated/dataModel";
 
 type Template = Doc<"templates">;
@@ -80,11 +82,10 @@ export function NewScriptDialog() {
   const router = useRouter();
   const createScript = useMutation(api.scripts.create);
   const templatesEnabled = useFeatureFlag("templatesEnabled");
+  const { currentFolderId } = useFolderStore();
 
   // Only query templates if feature is enabled
-  const templates = useQuery(
-    templatesEnabled ? api.templates.list : ("skip" as any)
-  );
+  const templates = useQuery(templatesEnabled ? api.templates.list : ("skip" as any));
 
   // Separate user and system templates
   const userTemplates = useMemo(
@@ -135,6 +136,7 @@ export function NewScriptDialog() {
         targetLength: formData.targetLength,
         targetType: formData.targetType,
         category: formData.category,
+        parentFolderId: currentFolderId ?? undefined,
       });
       setOpen(false);
       resetForm();
@@ -174,6 +176,9 @@ export function NewScriptDialog() {
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="text-2xl">New Script</DialogTitle>
+          <DialogDescription>
+            Create a new script from scratch or use a template to get started
+          </DialogDescription>
         </DialogHeader>
 
         {/* Step Indicators */}
@@ -186,8 +191,8 @@ export function NewScriptDialog() {
                   step === num
                     ? "bg-primary text-primary-foreground"
                     : step > num
-                    ? "bg-primary/20 text-primary"
-                    : "bg-muted text-muted-foreground"
+                      ? "bg-primary/20 text-primary"
+                      : "bg-muted text-muted-foreground"
                 )}
               >
                 {num}
@@ -200,9 +205,7 @@ export function NewScriptDialog() {
               >
                 {num === 1 ? "Script Details" : num === 2 ? "Planning" : "Review"}
               </span>
-              {num < 3 && (
-                <div className="mx-4 h-px w-12 bg-border" />
-              )}
+              {num < 3 && <div className="mx-4 h-px w-12 bg-border" />}
             </div>
           ))}
         </div>
@@ -217,9 +220,7 @@ export function NewScriptDialog() {
                   id="title"
                   placeholder="Enter script title"
                   value={formData.title}
-                  onChange={(e) =>
-                    setFormData({ ...formData, title: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   autoFocus
                 />
               </div>
@@ -258,9 +259,7 @@ export function NewScriptDialog() {
                               setFormData({
                                 ...formData,
                                 templateId:
-                                  formData.templateId === template._id
-                                    ? undefined
-                                    : template._id,
+                                  formData.templateId === template._id ? undefined : template._id,
                                 templateType: undefined,
                               })
                             }
@@ -281,30 +280,30 @@ export function NewScriptDialog() {
                             >
                               <TemplateIcon className="h-5 w-5" />
                             </div>
-                          <div className="flex-1">
-                            <h4 className="font-semibold">{template.name}</h4>
-                            {template.description && (
-                              <p className="text-sm text-muted-foreground line-clamp-2">
-                                {template.description}
-                              </p>
-                            )}
-                          </div>
-                          {formData.templateId === template._id && (
-                            <div className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-primary">
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                viewBox="0 0 20 20"
-                                fill="currentColor"
-                                className="h-3 w-3 text-primary-foreground"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
+                            <div className="flex-1">
+                              <h4 className="font-semibold">{template.name}</h4>
+                              {template.description && (
+                                <p className="text-sm text-muted-foreground line-clamp-2">
+                                  {template.description}
+                                </p>
+                              )}
                             </div>
-                          )}
+                            {formData.templateId === template._id && (
+                              <div className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-primary">
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  viewBox="0 0 20 20"
+                                  fill="currentColor"
+                                  className="h-3 w-3 text-primary-foreground"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                              </div>
+                            )}
                           </button>
                         );
                       })}
@@ -328,9 +327,7 @@ export function NewScriptDialog() {
                               setFormData({
                                 ...formData,
                                 templateId:
-                                  formData.templateId === template._id
-                                    ? undefined
-                                    : template._id,
+                                  formData.templateId === template._id ? undefined : template._id,
                                 templateType: undefined,
                               })
                             }
@@ -351,30 +348,30 @@ export function NewScriptDialog() {
                             >
                               <TemplateIcon className="h-5 w-5" />
                             </div>
-                          <div className="flex-1">
-                            <h4 className="font-semibold">{template.name}</h4>
-                            {template.description && (
-                              <p className="text-sm text-muted-foreground line-clamp-2">
-                                {template.description}
-                              </p>
-                            )}
-                          </div>
-                          {formData.templateId === template._id && (
-                            <div className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-primary">
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                viewBox="0 0 20 20"
-                                fill="currentColor"
-                                className="h-3 w-3 text-primary-foreground"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
+                            <div className="flex-1">
+                              <h4 className="font-semibold">{template.name}</h4>
+                              {template.description && (
+                                <p className="text-sm text-muted-foreground line-clamp-2">
+                                  {template.description}
+                                </p>
+                              )}
                             </div>
-                          )}
+                            {formData.templateId === template._id && (
+                              <div className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full bg-primary">
+                                <svg
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  viewBox="0 0 20 20"
+                                  fill="currentColor"
+                                  className="h-3 w-3 text-primary-foreground"
+                                >
+                                  <path
+                                    fillRule="evenodd"
+                                    d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
+                                    clipRule="evenodd"
+                                  />
+                                </svg>
+                              </div>
+                            )}
                           </button>
                         );
                       })}
@@ -407,16 +404,10 @@ export function NewScriptDialog() {
               </div>
 
               <div className="flex justify-end gap-2 pt-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setOpen(false)}
-                >
+                <Button variant="outline" onClick={() => setOpen(false)}>
                   Cancel
                 </Button>
-                <Button
-                  onClick={() => setStep(2)}
-                  disabled={!canProceedToStep2}
-                >
+                <Button onClick={() => setStep(2)} disabled={!canProceedToStep2}>
                   Next
                 </Button>
               </div>
@@ -443,9 +434,7 @@ export function NewScriptDialog() {
                       onChange={(e) =>
                         setFormData({
                           ...formData,
-                          targetLength: e.target.value
-                            ? parseInt(e.target.value)
-                            : undefined,
+                          targetLength: e.target.value ? parseInt(e.target.value) : undefined,
                         })
                       }
                       className="flex-1"
@@ -473,17 +462,15 @@ export function NewScriptDialog() {
                     id="category"
                     placeholder="e.g., Onboarding Videos"
                     value={formData.category || ""}
-                    onChange={(e) =>
-                      setFormData({ ...formData, category: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   />
                 </div>
               </div>
 
               <div className="rounded-lg border bg-muted/50 p-4">
                 <p className="text-sm text-muted-foreground">
-                  <strong>Note:</strong> Collaboration features are coming soon.
-                  You'll be able to invite team members to edit scripts together.
+                  <strong>Note:</strong> Collaboration features are coming soon. You'll be able to
+                  invite team members to edit scripts together.
                 </p>
               </div>
 
@@ -492,16 +479,10 @@ export function NewScriptDialog() {
                   Back
                 </Button>
                 <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setOpen(false)}
-                  >
+                  <Button variant="outline" onClick={() => setOpen(false)}>
                     Cancel
                   </Button>
-                  <Button
-                    onClick={() => setStep(3)}
-                    disabled={!canProceedToStep3}
-                  >
+                  <Button onClick={() => setStep(3)} disabled={!canProceedToStep3}>
                     Next
                   </Button>
                 </div>
@@ -523,10 +504,8 @@ export function NewScriptDialog() {
                     <p className="text-sm text-muted-foreground">Template</p>
                     <p className="font-medium">
                       {formData.templateId
-                        ? templates?.find((t: Template) => t._id === formData.templateId)
-                            ?.name
-                        : TEMPLATES.find((t) => t.value === formData.templateType)
-                            ?.label}
+                        ? templates?.find((t: Template) => t._id === formData.templateId)?.name
+                        : TEMPLATES.find((t) => t.value === formData.templateType)?.label}
                     </p>
                   </div>
                 )}
@@ -554,10 +533,7 @@ export function NewScriptDialog() {
                   Back
                 </Button>
                 <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setOpen(false)}
-                  >
+                  <Button variant="outline" onClick={() => setOpen(false)}>
                     Cancel
                   </Button>
                   <Button onClick={handleCreate} disabled={isCreating}>

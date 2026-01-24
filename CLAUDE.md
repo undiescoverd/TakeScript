@@ -9,6 +9,7 @@ A professional tutorial script editor for SaaS companies and content creators. R
 ## Development Commands
 
 ### Initial Setup
+
 ```bash
 # Install dependencies
 npm install
@@ -23,6 +24,7 @@ cp .env.local.example .env.local
 ```
 
 ### Development
+
 ```bash
 # Terminal 1: Start Convex development server (must run first)
 npx convex dev
@@ -41,6 +43,7 @@ npm run lint
 ```
 
 ### Convex Database Operations
+
 ```bash
 # Push schema changes
 npx convex dev  # Automatically pushes schema on file changes
@@ -52,6 +55,7 @@ npx convex dev  # Automatically pushes schema on file changes
 ## Architecture Overview
 
 ### Tech Stack
+
 - **Frontend**: Next.js 14 App Router, TypeScript, React 19, TailwindCSS 4
 - **UI**: shadcn/ui (Radix UI primitives)
 - **Rich Text Editor**: Tiptap with custom extensions
@@ -64,22 +68,26 @@ npx convex dev  # Automatically pushes schema on file changes
 **IMPORTANT**: TakeScript uses the **Tweakcn theme** for all global styling. All new components and features must follow this color scheme.
 
 **Color System**:
+
 - Uses **oklch color space** for consistent, perceptually uniform colors
 - Primary color: `oklch(0.6333 0.0309 154.9039)` (green accent)
 - Supports light and dark modes with automatic theme switching
 - All colors are defined as CSS custom properties in `app/globals.css`
 
 **Typography**:
+
 - Sans: **Antic** (UI elements)
 - Serif: **Signifier** (content/headings)
 - Mono: **JetBrains Mono** (code/editor)
 
 **Key Design Tokens**:
+
 - Border radius: `0.35rem`
 - Shadows: Comprehensive shadow system (2xs through 2xl)
 - Spacing: `0.23rem` base unit
 
 **When creating new components**:
+
 - Use Tailwind utility classes that reference CSS variables (e.g., `bg-card`, `text-primary`, `border-border`)
 - Never use hard-coded hex colors
 - Follow the existing shadcn/ui component patterns
@@ -88,15 +96,18 @@ npx convex dev  # Automatically pushes schema on file changes
 ### Key Architectural Patterns
 
 #### 1. Authentication Flow
+
 - **Clerk** provides authentication with Google OAuth
 - **ConvexProviderWithClerk** integrates Clerk auth with Convex backend
 - `middleware.ts` protects all routes except `/login` and `/api`
 - User identity flows: Clerk → Convex → User lookup by `tokenIdentifier`
 
 #### 2. Convex Backend Architecture
+
 All database operations go through Convex functions (no direct DB access):
 
 **Query Pattern** (read data):
+
 ```typescript
 // Client-side
 const scripts = useQuery(api.scripts.list, {});
@@ -106,11 +117,12 @@ export const list = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     // Query database using ctx.db
-  }
+  },
 });
 ```
 
 **Mutation Pattern** (write data):
+
 ```typescript
 // Client-side
 const updateScript = useMutation(api.scripts.update);
@@ -122,12 +134,13 @@ export const update = mutation({
   handler: async (ctx, args) => {
     // Validate auth and ownership
     // Update database using ctx.db.patch()
-  }
+  },
 });
 ```
 
 **Authentication in Convex**:
 All mutations/queries authenticate users via:
+
 ```typescript
 const identity = await ctx.auth.getUserIdentity();
 const user = await ctx.db
@@ -137,18 +150,22 @@ const user = await ctx.db
 ```
 
 #### 3. Tiptap Editor Integration
+
 - **Custom Node Extensions**: `ChapterBlock`, `ScreenRecordingBlock`, `DemonstrationBlock`
 - **Content Storage**: JSON stringified in Convex as `script.content`
 - **Editor Initialization**: Content parsed from JSON in `ScriptEditor` component
 - **Updates**: onChange → JSON.stringify → autosave hook
 
 Custom blocks defined in `lib/tiptap/extensions.ts`:
+
 ```typescript
 export const ChapterBlock = Node.create({
   name: "chapter",
   group: "block",
   content: "inline*",
-  addAttributes() { /* title, duration, id */ }
+  addAttributes() {
+    /* title, duration, id */
+  },
 });
 ```
 
@@ -161,6 +178,7 @@ TakeScript includes a sophisticated speaker attribution system for dialogue in t
 - **Keyboard Shortcuts**: Fast speaker assignment and management via keyboard
 
 **Keyboard Shortcuts** (Cmd on Mac, Ctrl on Windows/Linux):
+
 - **Cmd+9**: Cycle through speakers with intelligent behavior:
   - **No speakers defined**: Opens the Add Speaker dialog
   - **With selection**: Applies speaker to selected text, press again to cycle to next speaker
@@ -173,21 +191,25 @@ TakeScript includes a sophisticated speaker attribution system for dialogue in t
 
 **Pending Speaker Indicator**:
 When you press Cmd+9 without a selection, a small floating badge appears near your cursor showing which speaker will be applied to your next typed text. The badge includes:
+
 - Speaker name in their color
 - Camera mode if set (e.g., "[Voiceover]")
 - Pulsing dot to indicate active pending state
 
 The pending speaker clears automatically when you:
+
 - Type any text (the mark is applied)
 - Press Escape
 - Press Cmd+J
 - Click outside the editor
 
 **Slash Commands for Speakers**:
+
 - **/speaker** or **/sp**: Assigns the first speaker to the current paragraph (no selection needed)
 - Shows error toast if no speakers have been added yet
 
 **Implementation Details**:
+
 - Speaker marks render as `<span data-speaker-id="..." data-face-visible="...">` in the editor
 - Speaker name displayed via CSS `::before` pseudo-element on paragraphs (stable, no flashing)
 - Colored 3px left border indicates speaker attribution
@@ -197,6 +219,7 @@ The pending speaker clears automatically when you:
 - Face visibility toggle: Distinguish between on-camera dialogue (visible) and voiceover (VO)
 
 **Key Files**:
+
 - `lib/tiptap/speaker-mark.ts` - Mark extension with commands and decoration plugin
 - `components/editor/SpeakerLegend.tsx` - Speaker management sidebar
 - `components/editor/SpeakerEditDialog.tsx` - Edit speaker assignments dialog
@@ -205,25 +228,32 @@ The pending speaker clears automatically when you:
 - `styles/editor.css` - Speaker visual styles (lines 431-548)
 
 #### 4. Autosave System
+
 `hooks/use-autosave.ts` implements debounced autosave:
+
 - **30-second delay** after last edit
 - Updates `useEditorStore` with saving state
 - Clears pending saves on unmount
 - Manual save via `saveNow()` function
 
 Flow:
+
 ```
 Editor change → scheduleAutosave(content) → 30s timeout → save() → Convex mutation
 ```
 
 #### 5. Version History
+
 Managed in `convex/versions.ts`:
+
 - **save**: Creates snapshot of current content with incremental version number
 - **restore**: Auto-saves current state before restoring old version
 - Versions sorted by `versionNumber` descending (newest first)
 
 #### 6. State Management (Zustand)
+
 `store/editor-store.ts` manages:
+
 - **viewMode**: `"focus"` | `"edit"` (focus mode provides distraction-free writing)
 - **sidebarOpen**: Sidebar visibility
 - **versionHistoryOpen**: Version panel visibility
@@ -231,20 +261,76 @@ Managed in `convex/versions.ts`:
 - **isSaving** / **lastSavedAt**: Autosave status
 
 #### 7. Route Structure
+
 ```
 app/
 ├── (auth)/
 │   └── login/          # Public authentication page
 ├── (app)/              # Protected routes (Clerk middleware)
-│   ├── dashboard/      # Script list view
+│   ├── dashboard/      # Script list view with folder organization
 │   └── script/[id]/    # Script editor (dynamic route)
 ├── layout.tsx          # Root layout with Providers
 └── providers.tsx       # Clerk + Convex + Theme providers
 ```
 
+#### 8. Folder Organization System
+
+The dashboard supports hierarchical folder organization for scripts:
+
+**Schema Fields** (in `scripts` table):
+
+- `parentFolderId: v.optional(v.id("scripts"))` - Reference to parent folder (null = root)
+- `isFolder: v.optional(v.boolean())` - true for folders, undefined/false for scripts
+
+**State Management** (`store/folder-store.ts`):
+
+```typescript
+interface FolderState {
+  currentFolderId: Id<"scripts"> | null; // Currently viewed folder
+  viewMode: "grid" | "list"; // View mode toggle
+  expandedFolders: Set<string>; // Expanded sidebar folders
+  folderSidebarOpen: boolean; // Sidebar visibility
+}
+```
+
+**Backend Functions** (`convex/folders.ts`):
+
+- `createFolder(title, parentFolderId?)` - Creates folder with 5-level depth limit
+- `deleteFolder(folderId)` - Cascade deletes folder and all contents
+- `listChildren(parentFolderId?)` - Returns folders and scripts in folder
+- `moveItem(itemId, newParentFolderId)` - Moves with circular reference check
+- `getFolderPath(folderId)` - Returns breadcrumb path array
+- `getFolderDepthQuery(folderId)` - Returns current depth for UI warnings
+
+**Components**:
+
+- `FolderSidebar.tsx` - Left sidebar with collapsible folder tree
+- `FolderTreeNode.tsx` - Recursive tree node component
+- `FolderMainPanel.tsx` - Right panel with breadcrumbs + grid/list content
+- `FolderBreadcrumbs.tsx` - Clickable navigation breadcrumbs
+- `ViewToggle.tsx` - Grid/List view mode toggle
+- `ListView.tsx` - Table view for folders and scripts
+- `FolderCard.tsx` - Folder card for grid view
+- `NewFolderDialog.tsx` - Create folder dialog with depth warnings
+- `MoveToFolderDialog.tsx` - Move item to folder picker
+
+**Depth Limits**:
+
+- Maximum 5 levels of folder nesting
+- Warning shown at level 4 ("approaching limit")
+- Block at level 5 ("maximum reached")
+
+**Hooks** (`hooks/use-folder-tree.ts`):
+
+- `useFolderChildren(parentId)` - Fetches folder contents
+- `useFolderPath(folderId)` - Fetches breadcrumb path
+- `useFolderDepth(folderId)` - Fetches current depth with limit info
+- `useAllFolders(excludeId?)` - Fetches all folders for move dialog
+
 ### Data Flow
 
 #### Script Editing Flow
+
 ```
 1. User navigates to /script/[id]
 2. ScriptPage queries Convex: useQuery(api.scripts.get, { scriptId })
@@ -256,6 +342,7 @@ app/
 ```
 
 #### Version Save/Restore Flow
+
 ```
 Save:
 1. User clicks save version button
@@ -274,24 +361,29 @@ Restore:
 ### Database Schema (Convex)
 
 **users**
+
 - `tokenIdentifier` (indexed) - Links to Clerk identity
 - `email`, `name`, `avatar`
 
 **scripts**
+
 - `userId` (indexed) - Owner reference
 - `title`, `content` (JSON string), `lastEditedAt`, `createdAt`
 - Index: `by_user_and_edited` for sorted listing
 
 **scriptVersions**
+
 - `scriptId` (indexed), `versionNumber` (indexed together)
 - `content` (JSON snapshot), `changedBy`, `changeNote`, `createdAt`
 
 **comments** (schema defined, not yet implemented)
+
 - `scriptId`, `userId`, `content`, `position`, `resolved`, `createdAt`
 
 ### Export System
 
 `lib/tiptap/export.ts` provides:
+
 - **exportToPlainText()**: Converts Tiptap JSON to plain text
   - Formats chapters as `[CHAPTER TITLE]`
   - Strips all formatting
@@ -303,19 +395,24 @@ Restore:
 ## Important Implementation Notes
 
 ### Content Synchronization
+
 - Script content is **source of truth in Convex**
 - Local state in `ScriptPage` tracks pending changes
 - Version restores trigger content reload via `useEffect` watching `script?.content`
 - Editor re-initializes when `initialContent` prop changes
 
 ### Custom Block IDs
+
 Custom blocks use `id` attribute for navigation:
+
 - Chapters need unique IDs for Beat Board / Sidebar navigation
 - `handleChapterClick` scrolls to `[data-id="${chapterId}"]`
 - IDs should be generated on block creation
 
 ### Authentication Ownership Pattern
+
 All Convex mutations follow this pattern:
+
 ```typescript
 1. Get user identity from Clerk via ctx.auth.getUserIdentity()
 2. Look up user in database via tokenIdentifier index
@@ -324,14 +421,19 @@ All Convex mutations follow this pattern:
 ```
 
 ### Provider Nesting Order
+
 Critical order in `app/providers.tsx`:
+
 ```
 ClerkProvider → ConvexProviderWithClerk → ThemeProvider
 ```
+
 Convex needs Clerk's `useAuth` hook to sync authentication.
 
 ### Slash Command Integration
+
 SlashCommandMenu component should:
+
 - Listen for "/" key in editor
 - Show menu with block type options
 - Insert custom blocks via Tiptap commands:
@@ -342,6 +444,7 @@ SlashCommandMenu component should:
 ## Environment Variables
 
 Required in `.env.local`:
+
 ```
 NEXT_PUBLIC_CONVEX_URL=https://your-project.convex.cloud
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
@@ -370,22 +473,27 @@ npm run dev       # Terminal 2
 ## Key Files Reference
 
 **Core Application**:
+
 - `app/(app)/script/[id]/page.tsx` - Main editor page with autosave
 - `components/editor/ScriptEditor.tsx` - Tiptap integration
 - `hooks/use-autosave.ts` - Debounced save logic
 
 **Backend**:
+
 - `convex/schema.ts` - Database schema
 - `convex/scripts.ts` - CRUD operations for scripts
 - `convex/versions.ts` - Version save/restore logic
 
 **Editor Extensions**:
+
 - `lib/tiptap/extensions.ts` - Custom block definitions
 - `lib/tiptap/export.ts` - Export utilities
 
 **State**:
+
 - `store/editor-store.ts` - Global editor state (Zustand)
 
 **Authentication**:
+
 - `middleware.ts` - Route protection
 - `app/providers.tsx` - Auth provider setup

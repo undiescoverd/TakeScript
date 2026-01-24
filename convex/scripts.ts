@@ -51,7 +51,11 @@ function getTemplateContent(templateType?: string): string {
         },
         {
           type: "chapter",
-          attrs: { title: "Step 1: Getting Started", duration: "2m", id: generateBlockId("chapter") },
+          attrs: {
+            title: "Step 1: Getting Started",
+            duration: "2m",
+            id: generateBlockId("chapter"),
+          },
           content: [
             {
               type: "paragraph",
@@ -63,9 +67,7 @@ function getTemplateContent(templateType?: string): string {
               content: [
                 {
                   type: "paragraph",
-                  content: [
-                    { type: "text", text: "Show the initial setup process..." },
-                  ],
+                  content: [{ type: "text", text: "Show the initial setup process..." }],
                 },
               ],
             },
@@ -102,9 +104,7 @@ function getTemplateContent(templateType?: string): string {
               content: [
                 {
                   type: "paragraph",
-                  content: [
-                    { type: "text", text: "Navigate to the main dashboard and show..." },
-                  ],
+                  content: [{ type: "text", text: "Navigate to the main dashboard and show..." }],
                 },
               ],
             },
@@ -116,9 +116,7 @@ function getTemplateContent(templateType?: string): string {
           content: [
             {
               type: "paragraph",
-              content: [
-                { type: "text", text: "Let's explore the key features..." },
-              ],
+              content: [{ type: "text", text: "Let's explore the key features..." }],
             },
             {
               type: "screenRecording",
@@ -126,9 +124,7 @@ function getTemplateContent(templateType?: string): string {
               content: [
                 {
                   type: "paragraph",
-                  content: [
-                    { type: "text", text: "Demonstrate feature 1..." },
-                  ],
+                  content: [{ type: "text", text: "Demonstrate feature 1..." }],
                 },
               ],
             },
@@ -157,9 +153,7 @@ function getTemplateContent(templateType?: string): string {
           content: [
             {
               type: "paragraph",
-              content: [
-                { type: "text", text: "Let's start with the fundamental concepts..." },
-              ],
+              content: [{ type: "text", text: "Let's start with the fundamental concepts..." }],
             },
             {
               type: "demonstration",
@@ -181,9 +175,7 @@ function getTemplateContent(templateType?: string): string {
           content: [
             {
               type: "paragraph",
-              content: [
-                { type: "text", text: "Now it's time to practice what you've learned..." },
-              ],
+              content: [{ type: "text", text: "Now it's time to practice what you've learned..." }],
             },
           ],
         },
@@ -199,7 +191,10 @@ function getTemplateContent(templateType?: string): string {
             {
               type: "paragraph",
               content: [
-                { type: "text", text: "Welcome! Let's take a comprehensive tour of our product..." },
+                {
+                  type: "text",
+                  text: "Welcome! Let's take a comprehensive tour of our product...",
+                },
               ],
             },
           ],
@@ -233,7 +228,10 @@ function getTemplateContent(templateType?: string): string {
                 {
                   type: "paragraph",
                   content: [
-                    { type: "text", text: "Navigate to analytics and explain data visualization..." },
+                    {
+                      type: "text",
+                      text: "Navigate to analytics and explain data visualization...",
+                    },
                   ],
                 },
               ],
@@ -284,6 +282,7 @@ export const create = mutation({
     targetLength: v.optional(v.number()),
     targetType: v.optional(v.string()),
     category: v.optional(v.string()),
+    parentFolderId: v.optional(v.id("scripts")), // Folder to place the script in
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -293,9 +292,7 @@ export const create = mutation({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_token", (q) =>
-        q.eq("tokenIdentifier", identity.tokenIdentifier)
-      )
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
       .unique();
 
     if (!user) {
@@ -335,7 +332,7 @@ export const create = mutation({
         // Capitalize and format template type (e.g., "tutorial" -> "Tutorial")
         scriptTitle = args.templateType
           .split("-")
-          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
           .join(" ");
       }
     }
@@ -348,6 +345,7 @@ export const create = mutation({
       targetLength: args.targetLength,
       targetType: args.targetType,
       category: args.category,
+      parentFolderId: args.parentFolderId,
       status: "draft",
       lastEditedAt: now,
       createdAt: now,
@@ -399,9 +397,7 @@ export const list = query({
 
     const user = await ctx.db
       .query("users")
-      .withIndex("by_token", (q) =>
-        q.eq("tokenIdentifier", identity.tokenIdentifier)
-      )
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
       .unique();
 
     if (!user) {
@@ -434,9 +430,7 @@ export const get = query({
     // Get the current user
     const user = await ctx.db
       .query("users")
-      .withIndex("by_token", (q) =>
-        q.eq("tokenIdentifier", identity.tokenIdentifier)
-      )
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
       .unique();
 
     if (!user) {
@@ -543,9 +537,7 @@ export const update = mutation({
     // Verify ownership
     const user = await ctx.db
       .query("users")
-      .withIndex("by_token", (q) =>
-        q.eq("tokenIdentifier", identity.tokenIdentifier)
-      )
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
       .unique();
 
     if (!user || script.userId !== user._id) {
@@ -582,7 +574,7 @@ export const updateWithR2 = action({
     }
 
     const user = await ctx.runQuery(api.users.getByToken, {
-      tokenIdentifier: identity.tokenIdentifier
+      tokenIdentifier: identity.tokenIdentifier,
     });
 
     if (!user || script.userId !== user._id) {
@@ -634,9 +626,7 @@ export const updateTitle = mutation({
     // Verify ownership
     const user = await ctx.db
       .query("users")
-      .withIndex("by_token", (q) =>
-        q.eq("tokenIdentifier", identity.tokenIdentifier)
-      )
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
       .unique();
 
     if (!user || script.userId !== user._id) {
@@ -666,9 +656,7 @@ export const remove = mutation({
     // Verify ownership
     const user = await ctx.db
       .query("users")
-      .withIndex("by_token", (q) =>
-        q.eq("tokenIdentifier", identity.tokenIdentifier)
-      )
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
       .unique();
 
     if (!user || script.userId !== user._id) {
@@ -727,9 +715,7 @@ export const updateSpeakers = mutation({
     // Verify ownership
     const user = await ctx.db
       .query("users")
-      .withIndex("by_token", (q) =>
-        q.eq("tokenIdentifier", identity.tokenIdentifier)
-      )
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
       .unique();
 
     if (!user || script.userId !== user._id) {

@@ -6,6 +6,7 @@ import { api } from "@/convex/_generated/api";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -28,27 +29,27 @@ const OPENROUTER_MODELS = [
   {
     id: "anthropic/claude-3.5-sonnet",
     name: "Claude 3.5 Sonnet (Recommended)",
-    description: "Best balance of speed and intelligence"
+    description: "Best balance of speed and intelligence",
   },
   {
     id: "anthropic/claude-opus-4-5",
     name: "Claude Opus 4.5",
-    description: "Most capable model, slower"
+    description: "Most capable model, slower",
   },
   {
     id: "openai/gpt-4o",
     name: "GPT-4o",
-    description: "OpenAI's flagship model"
+    description: "OpenAI's flagship model",
   },
   {
     id: "google/gemini-pro-1.5",
     name: "Gemini Pro 1.5",
-    description: "Google's latest model"
+    description: "Google's latest model",
   },
   {
     id: "meta-llama/llama-3.1-70b-instruct",
     name: "Llama 3.1 70B",
-    description: "Open source, fast"
+    description: "Open source, fast",
   },
 ];
 
@@ -72,9 +73,7 @@ export function AIGenerationDialog({
   context = "",
 }: Props) {
   const [prompt, setPrompt] = useState(initialPrompt);
-  const [task, setTask] = useState<"generate" | "expand" | "rephrase" | "summarize">(
-    initialTask
-  );
+  const [task, setTask] = useState<"generate" | "expand" | "rephrase" | "summarize">(initialTask);
   const [selectedModel, setSelectedModel] = useState(OPENROUTER_MODELS[0].id);
   const [generating, setGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState("");
@@ -134,6 +133,9 @@ export function AIGenerationDialog({
             <Sparkles className="h-5 w-5 text-primary" />
             AI Content Generation
           </DialogTitle>
+          <DialogDescription>
+            Use AI to generate, expand, rephrase, or summarize content for your script
+          </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-4">

@@ -4,16 +4,31 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
 import { UserButton } from "@clerk/nextjs";
-import { ScriptGrid } from "@/components/dashboard/ScriptGrid";
+// ScriptGrid is available but we're using FolderMainPanel for the folder-based view
+// import { ScriptGrid } from "@/components/dashboard/ScriptGrid";
 import { NewScriptDialog } from "@/components/dashboard/NewScriptDialog";
+import { NewFolderDialog } from "@/components/dashboard/NewFolderDialog";
+import { FolderSidebar } from "@/components/dashboard/FolderSidebar";
+import { FolderMainPanel } from "@/components/dashboard/FolderMainPanel";
+import { MoveToFolderDialog } from "@/components/dashboard/MoveToFolderDialog";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { TemplateLibrary } from "@/components/templates/TemplateLibrary";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { api } from "@/convex/_generated/api";
-import { FileText, TrendingUp, CheckCircle, Activity, FolderOpen, Layout, FilePlus } from "lucide-react";
+import { Id } from "@/convex/_generated/dataModel";
+import {
+  FileText,
+  TrendingUp,
+  CheckCircle,
+  Activity,
+  FolderOpen,
+  Layout,
+  FilePlus,
+} from "lucide-react";
 import { useFeatureFlag } from "@/hooks/use-feature-flags";
+import { useFolderStore } from "@/store/folder-store";
 import { toast } from "sonner";
 
 export default function DashboardPage() {
@@ -21,14 +36,28 @@ export default function DashboardPage() {
   const templatesEnabled = useFeatureFlag("templatesLibraryEnabled");
   const router = useRouter();
   const createScript = useMutation(api.scripts.create);
+  const { currentFolderId } = useFolderStore();
   const [isCreatingBlank, setIsCreatingBlank] = useState(false);
   const [activeTab, setActiveTab] = useState("scripts");
+
+  // Move to folder dialog state
+  const [moveDialogOpen, setMoveDialogOpen] = useState(false);
+  const [selectedScriptForMove, setSelectedScriptForMove] = useState<{
+    id: Id<"scripts">;
+    title: string;
+  } | null>(null);
+
+  const handleMoveScript = (scriptId: Id<"scripts">, scriptTitle: string) => {
+    setSelectedScriptForMove({ id: scriptId, title: scriptTitle });
+    setMoveDialogOpen(true);
+  };
 
   const handleCreateBlankScript = async () => {
     setIsCreatingBlank(true);
     try {
       const scriptId = await createScript({
         title: "Untitled Script",
+        parentFolderId: currentFolderId ?? undefined,
       });
       router.push(`/script/${scriptId}`);
       toast.success("Blank script created");
@@ -39,8 +68,29 @@ export default function DashboardPage() {
     }
   };
 
+  // Render folder-based scripts view
+  const renderScriptsWithFolders = () => (
+    <div className="flex flex-1 min-h-[400px] overflow-hidden rounded-lg border bg-card">
+      <FolderSidebar />
+      <FolderMainPanel
+        onMoveScript={(scriptId) => {
+          // We need to get the script title - for now pass a placeholder
+          handleMoveScript(scriptId, "Script");
+        }}
+      />
+      {selectedScriptForMove && (
+        <MoveToFolderDialog
+          open={moveDialogOpen}
+          onOpenChange={setMoveDialogOpen}
+          itemId={selectedScriptForMove.id}
+          itemTitle={selectedScriptForMove.title}
+        />
+      )}
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-screen flex-col bg-background">
       {/* Header */}
       <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -55,7 +105,7 @@ export default function DashboardPage() {
       </header>
 
       {/* Main Content */}
-      <main className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <main className="mx-auto flex flex-1 flex-col w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         {/* Analytics Stats */}
         {stats && (
           <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
@@ -93,7 +143,11 @@ export default function DashboardPage() {
         )}
 
         {templatesEnabled ? (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+            className="flex flex-1 flex-col space-y-6"
+          >
             <TabsList>
               <TabsTrigger value="scripts" className="gap-2">
                 <FileText className="h-4 w-4" />
@@ -105,15 +159,14 @@ export default function DashboardPage() {
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value="scripts" className="space-y-6">
+            <TabsContent value="scripts" className="flex flex-1 flex-col space-y-6">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-bold">My Scripts</h2>
-                  <p className="text-muted-foreground">
-                    Create and manage your tutorial scripts
-                  </p>
+                  <p className="text-muted-foreground">Create and manage your tutorial scripts</p>
                 </div>
                 <div className="flex items-center gap-2">
+                  <NewFolderDialog />
                   <Button
                     variant="outline"
                     onClick={handleCreateBlankScript}
@@ -126,16 +179,14 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <ScriptGrid />
+              {renderScriptsWithFolders()}
             </TabsContent>
 
             <TabsContent value="templates" className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
                   <h2 className="text-2xl font-bold">Templates</h2>
-                  <p className="text-muted-foreground">
-                    Manage your reusable script templates
-                  </p>
+                  <p className="text-muted-foreground">Manage your reusable script templates</p>
                 </div>
               </div>
 
@@ -143,15 +194,14 @@ export default function DashboardPage() {
             </TabsContent>
           </Tabs>
         ) : (
-          <div className="space-y-6">
+          <div className="flex flex-1 flex-col space-y-6">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-bold">My Scripts</h2>
-                <p className="text-muted-foreground">
-                  Create and manage your tutorial scripts
-                </p>
+                <p className="text-muted-foreground">Create and manage your tutorial scripts</p>
               </div>
               <div className="flex items-center gap-2">
+                <NewFolderDialog />
                 <Button
                   variant="outline"
                   onClick={handleCreateBlankScript}
@@ -164,7 +214,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <ScriptGrid />
+            {renderScriptsWithFolders()}
           </div>
         )}
       </main>

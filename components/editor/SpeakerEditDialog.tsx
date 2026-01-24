@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -112,12 +113,7 @@ export function SpeakerEditDialog({
     const to = paragraphPos + node.nodeSize - 1;
 
     // Remove the speaker mark from the paragraph
-    editor
-      .chain()
-      .focus()
-      .setTextSelection({ from, to })
-      .unsetSpeaker()
-      .run();
+    editor.chain().focus().setTextSelection({ from, to }).unsetSpeaker().run();
 
     onClose();
     toast.success("Removed speaker attribution");
@@ -132,6 +128,7 @@ export function SpeakerEditDialog({
       <DialogContent className="sm:max-w-[400px]">
         <DialogHeader>
           <DialogTitle>Edit Speaker Attribution</DialogTitle>
+          <DialogDescription>Assign a speaker and camera mode to this paragraph</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
@@ -143,10 +140,7 @@ export function SpeakerEditDialog({
                 No speakers available. Add speakers in the Speaker Legend panel.
               </div>
             ) : (
-              <Select
-                value={selectedSpeakerId}
-                onValueChange={setSelectedSpeakerId}
-              >
+              <Select value={selectedSpeakerId} onValueChange={setSelectedSpeakerId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a speaker..." />
                 </SelectTrigger>
@@ -228,16 +222,15 @@ export function useSpeakerEditDialog() {
   const [currentSpeakerId, setCurrentSpeakerId] = useState<string | null>(null);
   const [currentCameraMode, setCurrentCameraMode] = useState<CameraModeNullable>(null);
 
-  const openDialog = useCallback((
-    pos: number,
-    speakerId: string,
-    cameraMode: CameraModeNullable
-  ) => {
-    setParagraphPos(pos);
-    setCurrentSpeakerId(speakerId);
-    setCurrentCameraMode(cameraMode);
-    setIsOpen(true);
-  }, []);
+  const openDialog = useCallback(
+    (pos: number, speakerId: string, cameraMode: CameraModeNullable) => {
+      setParagraphPos(pos);
+      setCurrentSpeakerId(speakerId);
+      setCurrentCameraMode(cameraMode);
+      setIsOpen(true);
+    },
+    []
+  );
 
   const closeDialog = useCallback(() => {
     setIsOpen(false);
