@@ -22,7 +22,9 @@ export function useAutosave(scriptId: Id<"scripts">) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const savingIndicatorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pendingContentRef = useRef<string | null>(null);
-  const saveRef = useRef<((content: string) => Promise<void>) | null>(null);
+  const saveRef = useRef<((content: string, skipAuthCheck?: boolean) => Promise<void>) | null>(
+    null
+  );
   const lastSavedContentRef = useRef<string | null>(null);
   const onSaveCompleteRef = useRef<((content: string) => void) | null>(null);
   const isSavingRef = useRef(false);
@@ -60,7 +62,10 @@ export function useAutosave(scriptId: Id<"scripts">) {
 
         // Check if error is authentication-related
         const errorMessage = error instanceof Error ? error.message : String(error);
-        if (errorMessage.includes("Not authenticated") || errorMessage.includes("Unauthenticated")) {
+        if (
+          errorMessage.includes("Not authenticated") ||
+          errorMessage.includes("Unauthenticated")
+        ) {
           toast.error("Unable to save: Authentication required", {
             description: "Please refresh the page and sign in again",
             duration: 7000,
@@ -228,7 +233,12 @@ export function useAutosave(scriptId: Id<"scripts">) {
   // Save pending content when page becomes hidden (browser close, tab switch, navigation)
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "hidden" && pendingContentRef.current && saveRef.current && isAuthenticated) {
+      if (
+        document.visibilityState === "hidden" &&
+        pendingContentRef.current &&
+        saveRef.current &&
+        isAuthenticated
+      ) {
         // Only attempt save if authenticated
         const content = pendingContentRef.current;
         // Clear the timeouts since we're saving now
