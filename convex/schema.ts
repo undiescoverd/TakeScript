@@ -66,11 +66,15 @@ export default defineSchema({
         })
       )
     ),
+    // Kanban view fields
+    stageId: v.optional(v.string()), // "draft" | "in-progress" | "review" | "ready" (or custom)
+    stageOrder: v.optional(v.number()), // For ordering within columns (fractional indexing)
   })
     .index("by_user", ["userId"])
     .index("by_user_and_edited", ["userId", "lastEditedAt"])
     .index("by_user_and_category", ["userId", "category"])
-    .index("by_organization", ["organizationId"]),
+    .index("by_organization", ["organizationId"])
+    .index("by_user_and_stage", ["userId", "stageId"]),
 
   scriptVersions: defineTable({
     scriptId: v.id("scripts"),
@@ -151,4 +155,16 @@ export default defineSchema({
     .index("by_organization", ["organizationId"])
     .index("by_user", ["userId"])
     .index("by_script", ["scriptId"]),
+
+  // Kanban stage customization per user
+  kanbanStages: defineTable({
+    userId: v.id("users"),
+    stages: v.array(
+      v.object({
+        id: v.string(),
+        name: v.string(),
+        color: v.string(),
+      })
+    ),
+  }).index("by_user", ["userId"]),
 });
