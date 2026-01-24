@@ -183,10 +183,10 @@ jobs:
       - name: Build application
         run: npm run build
         env:
-          # Environment variables for build (use secrets or fallback to valid dummy values)
-          NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL || 'https://dummy.convex.cloud' }}
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || 'pk_test_Y2xlcms_Y29udmV4X2R1bW15X2tleV8xMjM0NTY3ODkwMTIz' }}
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY || 'sk_test_Y2xlcms_Y29udmV4X2R1bW15X2tleV8xMjM0NTY3ODkwMTIz' }}
+          # Use actual secrets configured in repository
+          NEXT_PUBLIC_CONVEX_URL: ${{ secrets.NEXT_PUBLIC_CONVEX_URL }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
 
       - name: Check TypeScript
         run: npx tsc --noEmit
