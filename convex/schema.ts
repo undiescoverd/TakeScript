@@ -8,7 +8,9 @@ export default defineSchema({
     slug: v.string(), // URL-friendly identifier
     plan: v.optional(v.string()), // "free" | "pro" | "enterprise"
     // AI Settings - Using OpenRouter for unified access to all models
-    openrouterModel: v.optional(v.string()), // Default: "anthropic/claude-3.5-sonnet", supports "openai/gpt-4o", "google/gemini-pro", etc.
+    aiProvider: v.optional(v.string()), // "openrouter" | "anthropic" (legacy)
+    anthropicModel: v.optional(v.string()), // Legacy field
+    openrouterModel: v.optional(v.string()), // Default: "anthropic/claude-3.5-sonnet"
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_slug", ["slug"]),
@@ -42,7 +44,11 @@ export default defineSchema({
   scripts: defineTable({
     title: v.string(),
     userId: v.id("users"),
-    content: v.string(), // JSON stringified Tiptap document
+    content: v.string(), // JSON stringified Tiptap document (migrating to R2)
+    contentUrl: v.optional(v.string()), // R2 URL: r2://bucket/key
+    contentSize: v.optional(v.number()), // Size in bytes for monitoring
+    contentHash: v.optional(v.string()), // SHA-256 hash for cache validation
+    wordCount: v.optional(v.number()), // Cached word count for analytics
     lastEditedAt: v.number(),
     createdAt: v.number(),
     // New fields for Phase 2 (all optional for backward compatibility)
@@ -66,6 +72,9 @@ export default defineSchema({
         })
       )
     ),
+    // Folder organization fields
+    parentFolderId: v.optional(v.id("scripts")), // null/undefined = root level
+    isFolder: v.optional(v.boolean()), // true for folders, undefined/false for scripts
     // Kanban view fields
     stageId: v.optional(v.string()), // "draft" | "in-progress" | "review" | "ready" (or custom)
     stageOrder: v.optional(v.number()), // For ordering within columns (fractional indexing)
@@ -74,12 +83,15 @@ export default defineSchema({
     .index("by_user_and_edited", ["userId", "lastEditedAt"])
     .index("by_user_and_category", ["userId", "category"])
     .index("by_organization", ["organizationId"])
+    .index("by_user_and_parent", ["userId", "parentFolderId"])
     .index("by_user_and_stage", ["userId", "stageId"]),
 
   scriptVersions: defineTable({
     scriptId: v.id("scripts"),
     versionNumber: v.number(),
-    content: v.string(), // JSON stringified snapshot
+    content: v.string(), // JSON stringified snapshot (migrating to R2)
+    contentUrl: v.optional(v.string()), // R2 URL: r2://bucket/key
+    contentSize: v.optional(v.number()), // Size in bytes
     changedBy: v.id("users"),
     changeNote: v.optional(v.string()),
     createdAt: v.number(),
