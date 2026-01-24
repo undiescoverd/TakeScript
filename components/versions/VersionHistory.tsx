@@ -9,14 +9,16 @@ import { useEditorStore } from "@/store/editor-store";
 import { VersionCard } from "./VersionCard";
 import { VersionPreview } from "./VersionPreview";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { X, History } from "lucide-react";
 import { toast } from "sonner";
+
+interface VersionListItem {
+  _id: Id<"scriptVersions">;
+  versionNumber: number;
+  createdAt: number;
+  changeNote?: string;
+}
 
 interface VersionHistoryProps {
   scriptId: Id<"scripts">;
@@ -72,11 +74,7 @@ export function VersionHistory({ scriptId }: VersionHistoryProps) {
             <History className="h-4 w-4" />
             <span className="font-medium">Version History</span>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setVersionHistoryOpen(false)}
-          >
+          <Button variant="ghost" size="icon" onClick={() => setVersionHistoryOpen(false)}>
             <X className="h-4 w-4" />
           </Button>
         </div>
@@ -85,10 +83,7 @@ export function VersionHistory({ scriptId }: VersionHistoryProps) {
           {versions === undefined ? (
             <div className="space-y-3">
               {[...Array(3)].map((_, i) => (
-                <div
-                  key={i}
-                  className="h-24 animate-pulse rounded-lg bg-muted"
-                />
+                <div key={i} className="h-24 animate-pulse rounded-lg bg-muted" />
               ))}
             </div>
           ) : versions.length === 0 ? (
@@ -99,7 +94,7 @@ export function VersionHistory({ scriptId }: VersionHistoryProps) {
             </div>
           ) : (
             <div className="space-y-3">
-              {versions.map((version) => (
+              {versions.map((version: VersionListItem) => (
                 <VersionCard
                   key={version._id}
                   version={version}
@@ -113,10 +108,7 @@ export function VersionHistory({ scriptId }: VersionHistoryProps) {
       </div>
 
       {/* View Version Dialog */}
-      <Dialog
-        open={viewingVersion !== null}
-        onOpenChange={() => setViewingVersion(null)}
-      >
+      <Dialog open={viewingVersion !== null} onOpenChange={() => setViewingVersion(null)}>
         <DialogContent className="max-h-[80vh] max-w-4xl overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Version Preview</DialogTitle>
