@@ -5,6 +5,7 @@ on:
     branches: [main, Fixes]
   pull_request:
     branches: [main, Fixes]
+  workflow_dispatch:
 
 jobs:
   test:
