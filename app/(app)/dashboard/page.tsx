@@ -9,11 +9,14 @@ import { NewScriptDialog } from "@/components/dashboard/NewScriptDialog";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { TemplateLibrary } from "@/components/templates/TemplateLibrary";
+import { ViewToggle } from "@/components/dashboard/ViewToggle";
+import { KanbanView } from "@/components/dashboard/KanbanView";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { api } from "@/convex/_generated/api";
 import { FileText, TrendingUp, CheckCircle, Activity, FolderOpen, Layout, FilePlus } from "lucide-react";
 import { useFeatureFlag } from "@/hooks/use-feature-flags";
+import { useDashboardStore } from "@/store/dashboard-store";
 import { toast } from "sonner";
 
 export default function DashboardPage() {
@@ -22,6 +25,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const createScript = useMutation(api.scripts.create);
   const [isCreatingBlank, setIsCreatingBlank] = useState(false);
+  const { viewMode } = useDashboardStore();
 
   const handleCreateBlankScript = async () => {
     setIsCreatingBlank(true);
@@ -112,7 +116,8 @@ export default function DashboardPage() {
                     Create and manage your tutorial scripts
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
+                  <ViewToggle />
                   <Button
                     variant="outline"
                     onClick={handleCreateBlankScript}
@@ -125,7 +130,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <ScriptGrid />
+              {viewMode === "kanban" ? <KanbanView /> : <ScriptGrid />}
             </TabsContent>
 
             <TabsContent value="templates" className="space-y-6">
@@ -150,7 +155,8 @@ export default function DashboardPage() {
                   Create and manage your tutorial scripts
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
+                <ViewToggle />
                 <Button
                   variant="outline"
                   onClick={handleCreateBlankScript}
@@ -163,7 +169,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <ScriptGrid />
+            {viewMode === "kanban" ? <KanbanView /> : <ScriptGrid />}
           </div>
         )}
       </main>
