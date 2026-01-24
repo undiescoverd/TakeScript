@@ -11,6 +11,9 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^6.35.6",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@hocuspocus/provider": "^3.4.0",
     "@hocuspocus/server": "^3.4.0",
     "@radix-ui/react-alert-dialog": "^1.1.15",
