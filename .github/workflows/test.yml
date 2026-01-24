@@ -73,12 +73,16 @@ jobs:
           export type MutationCtx = any;
           EOF
           cat > convex/_generated/server.js << 'EOF'
-          export const query = () => {};
-          export const mutation = () => {};
-          export const action = () => {};
-          export const internalMutation = () => {};
-          export const internalQuery = () => {};
-          export const internalAction = () => {};
+          // Mock Convex server functions for CI
+          const createConvexFunction = () => (config) => {
+            return config.handler || (() => {});
+          };
+          export const query = createConvexFunction();
+          export const mutation = createConvexFunction();
+          export const action = createConvexFunction();
+          export const internalMutation = createConvexFunction();
+          export const internalQuery = createConvexFunction();
+          export const internalAction = createConvexFunction();
           EOF
 
       - name: Run linter
@@ -164,12 +168,16 @@ jobs:
           export type MutationCtx = any;
           EOF
           cat > convex/_generated/server.js << 'EOF'
-          export const query = () => {};
-          export const mutation = () => {};
-          export const action = () => {};
-          export const internalMutation = () => {};
-          export const internalQuery = () => {};
-          export const internalAction = () => {};
+          // Mock Convex server functions for CI
+          const createConvexFunction = () => (config) => {
+            return config.handler || (() => {});
+          };
+          export const query = createConvexFunction();
+          export const mutation = createConvexFunction();
+          export const action = createConvexFunction();
+          export const internalMutation = createConvexFunction();
+          export const internalQuery = createConvexFunction();
+          export const internalAction = createConvexFunction();
           EOF
 
       - name: Build application
