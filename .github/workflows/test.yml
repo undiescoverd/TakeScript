@@ -51,6 +51,16 @@ jobs:
             }
           });
           EOF
+          cat > convex/_generated/dataModel.d.ts << 'EOF'
+          export type Id<T extends string> = string & { __tableName: T };
+          export type Doc<T extends string> = any;
+          export declare const Id: any;
+          export declare const Doc: any;
+          EOF
+          cat > convex/_generated/dataModel.js << 'EOF'
+          export const Id = (id) => id;
+          export const Doc = {};
+          EOF
 
       - name: Run linter
         run: npm run lint
@@ -112,6 +122,16 @@ jobs:
               return target[prop];
             }
           });
+          EOF
+          cat > convex/_generated/dataModel.d.ts << 'EOF'
+          export type Id<T extends string> = string & { __tableName: T };
+          export type Doc<T extends string> = any;
+          export declare const Id: any;
+          export declare const Doc: any;
+          EOF
+          cat > convex/_generated/dataModel.js << 'EOF'
+          export const Id = (id) => id;
+          export const Doc = {};
           EOF
 
       - name: Build application
