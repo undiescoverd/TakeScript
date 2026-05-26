@@ -35,7 +35,7 @@ function applySpeakerColorsToParagraphs(container: HTMLElement) {
     }
 
     if (speakerId) {
-      const speaker = useSpeakerStore.getState().getSpeaker(speakerId);
+      const speaker = useSpeakerStore.getState().getSpeakerById(speakerId);
       if (speaker) {
         // Only modify if values actually changed to avoid triggering more mutations
         if (!paraEl.classList.contains("has-speaker")) {
@@ -100,7 +100,7 @@ export function renderSpeakerPills(container: HTMLElement, force = false) {
       const position = parseInt(widget.getAttribute("data-position") || "0", 10);
 
       // Get speaker data from store
-      const speaker = useSpeakerStore.getState().getSpeaker(speakerId);
+      const speaker = useSpeakerStore.getState().getSpeakerById(speakerId);
       if (!speaker) {
         widget.textContent = "[Unknown Speaker]";
         return;
