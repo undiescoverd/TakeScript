@@ -649,14 +649,8 @@
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
-/* Reveal topbar when hovering the zone - with cascade delay */
-[data-view-mode="focus"] .topbar-hover-zone:hover ~ header {
-  top: 0; /* Slide down on hover */
-  transition-delay: 200ms; /* Topbar appears 200ms after BeatBoard */
-}
-
-/* Reveal topbar immediately when hovering topbar itself */
-[data-view-mode="focus"] header:hover {
+/* Reveal topbar when chrome is shown (proximity or pinned on chrome) */
+[data-view-mode="focus"][data-chrome-revealed="true"] header {
   top: 0;
   transition-delay: 0ms;
 }
@@ -715,22 +709,9 @@
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
-/* Reveal BeatBoard immediately when hovering the zone (no delay) */
-[data-view-mode="focus"] .topbar-hover-zone:hover ~ * .beatboard-focus {
+/* Reveal BeatBoard when chrome is shown */
+[data-view-mode="focus"][data-chrome-revealed="true"] .beatboard-focus {
   top: 56px; /* Below topbar (topbar height is h-14 = 56px) */
-  transition-delay: 0ms; /* BeatBoard appears immediately */
-}
-
-/* Keep BeatBoard visible when hovering topbar or beatboard itself */
-[data-view-mode="focus"] header:hover ~ * .beatboard-focus,
-[data-view-mode="focus"] .beatboard-focus:hover {
-  top: 56px;
-  transition-delay: 0ms;
-}
-
-/* When BeatBoard is hovered, keep topbar visible too */
-[data-view-mode="focus"]:has(.beatboard-focus:hover) header {
-  top: 0;
   transition-delay: 0ms;
 }
 

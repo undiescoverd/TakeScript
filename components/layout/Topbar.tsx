@@ -36,6 +36,11 @@ import { SaveTemplateDialog } from "@/components/templates/SaveTemplateDialog";
 import { useFeatureFlag } from "@/hooks/use-feature-flags";
 import { getFeatureFlags } from "@/lib/feature-flags";
 
+interface ChromeMouseHandlers {
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+}
+
 interface TopbarProps {
   scriptId: Id<"scripts">;
   title: string;
@@ -44,9 +49,10 @@ interface TopbarProps {
   onOpenAIChat?: () => void;
   onGrammarCheck?: () => void;
   onScriptReview?: () => void;
+  chromeMouseHandlers?: ChromeMouseHandlers;
 }
 
-export function Topbar({ scriptId, title, content, onSaveNow, onOpenAIChat, onGrammarCheck, onScriptReview }: TopbarProps) {
+export function Topbar({ scriptId, title, content, onSaveNow, onOpenAIChat, onGrammarCheck, onScriptReview, chromeMouseHandlers }: TopbarProps) {
   const router = useRouter();
   const flags = getFeatureFlags();
   const [editingTitle, setEditingTitle] = useState(false);
@@ -142,7 +148,10 @@ export function Topbar({ scriptId, title, content, onSaveNow, onOpenAIChat, onGr
   }, [handleExport]);
 
   return (
-    <header className="flex h-14 items-center justify-between border-b bg-background px-4">
+    <header
+      className="flex h-14 items-center justify-between border-b bg-background px-4"
+      {...chromeMouseHandlers}
+    >
       {/* Left section */}
       <div className="flex items-center gap-3">
         <Button
