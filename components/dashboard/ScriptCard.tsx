@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { MoreVertical, Trash2, FileText } from "lucide-react";
 import { toast } from "sonner";
+import { StatusBadge } from "./StatusBadge";
 
 interface ScriptCardProps {
   script: Doc<"scripts">;
@@ -95,9 +96,12 @@ export function ScriptCard({ script }: ScriptCardProps) {
       </p>
 
       {/* Meta */}
-      <p className="text-xs text-muted-foreground">
-        Edited {formatDistanceToNow(script.lastEditedAt)}
-      </p>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">
+          Edited {formatDistanceToNow(script.lastEditedAt)}
+        </p>
+        <StatusBadge scriptId={script._id} stageId={script.stageId} />
+      </div>
     </div>
   );
 }

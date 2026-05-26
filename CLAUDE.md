@@ -255,6 +255,70 @@ Restore:
 5. ScriptPage re-queries → Editor re-initializes with restored content
 ```
 
+#### 9. Kanban View System
+
+The dashboard supports a Kanban board view for organizing scripts by stage:
+
+**Schema Fields** (in `scripts` table):
+- `stageId: v.optional(v.string())` - Stage ID ("draft" | "in-progress" | "review" | "ready")
+- `stageOrder: v.optional(v.number())` - For ordering within columns (fractional indexing)
+
+**User Stage Customization** (in `kanbanStages` table):
+- `userId: v.id("users")` - Owner reference
+- `stages: v.array(v.object({ id, name, color }))` - Custom stage definitions
+
+**State Management** (`store/dashboard-store.ts`):
+```typescript
+type ViewMode = "grid" | "list" | "kanban";
+
+interface DashboardState {
+  viewMode: ViewMode;
+  setViewMode: (mode: ViewMode) => void;
+}
+```
+
+**Backend Functions** (`convex/kanban.ts`):
+- `getOrCreateStages()` - Returns user's stages or defaults
+- `updateStages(stages)` - Update stage names/colors
+- `resetToDefaults()` - Reset to default stages
+
+**Backend Functions** (`convex/scripts.ts`):
+- `updateStage(scriptId, stageId)` - Move script to stage
+- `reorderInStage(scriptId, stageId, newOrder)` - Reorder within column
+
+**Components**:
+- `ViewToggle.tsx` - Grid/List/Kanban toggle buttons
+- `KanbanView.tsx` - Main Kanban container with DndContext
+- `KanbanColumn.tsx` - Single stage column with droppable zone
+- `KanbanCard.tsx` - Compact script card with drag handle
+- `StatusBadge.tsx` - Dropdown for changing script stage
+- `QuickCreateDialog.tsx` - Create script from column
+- `KanbanSettingsDialog.tsx` - Customize stage names/colors
+
+**Hooks** (`hooks/use-kanban.ts`):
+- `useKanbanStages()` - Fetches user's custom stages
+- `useKanbanScripts()` - Fetches all scripts, groups by stageId client-side
+- `useStageById(stageId)` - Get stage info by ID
+
+**Drag-Drop**:
+- Uses @dnd-kit/core and @dnd-kit/sortable
+- Optimistic updates with rollback on error
+- Fractional indexing for reordering within columns
+
+**Default Stages**:
+```typescript
+const DEFAULT_STAGES = [
+  { id: "draft", name: "Draft", color: "#6b7280" },
+  { id: "in-progress", name: "In Progress", color: "#3b82f6" },
+  { id: "review", name: "Review", color: "#f59e0b" },
+  { id: "ready", name: "Ready", color: "#22c55e" },
+];
+```
+
+**Migration Compatibility**:
+- Scripts with `stageId: undefined` are treated as "draft"
+- No migration script needed - handled in queries/UI
+
 ### Database Schema (Convex)
 
 **users**
@@ -264,7 +328,13 @@ Restore:
 **scripts**
 - `userId` (indexed) - Owner reference
 - `title`, `content` (JSON string), `lastEditedAt`, `createdAt`
+- `stageId`, `stageOrder` - Kanban position
 - Index: `by_user_and_edited` for sorted listing
+- Index: `by_user_and_stage` for Kanban queries
+
+**kanbanStages**
+- `userId` (indexed) - Owner reference
+- `stages` - Array of custom stage definitions
 
 **scriptVersions**
 - `scriptId` (indexed), `versionNumber` (indexed together)
@@ -375,6 +445,16 @@ npm run dev       # Terminal 2
 
 **State**:
 - `store/editor-store.ts` - Global editor state (Zustand)
+- `store/dashboard-store.ts` - Dashboard view mode (Zustand)
+
+**Kanban**:
+- `convex/kanban.ts` - Stage management functions
+- `hooks/use-kanban.ts` - Kanban data hooks
+- `types/kanban.ts` - Type definitions and defaults
+- `components/dashboard/KanbanView.tsx` - Main Kanban container
+- `components/dashboard/KanbanColumn.tsx` - Stage column
+- `components/dashboard/KanbanCard.tsx` - Draggable script card
+- `components/dashboard/StatusBadge.tsx` - Stage selector dropdown
 
 **Authentication**:
 - `middleware.ts` - Route protection

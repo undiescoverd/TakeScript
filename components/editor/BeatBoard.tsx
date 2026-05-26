@@ -5,12 +5,18 @@ import { useMemo } from "react";
 import { extractChapters } from "@/lib/tiptap/export";
 import { useEditorStore } from "@/store/editor-store";
 
+interface ChromeMouseHandlers {
+  onMouseEnter: () => void;
+  onMouseLeave: () => void;
+}
+
 interface BeatBoardProps {
   content: JSONContent;
   onChapterClick: (chapterId: string) => void;
+  chromeMouseHandlers?: ChromeMouseHandlers;
 }
 
-export function BeatBoard({ content, onChapterClick }: BeatBoardProps) {
+export function BeatBoard({ content, onChapterClick, chromeMouseHandlers }: BeatBoardProps) {
   const chapters = useMemo(() => extractChapters(content), [content]);
   const { viewMode } = useEditorStore();
 
@@ -21,7 +27,7 @@ export function BeatBoard({ content, onChapterClick }: BeatBoardProps) {
   // Focus Mode: Minimal pills that hover-reveal
   if (viewMode === "focus") {
     return (
-      <div className="beatboard-focus-wrapper">
+      <div className="beatboard-focus-wrapper" {...chromeMouseHandlers}>
         <div className="beatboard-focus">
           {chapters.map((chapter, index) => (
             <button

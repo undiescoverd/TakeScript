@@ -7,6 +7,7 @@ import { JSONContent, Editor } from "@tiptap/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useAutosave } from "@/hooks/use-autosave";
+import { useFocusChromeReveal } from "@/hooks/use-focus-chrome-reveal";
 import { useEditorStore } from "@/store/editor-store";
 import { ScriptEditor } from "@/components/editor/ScriptEditor";
 import { CollaborativeEditor } from "@/components/editor/CollaborativeEditor";
@@ -58,6 +59,7 @@ export default function ScriptPage() {
   const script = useQuery(api.scripts.get, { scriptId });
   const { scheduleAutosave, saveNow, setOnSaveComplete, getLastSavedContent, initializeLastSaved } = useAutosave(scriptId);
   const { mode, viewMode, toggleViewMode, commentsOpen, setCommentsOpen, annotationsOpen, setAnnotationsOpen, collaborationEnabled, speakersOpen, setSpeakersOpen } = useEditorStore();
+  const { chromeRevealed, chromeMouseHandlers } = useFocusChromeReveal(viewMode);
   const { speakers, setSpeakers } = useSpeakerStore();
   const updateSpeakers = useMutation(api.scripts.updateSpeakers);
   const [editorRef, setEditorRef] = useState<Editor | null>(null);
@@ -350,9 +352,10 @@ export default function ScriptPage() {
     if (viewMode === "focus") {
       const hasSeenTip = localStorage.getItem("takescript-focus-mode-tip");
       if (!hasSeenTip) {
-        toast.info("Hover near the top edge to reveal controls", {
-          duration: 5000,
-        });
+        toast.info(
+          "Move the cursor to the top of the screen to show controls, or press ⌘⇧F to exit Focus.",
+          { duration: 5000 }
+        );
         localStorage.setItem("takescript-focus-mode-tip", "true");
       }
     }
@@ -455,13 +458,12 @@ export default function ScriptPage() {
 
 
   return (
-    <div className="flex h-screen flex-col bg-background" data-mode={mode} data-view-mode={viewMode}>
-      {/* Combined Hover Zone for Topbar + BeatBoard (Focus Mode only) */}
-      {/* Extends from top down to bottom of BeatBoard when visible */}
-      {viewMode === "focus" && (
-        <div className="topbar-hover-zone fixed top-0 left-0 right-0 h-28 z-[60] pointer-events-none" />
-      )}
-
+    <div
+      className="flex h-screen flex-col bg-background"
+      data-mode={mode}
+      data-view-mode={viewMode}
+      data-chrome-revealed={chromeRevealed ? "true" : undefined}
+    >
       {/* Topbar */}
       <Topbar
         scriptId={scriptId}
@@ -471,10 +473,15 @@ export default function ScriptPage() {
         onOpenAIChat={handleOpenAIChat}
         onGrammarCheck={handleGrammarCheck}
         onScriptReview={handleScriptReview}
+        chromeMouseHandlers={viewMode === "focus" ? chromeMouseHandlers : undefined}
       />
 
       {/* Beat Board */}
-      <BeatBoard content={localContent} onChapterClick={handleChapterClick} />
+      <BeatBoard
+        content={localContent}
+        onChapterClick={handleChapterClick}
+        chromeMouseHandlers={viewMode === "focus" ? chromeMouseHandlers : undefined}
+      />
 
       {/* Main Content */}
       <div className="flex flex-1 overflow-hidden">

@@ -261,6 +261,7 @@ export const create = mutation({
     targetLength: v.optional(v.number()),
     targetType: v.optional(v.string()),
     category: v.optional(v.string()),
+    stageId: v.optional(v.string()), // For Kanban quick create
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -311,6 +312,8 @@ export const create = mutation({
       targetType: args.targetType,
       category: args.category,
       status: "draft",
+      stageId: args.stageId ?? "draft",
+      stageOrder: now, // Use timestamp for initial ordering
       lastEditedAt: now,
       createdAt: now,
     });
@@ -576,6 +579,88 @@ export const updateSpeakers = mutation({
 
     await ctx.db.patch(args.scriptId, {
       speakers: args.speakers,
+      lastEditedAt: Date.now(),
+    });
+  },
+});
+
+// Update a script's stage (Kanban)
+export const updateStage = mutation({
+  args: {
+    scriptId: v.id("scripts"),
+    stageId: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const script = await ctx.db.get(args.scriptId);
+    if (!script) {
+      throw new Error("Script not found");
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+      .unique();
+
+    if (!user || script.userId !== user._id) {
+      throw new Error("Not authorized");
+    }
+
+    // Get max stageOrder in the target stage for positioning at end
+    const scriptsInStage = await ctx.db
+      .query("scripts")
+      .withIndex("by_user_and_stage", (q) =>
+        q.eq("userId", user._id).eq("stageId", args.stageId)
+      )
+      .collect();
+
+    const maxOrder = scriptsInStage.reduce(
+      (max, s) => Math.max(max, s.stageOrder ?? 0),
+      0
+    );
+
+    await ctx.db.patch(args.scriptId, {
+      stageId: args.stageId,
+      stageOrder: maxOrder + 1,
+      lastEditedAt: Date.now(),
+    });
+  },
+});
+
+// Reorder a script within its stage (Kanban)
+export const reorderInStage = mutation({
+  args: {
+    scriptId: v.id("scripts"),
+    stageId: v.string(),
+    newOrder: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
+    const script = await ctx.db.get(args.scriptId);
+    if (!script) {
+      throw new Error("Script not found");
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.tokenIdentifier))
+      .unique();
+
+    if (!user || script.userId !== user._id) {
+      throw new Error("Not authorized");
+    }
+
+    await ctx.db.patch(args.scriptId, {
+      stageId: args.stageId,
+      stageOrder: args.newOrder,
       lastEditedAt: Date.now(),
     });
   },

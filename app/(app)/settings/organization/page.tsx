@@ -29,40 +29,38 @@ export default function OrganizationSettingsPage() {
   const updateAISettings = useMutation(api.organizations.updateAISettings);
 
   const [name, setName] = useState("");
-  const [aiProvider, setAiProvider] = useState<"anthropic" | "openai">("anthropic");
-  const [anthropicModel, setAnthropicModel] = useState("claude-sonnet-4-5-20250929");
-  const [openaiModel, setOpenaiModel] = useState("gpt-4o");
+  const [openrouterModel, setOpenrouterModel] = useState(
+    "anthropic/claude-3.5-sonnet"
+  );
 
   useEffect(() => {
-    if (organization && "name" in organization && "aiProvider" in organization) {
+    if (organization && "slug" in organization) {
       setName(organization.name);
-      setAiProvider((organization.aiProvider as "anthropic" | "openai") || "anthropic");
-      setAnthropicModel((organization as any).anthropicModel || "claude-sonnet-4-5-20250929");
-      setOpenaiModel((organization as any).openaiModel || "gpt-4o");
+      setOpenrouterModel(
+        organization.openrouterModel ?? "anthropic/claude-3.5-sonnet"
+      );
     }
   }, [organization]);
 
   const handleSaveName = async () => {
-    if (!organization || !("name" in organization)) return;
+    if (!organization || !("slug" in organization)) return;
     try {
-      await updateOrganization({ organizationId: organization._id as any, name });
+      await updateOrganization({ organizationId: organization._id, name });
       toast.success("Organization name updated");
-    } catch (error) {
+    } catch {
       toast.error("Failed to update organization name");
     }
   };
 
   const handleSaveAISettings = async () => {
-    if (!organization || !("aiProvider" in organization)) return;
+    if (!organization || !("slug" in organization)) return;
     try {
       await updateAISettings({
-        organizationId: organization._id as any,
-        aiProvider,
-        anthropicModel,
-        openaiModel,
+        organizationId: organization._id,
+        openrouterModel,
       });
       toast.success("AI settings updated");
-    } catch (error) {
+    } catch {
       toast.error("Failed to update AI settings");
     }
   };
@@ -102,57 +100,26 @@ export default function OrganizationSettingsPage() {
           <h3 className="text-lg font-semibold mb-4">AI Settings</h3>
           <div className="space-y-4">
             <div>
-              <Label htmlFor="ai-provider">AI Provider</Label>
+              <Label htmlFor="openrouter-model">Model (via OpenRouter)</Label>
               <Select
-                value={aiProvider}
-                onValueChange={(value: "anthropic" | "openai") => setAiProvider(value)}
+                value={openrouterModel}
+                onValueChange={setOpenrouterModel}
               >
-                <SelectTrigger id="ai-provider">
+                <SelectTrigger id="openrouter-model">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="anthropic">Anthropic Claude</SelectItem>
-                  <SelectItem value="openai">OpenAI</SelectItem>
+                  <SelectItem value="anthropic/claude-3.5-sonnet">
+                    Claude 3.5 Sonnet
+                  </SelectItem>
+                  <SelectItem value="anthropic/claude-3-opus">
+                    Claude 3 Opus
+                  </SelectItem>
+                  <SelectItem value="openai/gpt-4o">GPT-4o</SelectItem>
+                  <SelectItem value="openai/gpt-4-turbo">GPT-4 Turbo</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-
-            {aiProvider === "anthropic" && (
-              <div>
-                <Label htmlFor="anthropic-model">Claude Model</Label>
-                <Select
-                  value={anthropicModel}
-                  onValueChange={setAnthropicModel}
-                >
-                  <SelectTrigger id="anthropic-model">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="claude-sonnet-4-5-20250929">
-                      Claude Sonnet 4.5
-                    </SelectItem>
-                    <SelectItem value="claude-opus-4-5-20241101">
-                      Claude Opus 4.5
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            {aiProvider === "openai" && (
-              <div>
-                <Label htmlFor="openai-model">OpenAI Model</Label>
-                <Select value={openaiModel} onValueChange={setOpenaiModel}>
-                  <SelectTrigger id="openai-model">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="gpt-4o">GPT-4o</SelectItem>
-                    <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
 
             <Button onClick={handleSaveAISettings}>Save AI Settings</Button>
           </div>

@@ -9,11 +9,16 @@ import { NewScriptDialog } from "@/components/dashboard/NewScriptDialog";
 import { StatsCard } from "@/components/dashboard/StatsCard";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { TemplateLibrary } from "@/components/templates/TemplateLibrary";
+import { ViewToggle } from "@/components/dashboard/ViewToggle";
+import { KanbanView } from "@/components/dashboard/KanbanView";
+import { QuickCreateDialog } from "@/components/dashboard/QuickCreateDialog";
+import { KanbanSettingsDialog } from "@/components/dashboard/KanbanSettingsDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { api } from "@/convex/_generated/api";
 import { FileText, TrendingUp, CheckCircle, Activity, FolderOpen, Layout, FilePlus } from "lucide-react";
 import { useFeatureFlag } from "@/hooks/use-feature-flags";
+import { useDashboardStore } from "@/store/dashboard-store";
 import { toast } from "sonner";
 
 export default function DashboardPage() {
@@ -22,6 +27,17 @@ export default function DashboardPage() {
   const router = useRouter();
   const createScript = useMutation(api.scripts.create);
   const [isCreatingBlank, setIsCreatingBlank] = useState(false);
+  const { viewMode } = useDashboardStore();
+
+  // Kanban dialogs state
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+  const [quickCreateStage, setQuickCreateStage] = useState("draft");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const handleAddScript = (stageId: string) => {
+    setQuickCreateStage(stageId);
+    setQuickCreateOpen(true);
+  };
 
   const handleCreateBlankScript = async () => {
     setIsCreatingBlank(true);
@@ -112,7 +128,8 @@ export default function DashboardPage() {
                     Create and manage your tutorial scripts
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
+                  <ViewToggle />
                   <Button
                     variant="outline"
                     onClick={handleCreateBlankScript}
@@ -125,7 +142,14 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <ScriptGrid />
+              {viewMode === "kanban" ? (
+                <KanbanView
+                  onOpenSettings={() => setSettingsOpen(true)}
+                  onAddScript={handleAddScript}
+                />
+              ) : (
+                <ScriptGrid />
+              )}
             </TabsContent>
 
             <TabsContent value="templates" className="space-y-6">
@@ -150,7 +174,8 @@ export default function DashboardPage() {
                   Create and manage your tutorial scripts
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
+                <ViewToggle />
                 <Button
                   variant="outline"
                   onClick={handleCreateBlankScript}
@@ -163,9 +188,27 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <ScriptGrid />
+            {viewMode === "kanban" ? (
+              <KanbanView
+                onOpenSettings={() => setSettingsOpen(true)}
+                onAddScript={handleAddScript}
+              />
+            ) : (
+              <ScriptGrid />
+            )}
           </div>
         )}
+
+        {/* Kanban dialogs */}
+        <QuickCreateDialog
+          open={quickCreateOpen}
+          onOpenChange={setQuickCreateOpen}
+          stageId={quickCreateStage}
+        />
+        <KanbanSettingsDialog
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+        />
       </main>
     </div>
   );
