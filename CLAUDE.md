@@ -22,6 +22,12 @@ cp .env.local.example .env.local
 # Edit .env.local with Clerk and Convex credentials
 ```
 
+### Vercel / CI
+
+- `convex/_generated/` is **committed** so Git-based Vercel builds resolve `@/convex/_generated/api`.
+- After changing `convex/*.ts`, run `npx convex codegen` and commit updated files under `convex/_generated/`.
+- Production Convex deploy: `npx convex deploy` (or set `CONVEX_DEPLOY_KEY` on Vercel per Convex hosting docs).
+
 ### Development
 ```bash
 # Terminal 1: Start Convex development server (must run first)
