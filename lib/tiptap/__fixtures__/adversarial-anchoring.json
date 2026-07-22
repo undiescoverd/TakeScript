@@ -1,0 +1,134 @@
+{
+  "name": "adversarial anchoring cases",
+  "source": "hand-authored; documents specific known failure and success modes",
+  "docJSON": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "heading",
+        "attrs": { "level": 2 },
+        "content": [{ "type": "text", "text": "Getting Started with the API" }]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "You don't need to configure anything before you begin."
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Please click the button to continue. Then click the button to finish."
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [{ "type": "text", "text": "The first sentence ends here." }]
+      },
+      {
+        "type": "paragraph",
+        "content": [{ "type": "text", "text": "And the second one starts here." }]
+      }
+    ]
+  },
+  "issues": [
+    {
+      "type": "style",
+      "originalText": "don’t need to configure",
+      "message": "Contractions weaken instructional copy.",
+      "suggestion": "do not need to configure",
+      "severity": "low"
+    },
+    {
+      "type": "clarity",
+      "originalText": "GETTING STARTED WITH THE API",
+      "message": "Heading is vague.",
+      "suggestion": "API Quickstart",
+      "severity": "medium"
+    },
+    {
+      "type": "clarity",
+      "originalText": "You do not need to set up anything before starting",
+      "message": "Wordy opening.",
+      "suggestion": "No setup is required.",
+      "severity": "low"
+    },
+    {
+      "type": "style",
+      "originalText": "click the button",
+      "message": "Name the button explicitly.",
+      "suggestion": "click Continue",
+      "severity": "medium"
+    },
+    {
+      "type": "grammar",
+      "originalText": "ends here.\nAnd the second",
+      "message": "Run-on across the paragraph break.",
+      "suggestion": "ends here, and the second",
+      "severity": "low"
+    },
+    {
+      "type": "tone",
+      "message": "The overall tone drifts from instructional to conversational.",
+      "suggestion": "",
+      "severity": "medium"
+    },
+    {
+      "type": "style",
+      "originalText": "Please click the button to continue",
+      "message": "Drop the pleasantry in step text.",
+      "suggestion": "Click Continue",
+      "severity": "low"
+    }
+  ],
+  "expectations": [
+    {
+      "index": 0,
+      "why": "smart apostrophe in the model's quote must still match the doc's straight one",
+      "anchored": true,
+      "selectedText": "don't need to configure"
+    },
+    {
+      "index": 1,
+      "why": "the server's extractPlainText uppercases headings, so the model quotes text the document does not contain",
+      "anchored": false,
+      "reason": "not-found"
+    },
+    {
+      "index": 2,
+      "why": "a near-verbatim paraphrase must fail rather than mis-anchor onto similar text",
+      "anchored": false,
+      "reason": "not-found"
+    },
+    {
+      "index": 3,
+      "why": "a phrase recurring with no occurrence hint and no usable context is ambiguous",
+      "anchored": false,
+      "reason": "ambiguous"
+    },
+    {
+      "index": 4,
+      "why": "a quote spanning a block break can never map to one contiguous range",
+      "anchored": false,
+      "reason": "crosses-block"
+    },
+    {
+      "index": 5,
+      "why": "prompt rule 6 permits omitting the quote; kept as a general note",
+      "anchored": false,
+      "reason": "no-quote"
+    },
+    {
+      "index": 6,
+      "why": "unique longer quote anchors even though a shorter substring of it is ambiguous",
+      "anchored": true,
+      "selectedText": "Please click the button to continue"
+    }
+  ]
+}

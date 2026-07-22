@@ -279,6 +279,52 @@ export const dismiss = mutation({
   },
 });
 
+/**
+ * Mark many suggestions applied in ONE transaction.
+ *
+ * "Apply all" edits the document in a single undo step; settling the rows one
+ * mutation at a time would reopen exactly the gap that avoids — a failure
+ * halfway through leaves some rows applied and others still open, with no
+ * record of which. One mutation means the database either agrees with the
+ * editor or is untouched.
+ *
+ * Ownership is checked once per distinct script rather than once per row: the
+ * ids in a batch come from a single script in every real call, so the memo
+ * turns N identical auth round-trips into one while still refusing a
+ * hand-crafted call that mixes in someone else's annotation.
+ */
+export const markAppliedBatch = mutation({
+  args: { annotationIds: v.array(v.id("annotations")) },
+  handler: async (ctx, args) => {
+    if (args.annotationIds.length > MAX_AI_SUGGESTIONS_PER_BATCH) {
+      throw new Error(
+        `Too many annotations in one batch (max ${MAX_AI_SUGGESTIONS_PER_BATCH})`
+      );
+    }
+
+    const checkedScripts = new Set<string>();
+    const now = Date.now();
+
+    for (const annotationId of args.annotationIds) {
+      const annotation = await ctx.db.get(annotationId);
+      if (!annotation) {
+        throw new Error("Annotation not found");
+      }
+
+      if (!checkedScripts.has(annotation.scriptId)) {
+        await requireScriptOwner(ctx, annotation.scriptId);
+        checkedScripts.add(annotation.scriptId);
+      }
+
+      await ctx.db.patch(annotationId, {
+        status: "applied",
+        resolved: true,
+        updatedAt: now,
+      });
+    }
+  },
+});
+
 // Update annotation content
 export const update = mutation({
   args: {
