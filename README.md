@@ -1,5 +1,7 @@
 # TakeScript
 
+<!-- test: verifying Vercel Preview deployments after adding Preview-scoped env vars -->
+
 A professional tutorial script editor designed for SaaS companies and content creators who produce tutorial videos. TakeScript replaces Google Docs for script writing by providing specialized features for video production workflows.
 
 ## Features
