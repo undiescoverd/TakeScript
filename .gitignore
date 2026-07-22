@@ -44,3 +44,6 @@ next-env.d.ts
 # local tool output
 excalidraw.log
 .playwright-mcp/
+
+# local editor config
+.cursor/
