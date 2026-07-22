@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useMutation } from "convex/react";
-import { UserButton } from "@clerk/nextjs";
+import { AppUserButton } from "@/components/layout/AppUserButton";
 import { JSONContent } from "@tiptap/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
@@ -298,7 +298,7 @@ export function Topbar({ scriptId, title, content, onSaveNow, onOpenAIChat, onGr
         )}
 
         <ThemeToggle />
-        <UserButton afterSignOutUrl="/login" />
+        <AppUserButton />
       </div>
     </header>
   );
