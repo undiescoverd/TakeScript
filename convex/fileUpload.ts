@@ -69,15 +69,22 @@ export const extractTextFromFile = action({
     const file = await ctx.storage.get(args.storageId);
     if (!file) throw new Error("File not found in storage");
 
+    // Backstop only. The real gate is in fileUploads.recordUpload, which every
+    // upload hits before the flow branches on file type. This catches a direct
+    // call to this action that skipped recordUpload.
     if (file.size > MAX_GUIDELINE_FILE_BYTES) {
       // The blob is already uploaded at this point — drop it before
-      // rejecting, or we orphan the very file Task 6a's remove cleanup
-      // exists to prevent.
+      // rejecting, or we orphan the very file brandGuidelines.remove's
+      // cleanup exists to prevent.
       await ctx.storage.delete(args.storageId);
       await ctx.runMutation(internal.fileUploads.removeByStorageId, {
         storageId: args.storageId,
       });
-      throw new Error("File exceeds the 10MB limit");
+      throw new Error(
+        `File exceeds the ${Math.floor(
+          MAX_GUIDELINE_FILE_BYTES / (1024 * 1024)
+        )}MB limit`
+      );
     }
 
     const arrayBuffer = await file.arrayBuffer();
