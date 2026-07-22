@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useAction } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import { OPENROUTER_MODELS } from "@/lib/ai-models";
 import {
   Dialog,
   DialogContent,
@@ -22,35 +23,7 @@ import {
 import { Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Id } from "@/convex/_generated/dataModel";
-
-// Popular OpenRouter models with their full identifiers
-const OPENROUTER_MODELS = [
-  {
-    id: "anthropic/claude-3.5-sonnet",
-    name: "Claude 3.5 Sonnet (Recommended)",
-    description: "Best balance of speed and intelligence"
-  },
-  {
-    id: "anthropic/claude-opus-4-5",
-    name: "Claude Opus 4.5",
-    description: "Most capable model, slower"
-  },
-  {
-    id: "openai/gpt-4o",
-    name: "GPT-4o",
-    description: "OpenAI's flagship model"
-  },
-  {
-    id: "google/gemini-pro-1.5",
-    name: "Gemini Pro 1.5",
-    description: "Google's latest model"
-  },
-  {
-    id: "meta-llama/llama-3.1-70b-instruct",
-    name: "Llama 3.1 70B",
-    description: "Open source, fast"
-  },
-];
+import { userFacingError } from "@/lib/convex-error";
 
 interface Props {
   scriptId: Id<"scripts">;
@@ -79,6 +52,17 @@ export function AIGenerationDialog({
   const [generating, setGenerating] = useState(false);
   const [generatedContent, setGeneratedContent] = useState("");
 
+  // The OpenRouter model picker only makes sense when the effective provider
+  // is OpenRouter (platform fallback or a BYOK OpenRouter config).
+  const providerConfigs = useQuery(api.aiProviders.getMyConfigs);
+  const effectiveProvider =
+    providerConfigs?.effectiveSource === "user"
+      ? providerConfigs.user?.provider
+      : providerConfigs?.effectiveSource === "org"
+      ? providerConfigs.org?.provider
+      : "openrouter";
+  const showModelPicker = effectiveProvider === "openrouter";
+
   // Update prompt and task when props change
   useEffect(() => {
     setPrompt(initialPrompt);
@@ -99,13 +83,15 @@ export function AIGenerationDialog({
         prompt: prompt.trim(),
         task,
         context,
-        model: selectedModel,
+        model: showModelPicker ? selectedModel : undefined,
       });
 
       setGeneratedContent(result.generatedContent);
     } catch (error) {
       console.error("Generation error:", error);
-      toast.error("Failed to generate content. Please try again.");
+      toast.error(
+        userFacingError(error, "Failed to generate content. Please try again.")
+      );
     } finally {
       setGenerating(false);
     }
@@ -152,24 +138,26 @@ export function AIGenerationDialog({
             </Select>
           </div>
 
-          <div>
-            <Label htmlFor="model">AI Model</Label>
-            <Select value={selectedModel} onValueChange={setSelectedModel}>
-              <SelectTrigger id="model">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {OPENROUTER_MODELS.map((model) => (
-                  <SelectItem key={model.id} value={model.id}>
-                    <div className="flex flex-col">
-                      <span className="font-medium">{model.name}</span>
-                      <span className="text-xs text-muted-foreground">{model.description}</span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {showModelPicker && (
+            <div>
+              <Label htmlFor="model">AI Model</Label>
+              <Select value={selectedModel} onValueChange={setSelectedModel}>
+                <SelectTrigger id="model">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {OPENROUTER_MODELS.map((model) => (
+                    <SelectItem key={model.id} value={model.id}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{model.name}</span>
+                        <span className="text-xs text-muted-foreground">{model.description}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div>
             <Label htmlFor="prompt">

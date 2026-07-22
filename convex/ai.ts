@@ -1,6 +1,66 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { action } from "./_generated/server";
 import { api, internal } from "./_generated/api";
+import { decryptApiKey, KeyDecryptionError } from "./lib/byokCrypto";
+import { assertSafeCustomBaseUrl } from "./lib/baseUrlValidation";
+import { parseAIJson } from "./lib/parseAIJson";
+
+/**
+ * Shape the grammar-check prompt asks the model to return.
+ *
+ * The quote fields are optional on purpose: rule 6 of the prompt lets the model
+ * omit originalText when it cannot point at a specific span, and those issues
+ * are kept as unanchored general notes rather than being dropped or given a
+ * hallucinated anchor.
+ */
+interface GrammarCheckPayload {
+  issues?: Array<{
+    type: "grammar" | "spelling" | "style" | "tone" | "clarity";
+    originalText?: string;
+    occurrence?: number;
+    contextBefore?: string;
+    contextAfter?: string;
+    message: string;
+    suggestion: string;
+    severity: "low" | "medium" | "high";
+  }>;
+  overallScore?: number;
+  summary?: string;
+}
+
+/** Shape the script-review prompt asks the model to return. */
+interface ScriptReviewPayload {
+  overallScore?: number;
+  strengths?: string[];
+  improvements?: string[];
+  suggestions?: Array<{
+    chapter: string;
+    suggestion: string;
+    priority: "low" | "medium" | "high";
+  }>;
+  toneCompliance?: { score: number; notes: string };
+  pacing?: { score: number; notes: string };
+  clarity?: { score: number; notes: string };
+}
+
+/**
+ * Helper: Parse a structured AI response or throw.
+ *
+ * Throwing matters: the previous code returned a truthy `{error, rawResponse}`
+ * object, which the client spread into `issues || []` and rendered as a
+ * successful "No issues found" panel. Callers rely on try/catch → toast.error.
+ */
+function parseAIResponseOrThrow<T>(response: string, label: string): T {
+  const parsed = parseAIJson<T>(response);
+  if (!parsed.ok) {
+    throw new Error(
+      parsed.reason === "truncated"
+        ? `The AI response for ${label} was cut off before it finished. Try again, or use a shorter selection.`
+        : `The AI returned an unreadable ${label} response (${parsed.reason}). Please try again.`
+    );
+  }
+  return parsed.data;
+}
 
 /**
  * Helper: Extract plain text from Tiptap JSONContent (server-side version)
@@ -135,78 +195,217 @@ async function getBrandGuidelinesForUser(ctx: any) {
   return guideline?.content || null;
 }
 
+interface EffectiveAIConfig {
+  provider: "openrouter" | "openai" | "anthropic" | "custom";
+  baseUrl?: string;
+  apiKey: string;
+  model: string;
+  source: "user" | "org" | "platform";
+}
+
 /**
- * Helper: Get organization AI settings
- * Returns default settings if user doesn't have an organization yet
- * Currently only supports OpenRouter
+ * Helper: Resolve which AI provider + key + model to use for this request.
+ * Resolution order: personal BYOK config → org BYOK config → platform
+ * OpenRouter key (preserves pre-BYOK behavior exactly).
  */
-async function getDefaultAIModel(ctx: any): Promise<string> {
+async function resolveAIConfig(ctx: any): Promise<EffectiveAIConfig> {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) throw new Error("Not authenticated");
 
-  const user = await ctx.runQuery(internal.users.getByToken, {
-    tokenIdentifier: identity.tokenIdentifier
+  const config = await ctx.runQuery(internal.aiProviders.resolveEffectiveConfig, {
+    tokenIdentifier: identity.tokenIdentifier,
   });
-  if (!user) throw new Error("User not found");
+  if (!config) throw new Error("User not found");
 
-  // If user doesn't have an organization, use default model
-  if (!user.organizationId) {
-    return "anthropic/claude-3.5-sonnet";
+  if (config.source === "platform") {
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) throw new Error("OPENROUTER_API_KEY not configured");
+    return {
+      provider: "openrouter",
+      apiKey,
+      model: config.model,
+      source: "platform",
+    };
   }
 
-  const org = await ctx.runQuery(api.organizations.get, {
-    organizationId: user.organizationId,
-  });
+  let apiKey: string;
+  try {
+    apiKey = await decryptApiKey(config.encryptedKey);
+  } catch (error) {
+    if (!(error instanceof KeyDecryptionError)) throw error;
 
-  // Return organization's preferred OpenRouter model or default
-  return org?.openrouterModel || "anthropic/claude-3.5-sonnet";
+    // Deliberately NOT falling through to the platform key. Someone who
+    // configured BYOK expects their own key and their own bill; quietly
+    // spending the platform's credits instead would hide a broken config
+    // behind working features, and the operator would find out from an
+    // invoice. Fail, but say exactly what to do about it.
+    throw new ConvexError(
+      config.source === "org"
+        ? "Your organization's saved AI provider key could not be read. An owner or admin needs to re-enter it in Settings -> AI."
+        : "Your saved AI provider key could not be read. Please re-enter it in Settings -> AI."
+    );
+  }
+
+  return {
+    provider: config.provider,
+    baseUrl: config.baseUrl,
+    apiKey,
+    model: config.model,
+    source: config.source,
+  };
 }
 
 /**
- * Helper: Build system prompt with brand guidelines
+ * Helper: build the system messages for an AI call, split into a stable half
+ * and a per-request half.
+ *
+ * ORDER IS LOAD-BEARING. Prompt caching is a prefix match: the provider reuses
+ * its work only up to the first byte that differs from the previous request.
+ * Brand guidelines can run to thousands of tokens and are identical on every
+ * call, so they must sit at the very front, ahead of anything that varies.
+ *
+ * This previously interpolated the per-task instruction ahead of the
+ * guidelines, which meant each of the four AI features produced a different
+ * prefix from its first sentence and none of them could share a cache entry.
+ *
+ * Returns [stable, perRequest]:
+ *   stable     — identity + brand guidelines. Byte-identical across every
+ *                feature and every request, so it is the cache breakpoint.
+ *   perRequest — the task instruction. Callers may append script context to
+ *                this, but must never prepend anything to `stable`.
  */
-function buildSystemPrompt(brandGuidelines: string | null, task: string): string {
-  let prompt = `You are a professional writing assistant for video tutorial scripts. ${task}\n\n`;
+function buildSystemPrompts(
+  brandGuidelines: string | null,
+  task: string
+): { stable: string; perRequest: string } {
+  let stable = `You are a professional writing assistant for video tutorial scripts.\n\n`;
 
   if (brandGuidelines) {
-    prompt += `BRAND GUIDELINES:\n${brandGuidelines}\n\n`;
-    prompt += `Always follow these brand guidelines in your suggestions.\n\n`;
+    stable += `BRAND GUIDELINES:\n${brandGuidelines}\n\n`;
+    stable += `Always follow these brand guidelines in your suggestions.\n\n`;
   }
 
-  return prompt;
+  return { stable, perRequest: `${task}\n\n` };
 }
 
 /**
- * Helper: Call OpenRouter API
- * OpenRouter provides unified access to multiple AI models (Anthropic, OpenAI, Google, etc.)
- * Uses OpenAI-compatible API format
+ * Helper: Call the Anthropic Messages API (not OpenAI-compatible).
+ * Leading system messages are extracted into the top-level `system` field.
  */
-async function callOpenRouter(
-  messages: Array<{ role: string; content: string }>,
-  model: string
+async function callAnthropic(
+  config: EffectiveAIConfig,
+  messages: Array<{ role: string; content: string }>
 ): Promise<string> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw new Error("OPENROUTER_API_KEY not configured");
+  const systemParts: string[] = [];
+  const chatMessages = [...messages];
+  while (chatMessages.length > 0 && chatMessages[0].role === "system") {
+    systemParts.push(chatMessages.shift()!.content);
+  }
 
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+  // Send `system` as discrete blocks rather than one joined string, and mark
+  // the first one as a cache breakpoint. buildSystemPrompts puts the stable
+  // half (identity + brand guidelines) first, so everything up to and
+  // including block 0 is reused across requests at ~10% of the input price;
+  // the per-request blocks after it are billed normally.
+  //
+  // Caching is best-effort: below the model's minimum cacheable prefix
+  // (roughly 1-4k tokens depending on model) the marker is simply ignored and
+  // billing is unchanged, so a short or absent brand guideline costs nothing
+  // extra. Entries expire after ~5 minutes idle.
+  const systemBlocks = systemParts.map((text, i) => ({
+    type: "text" as const,
+    text,
+    ...(i === 0 ? { cache_control: { type: "ephemeral" as const } } : {}),
+  }));
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-      "HTTP-Referer": process.env.OPENROUTER_HTTP_REFERER || "https://takescript.app",
-      "X-Title": process.env.OPENROUTER_APP_NAME || "TakeScript",
+      "x-api-key": config.apiKey,
+      "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
-      model,
-      messages,
-      temperature: 0.7,
-      max_tokens: 2000,
+      model: config.model,
+      ...(systemBlocks.length > 0 ? { system: systemBlocks } : {}),
+      messages: chatMessages,
+      // No `temperature`/`top_p`/`top_k`: current Anthropic models (Opus 4.8,
+      // Opus 4.7, Sonnet 5, Fable 5) reject sampling parameters with a 400.
+      // The model field is free text in BYOK settings, so any hardcoded
+      // sampling parameter breaks every AI call the moment someone selects a
+      // current model. Steer tone via the system prompt instead.
+      max_tokens: 8000,
     }),
   });
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`OpenRouter API error: ${response.statusText} - ${error}`);
+    throw new Error(`Anthropic API error: ${response.statusText} - ${error}`);
+  }
+
+  const data = await response.json();
+  return data.content[0].text;
+}
+
+/**
+ * Helper: Call the resolved AI provider with an OpenAI-shaped message list.
+ * OpenRouter, OpenAI, and custom endpoints share the chat-completions shape;
+ * Anthropic is dispatched to its native Messages API.
+ */
+async function callAI(
+  config: EffectiveAIConfig,
+  messages: Array<{ role: string; content: string }>
+): Promise<string> {
+  if (config.provider === "anthropic") {
+    return callAnthropic(config, messages);
+  }
+
+  let url: string;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${config.apiKey}`,
+  };
+
+  switch (config.provider) {
+    case "openrouter":
+      url = "https://openrouter.ai/api/v1/chat/completions";
+      headers["HTTP-Referer"] =
+        process.env.OPENROUTER_HTTP_REFERER || "https://takescript.app";
+      headers["X-Title"] = process.env.OPENROUTER_APP_NAME || "TakeScript";
+      break;
+    case "openai":
+      url = "https://api.openai.com/v1/chat/completions";
+      break;
+    case "custom":
+      if (!config.baseUrl) throw new Error("Custom provider base URL not configured");
+      // Re-check at request time — stored configs must never reach internal hosts
+      assertSafeCustomBaseUrl(config.baseUrl);
+      url = `${config.baseUrl.replace(/\/+$/, "")}/chat/completions`;
+      break;
+    default:
+      throw new Error(`Unsupported AI provider: ${config.provider}`);
+  }
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    // Custom endpoints must not follow redirects (SSRF guard); their error
+    // bodies are also never echoed back to clients.
+    ...(config.provider === "custom" ? { redirect: "manual" as const } : {}),
+    body: JSON.stringify({
+      model: config.model,
+      messages,
+      temperature: 0.7,
+      max_tokens: 8000,
+    }),
+  });
+
+  if (!response.ok) {
+    if (config.provider === "custom") {
+      throw new Error(`AI provider error (custom): ${response.status} ${response.statusText}`);
+    }
+    const error = await response.text();
+    throw new Error(`AI provider error (${config.provider}): ${response.statusText} - ${error}`);
   }
 
   const data = await response.json();
@@ -220,7 +419,8 @@ async function trackAIRequest(
   ctx: any,
   scriptId: string | undefined,
   requestType: string,
-  model: string
+  model: string,
+  provider: string
 ) {
   try {
     const identity = await ctx.auth.getUserIdentity();
@@ -232,11 +432,9 @@ async function trackAIRequest(
     if (!user || !user.organizationId) return;
 
     await ctx.runMutation(api.aiRequests.create, {
-      userId: user._id,
-      organizationId: user.organizationId,
       scriptId,
       requestType,
-      provider: "openrouter",
+      provider,
       model,
     });
   } catch (error) {
@@ -263,8 +461,8 @@ export const chat = action({
     // Get brand guidelines
     const brandGuidelines = await getBrandGuidelinesForUser(ctx);
 
-    // Get default model
-    const model = await getDefaultAIModel(ctx);
+    // Resolve provider config (personal → org → platform)
+    const config = await resolveAIConfig(ctx);
 
     // Get current script content for context
     const script = await ctx.runQuery(api.scripts.get, { scriptId: args.scriptId });
@@ -274,7 +472,7 @@ export const chat = action({
     const plainText = scriptContent ? extractPlainText(scriptContent) : "";
 
     // Build context-aware prompt
-    const systemPrompt = buildSystemPrompt(
+    const { stable, perRequest } = buildSystemPrompts(
       brandGuidelines,
       "Help the user write better tutorial scripts by providing suggestions, improvements, and guidance."
     );
@@ -283,18 +481,20 @@ export const chat = action({
       ? `\n\nCURRENT SCRIPT CONTENT:\n${plainText.slice(0, 4000)}\n\n`
       : "";
 
-    // Prepare messages
+    // `stable` must stay its own leading message and must not be concatenated
+    // with anything request-specific — it is the cache breakpoint. Script
+    // content changes on every keystroke, so it belongs after it.
     const messages = [
-      { role: "system", content: systemPrompt + contextPrompt },
+      { role: "system", content: stable },
+      { role: "system", content: perRequest + contextPrompt },
       ...args.conversationHistory,
       { role: "user", content: args.message },
     ];
 
-    // Call OpenRouter
-    const response = await callOpenRouter(messages, model);
+    const response = await callAI(config, messages);
 
     // Track usage
-    await trackAIRequest(ctx, args.scriptId, "chat", model);
+    await trackAIRequest(ctx, args.scriptId, "chat", config.model, config.provider);
 
     return { response };
   },
@@ -310,50 +510,64 @@ export const checkGrammarAndStyle = action({
   },
   handler: async (ctx, args) => {
     const brandGuidelines = await getBrandGuidelinesForUser(ctx);
-    const model = await getDefaultAIModel(ctx);
+    const config = await resolveAIConfig(ctx);
 
     // Get script content
     const script = await ctx.runQuery(api.scripts.get, { scriptId: args.scriptId });
     const scriptContent = script?.content ? JSON.parse(script.content) : null;
     const textToCheck = args.selectedText || (scriptContent ? extractPlainText(scriptContent) : "");
 
-    const systemPrompt = buildSystemPrompt(
+    const { stable, perRequest } = buildSystemPrompts(
       brandGuidelines,
       "Analyze the text for grammar, spelling, style, tone, and clarity issues."
     );
 
-    const prompt = `Analyze this text and provide structured feedback in JSON format:
+    const prompt = `Return ONLY a JSON object. No markdown fences, no prose.
 {
-  "issues": [
-    {
-      "type": "grammar" | "spelling" | "style" | "tone" | "clarity",
-      "message": "Brief description of the issue",
-      "suggestion": "Suggested fix",
-      "severity": "low" | "medium" | "high"
-    }
-  ],
+  "issues": [{
+    "type": "grammar"|"spelling"|"style"|"tone"|"clarity",
+    "originalText": "EXACT verbatim substring copied character-for-character from the text below",
+    "occurrence": 1,
+    "contextBefore": "up to 40 chars immediately preceding originalText, verbatim",
+    "contextAfter":  "up to 40 chars immediately following originalText, verbatim",
+    "message": "what is wrong, one sentence",
+    "suggestion": "replacement text for originalText, or \\"\\" if advice only",
+    "severity": "low"|"medium"|"high"
+  }],
   "overallScore": 1-10,
-  "summary": "Brief overall assessment"
+  "summary": "brief overall assessment"
 }
+
+RULES FOR originalText — strict:
+1. Copy EXACTLY. Do not fix, normalize, re-case, or re-punctuate it.
+2. Between 3 and 200 characters. Prefer the shortest span containing the issue.
+3. It must NOT span a line break.
+4. Quote ONLY from ordinary prose. Never quote a line in [SQUARE BRACKETS], an ALL-CAPS
+   heading, a "(00:45)" duration line, or the "• "/"1. " prefix of a list item.
+5. "occurrence" is 1-based: if originalText appears 3 times and you mean the 2nd, set 2.
+6. If you cannot point at a specific span, OMIT originalText and give the observation in
+   "message". It will be shown as a general note.
 
 TEXT TO ANALYZE:
 ${textToCheck.slice(0, 8000)}`;
 
+    // `stable` stays its own leading message — it is the cache breakpoint.
     const messages = [
-      { role: "system", content: systemPrompt },
+      { role: "system", content: stable },
+      { role: "system", content: perRequest },
       { role: "user", content: prompt },
     ];
 
-    const response = await callOpenRouter(messages, model);
+    const response = await callAI(config, messages);
 
     // Track usage
-    await trackAIRequest(ctx, args.scriptId, "grammar", model);
+    await trackAIRequest(ctx, args.scriptId, "grammar", config.model, config.provider);
 
-    try {
-      return JSON.parse(response);
-    } catch {
-      return { error: "Failed to parse AI response", rawResponse: response };
-    }
+    const parsed = parseAIResponseOrThrow<GrammarCheckPayload>(
+      response,
+      "grammar check"
+    );
+    return { ...parsed, model: config.model, provider: config.provider };
   },
 });
 
@@ -364,13 +578,13 @@ export const reviewScript = action({
   args: { scriptId: v.id("scripts") },
   handler: async (ctx, args) => {
     const brandGuidelines = await getBrandGuidelinesForUser(ctx);
-    const model = await getDefaultAIModel(ctx);
+    const config = await resolveAIConfig(ctx);
 
     const script = await ctx.runQuery(api.scripts.get, { scriptId: args.scriptId });
     const scriptContent = script?.content ? JSON.parse(script.content) : null;
     const plainText = scriptContent ? extractPlainText(scriptContent) : "";
 
-    const systemPrompt = buildSystemPrompt(
+    const { stable, perRequest } = buildSystemPrompts(
       brandGuidelines,
       "Provide comprehensive review of tutorial scripts."
     );
@@ -404,21 +618,23 @@ export const reviewScript = action({
 SCRIPT CONTENT:
 ${plainText.slice(0, 8000)}`;
 
+    // `stable` stays its own leading message — it is the cache breakpoint.
     const messages = [
-      { role: "system", content: systemPrompt },
+      { role: "system", content: stable },
+      { role: "system", content: perRequest },
       { role: "user", content: prompt },
     ];
 
-    const response = await callOpenRouter(messages, model);
+    const response = await callAI(config, messages);
 
     // Track usage
-    await trackAIRequest(ctx, args.scriptId, "review", model);
+    await trackAIRequest(ctx, args.scriptId, "review", config.model, config.provider);
 
-    try {
-      return JSON.parse(response);
-    } catch {
-      return { error: "Failed to parse AI response", rawResponse: response };
-    }
+    const parsed = parseAIResponseOrThrow<ScriptReviewPayload>(
+      response,
+      "script review"
+    );
+    return { ...parsed, model: config.model, provider: config.provider };
   },
 });
 
@@ -435,16 +651,16 @@ export const generateContent = action({
   },
   handler: async (ctx, args) => {
     const brandGuidelines = await getBrandGuidelinesForUser(ctx);
-    const defaultModel = await getDefaultAIModel(ctx);
+    const resolved = await resolveAIConfig(ctx);
 
-    // Override with user-selected model if provided
-    const model = args.model || defaultModel;
+    // Override with user-selected model if provided (OpenRouter model picker)
+    const config = args.model ? { ...resolved, model: args.model } : resolved;
 
     const script = await ctx.runQuery(api.scripts.get, { scriptId: args.scriptId });
     const scriptContent = script?.content ? JSON.parse(script.content) : null;
     const plainText = scriptContent ? extractPlainText(scriptContent) : "";
 
-    const systemPrompt = buildSystemPrompt(
+    const { stable, perRequest } = buildSystemPrompts(
       brandGuidelines,
       `Generate tutorial script content. Task: ${args.task}.`
     );
@@ -473,15 +689,18 @@ export const generateContent = action({
       ? `\n\nCURRENT SCRIPT:\n${plainText.slice(0, 2000)}\n\n`
       : "";
 
+    // `stable` stays its own leading message — it is the cache breakpoint.
+    // Script context varies per request, so it goes after it.
     const messages = [
-      { role: "system", content: systemPrompt + contextPrompt },
+      { role: "system", content: stable },
+      { role: "system", content: perRequest + contextPrompt },
       { role: "user", content: taskPrompt },
     ];
 
-    const response = await callOpenRouter(messages, model);
+    const response = await callAI(config, messages);
 
     // Track usage
-    await trackAIRequest(ctx, args.scriptId, "generation", model);
+    await trackAIRequest(ctx, args.scriptId, "generation", config.model, config.provider);
 
     return { generatedContent: response };
   },

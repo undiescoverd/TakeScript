@@ -18,6 +18,7 @@ import { formatDistanceToNow } from "@/lib/utils";
 import { toast } from "sonner";
 import { useEditorStore } from "@/store/editor-store";
 import { annotationColors, AnnotationColor } from "@/lib/tiptap/annotation-mark";
+import { findAnnotationRange } from "@/lib/tiptap/find-annotation-range";
 import { Editor } from "@tiptap/react";
 
 interface AnnotationsPanelProps {
@@ -121,33 +122,28 @@ export function AnnotationsPanel({
     // Scroll to the annotation in the editor
     if (editor && editor.view) {
       try {
-        const { state } = editor;
-        let foundFrom: number | null = null;
-        let foundTo: number | null = null;
+        // Re-derive the position from the mark itself: only the mark moves with
+        // the text when the document is edited, so the stored from/to are a
+        // fallback, not the truth.
+        //
+        // This previously walked the doc inline, taking the FIRST match as the
+        // start and the LAST as the end — for an annotation broken into two
+        // fragments that selected everything in between, including unrelated
+        // text. findAnnotationRange reports the fragments separately instead.
+        const found = findAnnotationRange(editor.state.doc, annotationId);
 
-        // Search through the document for the annotation mark by ID
-        // This finds the actual current position, even if the document has changed
-        state.doc.descendants((node, pos) => {
-          if (node.isText && node.marks) {
-            const annotationMark = node.marks.find(
-              (mark) => mark.type.name === "annotation" && mark.attrs.annotationId === annotationId
-            );
-            
-            if (annotationMark) {
-              // Found a text node with this annotation
-              // Track the start and end of the annotation range
-              if (foundFrom === null) {
-                foundFrom = pos;
-              }
-              foundTo = pos + node.nodeSize;
-            }
-          }
-        });
-
-        // If we found the annotation in the document, use those positions
-        // Otherwise, fall back to the stored positions from the database
-        const selectionFrom = foundFrom !== null ? foundFrom : from;
-        const selectionTo = foundTo !== null ? foundTo : to;
+        const selectionFrom =
+          found.status === "single"
+            ? found.from
+            : found.status === "split"
+              ? found.runs[0].from
+              : from;
+        const selectionTo =
+          found.status === "single"
+            ? found.to
+            : found.status === "split"
+              ? found.runs[0].to
+              : to;
 
         // Select the full range of the annotation
         editor

@@ -3,12 +3,16 @@ import { mutation } from "./_generated/server";
 import { getUserByTokenIdentifier } from "./users";
 
 /**
- * Track AI request for analytics and billing
+ * Track AI request for analytics and billing.
+ *
+ * `userId` and `organizationId` are derived from the authenticated caller,
+ * never trusted from the client. `provider`, `model`, `tokensUsed`, and
+ * `cost` remain self-reported by the caller (only it knows them) — they are
+ * suitable for usage/analytics display but NOT for billing without
+ * server-side metering.
  */
 export const create = mutation({
   args: {
-    userId: v.id("users"),
-    organizationId: v.id("organizations"),
     scriptId: v.optional(v.id("scripts")),
     requestType: v.string(), // "chat" | "grammar" | "review" | "generation" | "inline"
     provider: v.string(), // "anthropic" | "openai" | "openrouter"
@@ -23,16 +27,25 @@ export const create = mutation({
       throw new Error("Not authenticated");
     }
 
-    // Verify user matches the userId in args
     const user = await getUserByTokenIdentifier(ctx, identity.tokenIdentifier);
-    if (!user || user._id !== args.userId) {
+    if (!user) {
       throw new Error("Unauthorized");
+    }
+    if (!user.organizationId) {
+      throw new Error("User has no organization");
+    }
+
+    if (args.scriptId) {
+      const script = await ctx.db.get(args.scriptId);
+      if (!script || script.userId !== user._id) {
+        throw new Error("Not authorized");
+      }
     }
 
     // Create AI request record
     await ctx.db.insert("aiRequests", {
-      userId: args.userId,
-      organizationId: args.organizationId,
+      userId: user._id,
+      organizationId: user.organizationId,
       scriptId: args.scriptId,
       requestType: args.requestType,
       provider: args.provider,

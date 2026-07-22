@@ -1,0 +1,514 @@
+{
+  "name": "horizontal-scrolling",
+  "source": "checked 2026-07-23",
+  "docJSON": {
+    "type": "doc",
+    "content": [
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 1
+        },
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ],
+            "text": "Squarespace Horizontal Scrolling | The complete no code tutorial"
+          }
+        ]
+      },
+      {
+        "type": "paragraph"
+      },
+      {
+        "type": "chapter",
+        "attrs": {
+          "title": "Intro",
+          "duration": null,
+          "id": "chapter-1779939252192-cgihwwm"
+        },
+        "content": [
+          {
+            "type": "paragraph"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "speaker",
+                "attrs": {
+                  "speakerId": "speaker-1779939178851-pw6f21dmk",
+                  "cameraMode": "full"
+                }
+              }
+            ],
+            "text": "It can be hard to slow down your site visitors so they don’t scroll past your best content. Horizontal scrolling changes things up, guiding people through your site in an entirely new way that feels immersive and compelling. I’m Loren from SquareKicker, and I’m going to show you how easy it is to add Horizontal Scrolling to your next Squarespace site. "
+          }
+        ]
+      },
+      {
+        "type": "chapter",
+        "attrs": {
+          "title": "Creating a Horizontal Scrolling track",
+          "duration": null,
+          "id": "chapter-1779939259667-76hozcj"
+        },
+        "content": [
+          {
+            "type": "paragraph"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "To create a Horizontal Scrolling track, you’ll need at least two Squarespace sections. (laptop)"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ],
+            "text": "REVERSE"
+          },
+          {
+            "type": "hardBreak"
+          },
+          {
+            "type": "text",
+            "text": "Now by default, your sections will scroll from left to right as visitors move down the page. But if you want to reverse the direction, simply enable Reverse! (laptop)"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ],
+            "text": "FLUID"
+          },
+          {
+            "type": "hardBreak"
+          },
+          {
+            "type": "text",
+            "text": "Next, let’s look at Fluid. (laptop)"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "And when Fluid is enabled, you’ll also get to customise this background color. (laptop)"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ],
+            "text": "STACK"
+          },
+          {
+            "type": "hardBreak"
+          },
+          {
+            "type": "text",
+            "text": "Another option is Stack. (laptop)"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "This creates a really unique visual effect where previous sections remain partially visible while new sections continue moving into view. And this offers very cool options when used alongside section width, which I’ll show you toward the end of the video."
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ],
+            "text": "SPEED"
+          },
+          {
+            "type": "hardBreak",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ]
+          },
+          {
+            "type": "text",
+            "text": "You can also control the speed of the Horizontal Scrolling effect. The speed slider lets you slow down or speed up how quickly sections move across the screen. (laptop)"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Lower speeds create a much more immersive storytelling experience, while faster speeds feel more dynamic and responsive."
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ],
+            "text": "FIXED BACK "
+          },
+          {
+            "type": "hardBreak"
+          },
+          {
+            "type": "text",
+            "text": "Another really popular option is Fixed background. (laptop)"
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ],
+            "text": "Mobile and Tablet Behavior "
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Now let’s look at device behavior. Horizontal Scrolling has flexible options for smaller screen sizes so your site looks great everywhere. (scroll to section) Horizontal Scrolling is automatically disabled on mobile by default because this type of interaction usually feels more natural on larger screens. But you have full control over this and can choose to:"
+          }
+        ]
+      },
+      {
+        "type": "bulletList",
+        "content": [
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Enable Horizontal Scrolling on smaller screens"
+                  },
+                  {
+                    "type": "hardBreak"
+                  },
+                  {
+                    "type": "hardBreak"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Switch back to standard vertical scrolling - To do this you would select ‘Disabled’ on each screen size. (show example tablet)"
+                  },
+                  {
+                    "type": "hardBreak"
+                  },
+                  {
+                    "type": "hardBreak"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "listItem",
+            "content": [
+              {
+                "type": "paragraph",
+                "content": [
+                  {
+                    "type": "text",
+                    "text": "Or you can choose to completely hide the whole track on certain devices. If you do this, you could create specific sections that are only visible on tablet and mobile, using the Visibility tool."
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "This gives you a lot of flexibility when designing responsive experiences across different screen sizes."
+          }
+        ]
+      },
+      {
+        "type": "heading",
+        "attrs": {
+          "level": 2
+        },
+        "content": [
+          {
+            "type": "text",
+            "marks": [
+              {
+                "type": "bold"
+              }
+            ],
+            "text": "Advanced designs"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "(enable Stack in advance before starting)"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "One of the most exciting aspects of Horizontal Scrolling is combining it with other SquareKicker tools."
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "As I mentioned earlier, section width can be adjusted, which looks really great when Stack is enabled. "
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Instead of every section taking up the full screen width, you can create sections anywhere from 25% to 100% wide, or even set custom widths. (laptop)"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "This creates visual hierarchy, emphasises certain content, or creates repeating layout patterns throughout the scroll track."
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "hardBreak"
+          },
+          {
+            "type": "text",
+            "text": "Now the last thing I want  to show you is how Horizontal scrolling can interact with Scroll Effects. (laptop)"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "—"
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Whether you’re creating portfolio showcases, or product presentations, the Horizontal Scrolling tool makes this incredibly easy with just a few clicks and no custom code. "
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "text",
+            "text": "Thanks for watching, and we can’t wait to see what you create with SquareKicker."
+          }
+        ]
+      },
+      {
+        "type": "paragraph",
+        "content": [
+          {
+            "type": "hardBreak"
+          }
+        ]
+      }
+    ]
+  },
+  "issues": [
+    {
+      "contextAfter": " by default, your sections will scroll",
+      "contextBefore": "two Squarespace sections. (laptop)\n",
+      "message": "The heading label 'REVERSE' is run directly into the following sentence with no space or line break, making it look like a typo.",
+      "occurrence": 1,
+      "originalText": "REVERSENow",
+      "severity": "medium",
+      "suggestion": "REVERSE\nNow",
+      "type": "clarity"
+    },
+    {
+      "contextAfter": ", let’s look at Fluid. (laptop)",
+      "contextBefore": "simply enable Reverse! (laptop)\n",
+      "message": "The heading label 'FLUID' is merged with the start of the sentence with no separation.",
+      "occurrence": 1,
+      "originalText": "FLUIDNext",
+      "severity": "medium",
+      "suggestion": "FLUID\nNext",
+      "type": "clarity"
+    },
+    {
+      "contextAfter": " option is Stack. (laptop)",
+      "contextBefore": "customise this background color. (laptop)\n",
+      "message": "The heading label 'STACK' is merged with the start of the sentence with no separation.",
+      "occurrence": 1,
+      "originalText": "STACKAnother",
+      "severity": "medium",
+      "suggestion": "STACK\nAnother",
+      "type": "clarity"
+    },
+    {
+      "contextAfter": " can also control the speed of the Horizontal",
+      "contextBefore": "toward the end of the video.\n",
+      "message": "The heading label 'SPEED' is merged with the start of the sentence with no separation.",
+      "occurrence": 1,
+      "originalText": "SPEEDYou",
+      "severity": "medium",
+      "suggestion": "SPEED\nYou",
+      "type": "clarity"
+    },
+    {
+      "contextAfter": " really popular option is Fixed background.",
+      "contextBefore": "feel more dynamic and responsive.\n",
+      "message": "The heading appears truncated ('FIXED BACK' instead of 'FIXED BACKGROUND') and is run into the sentence without separation.",
+      "occurrence": 1,
+      "originalText": "FIXED BACK Another",
+      "severity": "medium",
+      "suggestion": "FIXED BACKGROUND\nAnother",
+      "type": "clarity"
+    },
+    {
+      "contextAfter": " you is how Horizontal scrolling can interact",
+      "contextBefore": "Now the last thing I ",
+      "message": "Double space between 'want' and 'to'.",
+      "occurrence": 1,
+      "originalText": "want  to show",
+      "severity": "low",
+      "suggestion": "want to show",
+      "type": "grammar"
+    },
+    {
+      "contextAfter": " can interact with Scroll Effects. (laptop)",
+      "contextBefore": "want  to show you is how ",
+      "message": "Inconsistent capitalization; the feature name 'Horizontal Scrolling' is capitalized everywhere else in the script.",
+      "occurrence": 1,
+      "originalText": "Horizontal scrolling",
+      "severity": "low",
+      "suggestion": "Horizontal Scrolling",
+      "type": "style"
+    },
+    {
+      "contextAfter": " this background color. (laptop)",
+      "contextBefore": "you’ll also get to ",
+      "message": "British spelling 'customise' is used alongside American spelling 'color' elsewhere, creating an inconsistent spelling convention.",
+      "occurrence": 1,
+      "originalText": "customise",
+      "severity": "low",
+      "suggestion": "customize",
+      "type": "spelling"
+    },
+    {
+      "contextAfter": " ‘Disabled’ on each screen size.",
+      "contextBefore": "Switch back to standard vertical ",
+      "message": "A hyphen is used where an em dash or colon would be more appropriate to separate the clause.",
+      "occurrence": 1,
+      "originalText": "scrolling - To do this you would select",
+      "severity": "low",
+      "suggestion": "scrolling — to do this you would select",
+      "type": "style"
+    }
+  ]
+}

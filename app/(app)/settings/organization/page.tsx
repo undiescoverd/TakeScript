@@ -17,6 +17,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { getFeatureFlags } from "@/lib/feature-flags";
+import { OPENROUTER_MODELS } from "@/lib/ai-models";
 
 export default function OrganizationSettingsPage() {
   const flags = getFeatureFlags();
@@ -30,14 +31,14 @@ export default function OrganizationSettingsPage() {
 
   const [name, setName] = useState("");
   const [openrouterModel, setOpenrouterModel] = useState(
-    "anthropic/claude-3.5-sonnet"
+    "anthropic/claude-sonnet-5"
   );
 
   useEffect(() => {
     if (organization && "slug" in organization) {
       setName(organization.name);
       setOpenrouterModel(
-        organization.openrouterModel ?? "anthropic/claude-3.5-sonnet"
+        organization.openrouterModel ?? "anthropic/claude-sonnet-5"
       );
     }
   }, [organization]);
@@ -95,7 +96,19 @@ export default function OrganizationSettingsPage() {
         </div>
       </Card>
 
-      {flags.aiEnabled && (
+      {flags.aiEnabled && flags.aiByokEnabled && (
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-2">AI Providers</h3>
+          <p className="text-muted-foreground mb-4">
+            Configure organization and personal AI provider keys (BYOK)
+          </p>
+          <Link href="/settings/ai">
+            <Button variant="outline">Manage AI Providers</Button>
+          </Link>
+        </Card>
+      )}
+
+      {flags.aiEnabled && !flags.aiByokEnabled && (
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">AI Settings</h3>
           <div className="space-y-4">
@@ -108,15 +121,15 @@ export default function OrganizationSettingsPage() {
                 <SelectTrigger id="openrouter-model">
                   <SelectValue />
                 </SelectTrigger>
+                {/* Driven from lib/ai-models.ts so this list can't drift out
+                    of sync with the BYOK picker — it previously hardcoded four
+                    models that had all been retired. */}
                 <SelectContent>
-                  <SelectItem value="anthropic/claude-3.5-sonnet">
-                    Claude 3.5 Sonnet
-                  </SelectItem>
-                  <SelectItem value="anthropic/claude-3-opus">
-                    Claude 3 Opus
-                  </SelectItem>
-                  <SelectItem value="openai/gpt-4o">GPT-4o</SelectItem>
-                  <SelectItem value="openai/gpt-4-turbo">GPT-4 Turbo</SelectItem>
+                  {OPENROUTER_MODELS.map((model) => (
+                    <SelectItem key={model.id} value={model.id}>
+                      {model.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

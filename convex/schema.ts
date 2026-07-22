@@ -10,7 +10,7 @@ export default defineSchema({
     // AI Settings - Using OpenRouter for unified access to all models
     aiProvider: v.optional(v.string()), // "openrouter" | "anthropic" (legacy)
     anthropicModel: v.optional(v.string()), // Legacy field
-    openrouterModel: v.optional(v.string()), // Default: "anthropic/claude-3.5-sonnet"
+    openrouterModel: v.optional(v.string()), // Default: "anthropic/claude-sonnet-5"
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_slug", ["slug"]),
@@ -56,7 +56,8 @@ export default defineSchema({
     targetLength: v.optional(v.number()), // Duration in minutes or page count
     targetType: v.optional(v.string()), // "pages" | "minutes"
     category: v.optional(v.string()), // Project/folder name
-    status: v.optional(v.string()), // "draft" | "in-progress" | "complete" | "archived"
+    // DEPRECATED: never written; `stageId` is the canonical workflow state.
+    status: v.optional(v.string()),
     organizationId: v.optional(v.id("organizations")), // Link to organization
     sharedWith: v.optional(v.array(v.id("users"))), // Specific users with access
     // Speaker data (stored with script for collaboration and reliability)
@@ -110,6 +111,8 @@ export default defineSchema({
 
   annotations: defineTable({
     scriptId: v.id("scripts"),
+    // Always the triggering *human*, even for AI-authored rows, so every
+    // existing `script.userId !== user._id` ownership check works unchanged.
     userId: v.id("users"),
     content: v.string(), // The annotation note content
     selectedText: v.string(), // The text that was highlighted
@@ -119,9 +122,50 @@ export default defineSchema({
     resolved: v.boolean(),
     createdAt: v.number(),
     updatedAt: v.number(),
+
+    // --- AI-authored suggestions (all optional; existing rows read undefined) ---
+    authorType: v.optional(v.union(v.literal("user"), v.literal("ai"))), // undefined => "user"
+    aiModel: v.optional(v.string()),
+    aiProvider: v.optional(v.string()),
+    suggestionType: v.optional(
+      v.union(
+        v.literal("grammar"),
+        v.literal("spelling"),
+        v.literal("style"),
+        v.literal("tone"),
+        v.literal("clarity"),
+        v.literal("structure"),
+        v.literal("pacing")
+      )
+    ),
+    suggestedText: v.optional(v.string()), // replacement span; absent => comment-only
+    severity: v.optional(
+      v.union(v.literal("low"), v.literal("medium"), v.literal("high"))
+    ),
+    // Orthogonal to `resolved`, which stays the human concept driving the
+    // panel split. Applying or dismissing sets both, so AI rows fall into the
+    // existing "Resolved" section without changing that code.
+    status: v.optional(
+      v.union(v.literal("open"), v.literal("applied"), v.literal("dismissed"))
+    ),
+    anchored: v.optional(v.boolean()), // false => resolver failed, render unanchored
+    batchId: v.optional(v.string()), // groups one run; drives "Apply all"
   })
     .index("by_script", ["scriptId"])
-    .index("by_script_unresolved", ["scriptId", "resolved"]),
+    .index("by_script_unresolved", ["scriptId", "resolved"])
+    .index("by_script_batch", ["scriptId", "batchId"]),
+
+  // Replies live in their own table rather than a self-referencing parentId:
+  // annotations.list sorts every row by `a.from - b.from`, and making from/to
+  // optional would feed NaN into that comparator.
+  annotationReplies: defineTable({
+    annotationId: v.id("annotations"),
+    scriptId: v.id("scripts"), // denormalized: auth check needs one fetch
+    userId: v.id("users"),
+    authorType: v.optional(v.union(v.literal("user"), v.literal("ai"))),
+    content: v.string(),
+    createdAt: v.number(),
+  }).index("by_annotation", ["annotationId"]),
 
   templates: defineTable({
     name: v.string(), // Template name (required)
@@ -142,7 +186,7 @@ export default defineSchema({
     organizationId: v.id("organizations"),
     name: v.string(),
     content: v.string(), // Extracted plain text from file
-    fileUrl: v.optional(v.string()), // Convex storage URL
+    fileUrl: v.optional(v.string()), // Despite the name, this holds a Convex storage ID (Id<"_storage">), not a URL.
     fileType: v.string(), // "pdf" | "docx" | "txt"
     uploadedBy: v.id("users"),
     isActive: v.boolean(),
@@ -177,6 +221,30 @@ export default defineSchema({
     userId: v.id("users"),
     createdAt: v.number(),
   }).index("by_storage", ["storageId"]),
+
+  // BYOK AI provider configuration (org default + per-user override).
+  // encryptedKey is AES-256-GCM ciphertext ("v1:<b64 iv>:<b64 ct>") — only
+  // actions encrypt/decrypt; no public function may ever return this field.
+  aiProviderConfigs: defineTable({
+    scope: v.union(v.literal("org"), v.literal("user")),
+    organizationId: v.optional(v.id("organizations")), // when scope === "org"
+    userId: v.optional(v.id("users")), // when scope === "user"
+    provider: v.union(
+      v.literal("openrouter"),
+      v.literal("openai"),
+      v.literal("anthropic"),
+      v.literal("custom")
+    ),
+    baseUrl: v.optional(v.string()), // required for "custom" (https only)
+    encryptedKey: v.string(),
+    keyLast4: v.string(),
+    model: v.string(),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_user", ["userId"]),
 
   // Kanban stage customization per user
   kanbanStages: defineTable({

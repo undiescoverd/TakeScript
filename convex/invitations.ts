@@ -98,6 +98,13 @@ export const list = query({
     const user = await getUserByTokenIdentifier(ctx, identity.tokenIdentifier);
     if (!user) throw new Error("User not found");
 
+    // Only owners and admins can see pending invitations (includes invitee
+    // emails and roles). Return [] rather than throw so the UI's existing
+    // `invitations && invitations.length > 0` guard just hides the section.
+    if (user.role !== "owner" && user.role !== "admin") {
+      return [];
+    }
+
     return await ctx.db
       .query("organizationInvitations")
       .withIndex("by_organization", (q) => q.eq("organizationId", user.organizationId))
@@ -296,7 +303,7 @@ export const removeMember = mutation({
         .slice(0, 50) + "-" + Date.now().toString(36),
       plan: "free",
       aiProvider: "anthropic",
-      anthropicModel: "claude-sonnet-4-5-20250929",
+      anthropicModel: "claude-sonnet-5",
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });

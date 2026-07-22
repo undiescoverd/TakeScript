@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation } from "convex/react";
-import { UserButton } from "@clerk/nextjs";
+import { AppUserButton } from "@/components/layout/AppUserButton";
 import { ScriptGrid } from "@/components/dashboard/ScriptGrid";
 import { NewScriptDialog } from "@/components/dashboard/NewScriptDialog";
 import { StatsCard } from "@/components/dashboard/StatsCard";
@@ -64,7 +64,7 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <UserButton afterSignOutUrl="/login" />
+            <AppUserButton />
           </div>
         </div>
       </header>
