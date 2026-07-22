@@ -317,8 +317,6 @@ async function trackAIRequest(
     if (!user || !user.organizationId) return;
 
     await ctx.runMutation(api.aiRequests.create, {
-      userId: user._id,
-      organizationId: user.organizationId,
       scriptId,
       requestType,
       provider,
