@@ -22,7 +22,10 @@ const providerValidator = v.union(
 
 const scopeValidator = v.union(v.literal("org"), v.literal("user"));
 
-const DEFAULT_PLATFORM_MODEL = "anthropic/claude-3.5-sonnet";
+// Used only on the platform/OpenRouter path, so this is an OpenRouter id
+// (provider-prefixed, dots in the version). Keep in sync with the
+// "Recommended" entry in lib/ai-models.ts.
+const DEFAULT_PLATFORM_MODEL = "anthropic/claude-sonnet-5";
 
 /**
  * Masked view of a config for the settings UI. Never includes encryptedKey.
@@ -380,7 +383,7 @@ export const testProviderKey = action({
               Authorization: `Bearer ${apiKey}`,
             },
             body: JSON.stringify({
-              model: model || "gpt-4o-mini",
+              model: model || "gpt-5.4-mini",
               messages: [{ role: "user", content: "hi" }],
               max_tokens: 1,
             }),

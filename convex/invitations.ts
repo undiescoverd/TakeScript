@@ -303,7 +303,7 @@ export const removeMember = mutation({
         .slice(0, 50) + "-" + Date.now().toString(36),
       plan: "free",
       aiProvider: "anthropic",
-      anthropicModel: "claude-sonnet-4-5-20250929",
+      anthropicModel: "claude-sonnet-5",
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });

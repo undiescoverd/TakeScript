@@ -35,7 +35,7 @@ export const createOrGet = mutation({
       name: `${user.name}'s Workspace`,
       slug: generateSlug(user.name),
       plan: "free",
-      openrouterModel: "anthropic/claude-3.5-sonnet",
+      openrouterModel: "anthropic/claude-sonnet-5",
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
@@ -121,7 +121,7 @@ export const update = mutation({
 export const updateAISettings = mutation({
   args: {
     organizationId: v.id("organizations"),
-    openrouterModel: v.string(), // OpenRouter model ID (e.g., "anthropic/claude-3.5-sonnet")
+    openrouterModel: v.string(), // OpenRouter model ID (e.g., "anthropic/claude-sonnet-5")
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();

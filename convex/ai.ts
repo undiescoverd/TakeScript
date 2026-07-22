@@ -276,7 +276,11 @@ async function callAnthropic(
       model: config.model,
       ...(systemParts.length > 0 ? { system: systemParts.join("\n\n") } : {}),
       messages: chatMessages,
-      temperature: 0.7,
+      // No `temperature`/`top_p`/`top_k`: current Anthropic models (Opus 4.8,
+      // Opus 4.7, Sonnet 5, Fable 5) reject sampling parameters with a 400.
+      // The model field is free text in BYOK settings, so any hardcoded
+      // sampling parameter breaks every AI call the moment someone selects a
+      // current model. Steer tone via the system prompt instead.
       max_tokens: 8000,
     }),
   });

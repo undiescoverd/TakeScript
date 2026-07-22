@@ -10,7 +10,7 @@ export default defineSchema({
     // AI Settings - Using OpenRouter for unified access to all models
     aiProvider: v.optional(v.string()), // "openrouter" | "anthropic" (legacy)
     anthropicModel: v.optional(v.string()), // Legacy field
-    openrouterModel: v.optional(v.string()), // Default: "anthropic/claude-3.5-sonnet"
+    openrouterModel: v.optional(v.string()), // Default: "anthropic/claude-sonnet-5"
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_slug", ["slug"]),
