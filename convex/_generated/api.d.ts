@@ -16,6 +16,7 @@ import type * as brandGuidelines from "../brandGuidelines.js";
 import type * as comments from "../comments.js";
 import type * as diagnostics from "../diagnostics.js";
 import type * as fileUpload from "../fileUpload.js";
+import type * as fileUploads from "../fileUploads.js";
 import type * as invitations from "../invitations.js";
 import type * as kanban from "../kanban.js";
 import type * as migrations from "../migrations.js";
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   comments: typeof comments;
   diagnostics: typeof diagnostics;
   fileUpload: typeof fileUpload;
+  fileUploads: typeof fileUploads;
   invitations: typeof invitations;
   kanban: typeof kanban;
   migrations: typeof migrations;

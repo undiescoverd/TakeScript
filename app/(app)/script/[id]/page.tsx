@@ -57,7 +57,7 @@ export default function ScriptPage() {
   const flags = getFeatureFlags();
   const scriptId = params.id as Id<"scripts">;
   const script = useQuery(api.scripts.get, { scriptId });
-  const { scheduleAutosave, saveNow, cancelPendingSave, setOnSaveComplete, getLastSavedContent, initializeLastSaved } = useAutosave(scriptId);
+  const { scheduleAutosave, saveNow, cancelPendingSave, setOnSaveComplete, getLastSavedContent, initializeLastSaved, syncLastEditedAt } = useAutosave(scriptId);
   const { mode, viewMode, toggleViewMode, commentsOpen, setCommentsOpen, annotationsOpen, setAnnotationsOpen, collaborationEnabled, speakersOpen, setSpeakersOpen } = useEditorStore();
   const { chromeRevealed, chromeMouseHandlers } = useFocusChromeReveal(viewMode);
   const { speakers, setSpeakers } = useSpeakerStore();
@@ -164,7 +164,7 @@ export default function ScriptPage() {
       // Initialize autosave
       if (typeof initializeLastSaved === 'function') {
         try {
-          initializeLastSaved(contentString);
+          initializeLastSaved(contentString, script.lastEditedAt);
           lastScriptContentRef.current = contentString;
         } catch (initError) {
           console.error("Error initializing last saved content:", initError);
@@ -211,11 +211,14 @@ export default function ScriptPage() {
         lastScriptContentRef.current = script.content;
         setLocalContent(initialContent);
         isRestoringVersionRef.current = false;
+        // Resync the autosave concurrency baseline so the next save builds
+        // on this new server state instead of being rejected as stale.
+        syncLastEditedAt(script.lastEditedAt);
       } catch {
         // ignore parse errors
       }
     }
-  }, [script?.content, initialContent, getLastSavedContent]);
+  }, [script?.content, script?.lastEditedAt, initialContent, getLastSavedContent, syncLastEditedAt]);
 
   const handleContentUpdate = useCallback(
     (content: string) => {

@@ -444,6 +444,11 @@ export const update = mutation({
   args: {
     scriptId: v.id("scripts"),
     content: v.string(),
+    // Optimistic-concurrency baseline: the lastEditedAt the client observed
+    // when it captured `content`. If the script has since changed server-side
+    // (e.g. a version restore that raced an in-flight autosave), this write
+    // is dropped instead of clobbering the newer content.
+    expectedLastEditedAt: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -468,10 +473,19 @@ export const update = mutation({
       throw new Error("Not authorized");
     }
 
+    if (
+      args.expectedLastEditedAt !== undefined &&
+      script.lastEditedAt !== args.expectedLastEditedAt
+    ) {
+      return { applied: false, lastEditedAt: script.lastEditedAt };
+    }
+
+    const lastEditedAt = Date.now();
     await ctx.db.patch(args.scriptId, {
       content: args.content,
-      lastEditedAt: Date.now(),
+      lastEditedAt,
     });
+    return { applied: true, lastEditedAt };
   },
 });
 

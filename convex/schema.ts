@@ -168,6 +168,16 @@ export default defineSchema({
     .index("by_user", ["userId"])
     .index("by_script", ["scriptId"]),
 
+  // Ownership record for uploaded storage files, written right after upload
+  // completes (before any other record, e.g. brandGuidelines, references the
+  // file). Lets fileUpload.ts actions verify the caller owns a storageId
+  // instead of only checking they're authenticated.
+  fileUploads: defineTable({
+    storageId: v.id("_storage"),
+    userId: v.id("users"),
+    createdAt: v.number(),
+  }).index("by_storage", ["storageId"]),
+
   // Kanban stage customization per user
   kanbanStages: defineTable({
     userId: v.id("users"),

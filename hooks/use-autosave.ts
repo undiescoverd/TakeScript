@@ -18,6 +18,10 @@ export function useAutosave(scriptId: Id<"scripts">) {
   const queuedContentRef = useRef<string | null>(null);
   const saveRef = useRef<((content: string) => Promise<void>) | null>(null);
   const lastSavedContentRef = useRef<string | null>(null);
+  // Optimistic-concurrency baseline sent as `expectedLastEditedAt`. The
+  // server rejects a write whose baseline is stale (e.g. a version restore
+  // landed while this save was in flight) instead of silently overwriting it.
+  const lastEditedAtRef = useRef<number | null>(null);
   const onSaveCompleteRef = useRef<((content: string) => void) | null>(null);
   const isSavingRef = useRef(false);
 
@@ -36,15 +40,34 @@ export function useAutosave(scriptId: Id<"scripts">) {
         let toSave: string | null = content;
         while (toSave !== null) {
           try {
-            await updateScript({ scriptId, content: toSave });
-            lastSavedContentRef.current = toSave;
-            if (pendingContentRef.current === toSave) {
-              pendingContentRef.current = null;
-            }
-            setLastSavedAt(Date.now());
-            // Notify that save completed
-            if (onSaveCompleteRef.current) {
-              onSaveCompleteRef.current(toSave);
+            const result = await updateScript({
+              scriptId,
+              content: toSave,
+              expectedLastEditedAt: lastEditedAtRef.current ?? undefined,
+            });
+            lastEditedAtRef.current = result.lastEditedAt;
+
+            if (result.applied) {
+              lastSavedContentRef.current = toSave;
+              if (pendingContentRef.current === toSave) {
+                pendingContentRef.current = null;
+              }
+              setLastSavedAt(Date.now());
+              // Notify that save completed
+              if (onSaveCompleteRef.current) {
+                onSaveCompleteRef.current(toSave);
+              }
+            } else {
+              // The script changed on the server since we captured this
+              // content (e.g. a version restore raced this save) — the
+              // server dropped our write. Don't retry it: the restore wins,
+              // and lastEditedAtRef is now resynced for the next save.
+              console.warn(
+                "Autosave write skipped: script was changed externally (e.g. version restore)"
+              );
+              if (pendingContentRef.current === toSave) {
+                pendingContentRef.current = null;
+              }
             }
           } catch (error) {
             console.error("Failed to save:", error);
@@ -161,6 +184,11 @@ export function useAutosave(scriptId: Id<"scripts">) {
   const saveNow = useCallback(
     async (content: string) => {
       clearTimers();
+      // Set pending BEFORE calling save(): if a different (older) value was
+      // already pending from a just-cancelled scheduleAutosave, and this
+      // save fails, save()'s catch only backfills pendingContentRef when it's
+      // null — leaving the stale older content there instead of this one.
+      pendingContentRef.current = content;
       // Pending content is cleared by save() only after a successful write,
       // so a failure here leaves it retryable by later saves.
       await save(content);
@@ -247,9 +275,18 @@ export function useAutosave(scriptId: Id<"scripts">) {
     return lastSavedContentRef.current;
   }, []);
 
-  // Initialize last saved content (call when script first loads)
-  const initializeLastSaved = useCallback((content: string) => {
+  // Initialize last saved content and its concurrency baseline (call when
+  // script first loads)
+  const initializeLastSaved = useCallback((content: string, lastEditedAt: number) => {
     lastSavedContentRef.current = content;
+    lastEditedAtRef.current = lastEditedAt;
+  }, []);
+
+  // Resync the concurrency baseline after an external change lands (e.g. a
+  // version restore), so the next autosave builds on the new server state
+  // instead of being rejected as stale.
+  const syncLastEditedAt = useCallback((lastEditedAt: number) => {
+    lastEditedAtRef.current = lastEditedAt;
   }, []);
 
   return {
@@ -259,5 +296,6 @@ export function useAutosave(scriptId: Id<"scripts">) {
     setOnSaveComplete,
     getLastSavedContent,
     initializeLastSaved,
+    syncLastEditedAt,
   };
 }
