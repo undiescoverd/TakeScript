@@ -198,6 +198,11 @@ export default function ScriptPage() {
         
         // Skip update if this is the same content we just saved (autosave feedback loop)
         if (contentEqual(script.content, lastSaved) && !isRestoringVersionRef.current) {
+          // Content is unchanged but `lastEditedAt` moved — a metadata mutation
+          // (title/speakers/stage) touched the script. Resync the optimistic-
+          // concurrency baseline so the next content save isn't rejected as stale
+          // and silently dropped.
+          syncLastEditedAt(script.lastEditedAt);
           return;
         }
         
