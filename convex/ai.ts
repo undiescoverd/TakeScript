@@ -3,6 +3,53 @@ import { action } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { decryptApiKey } from "./lib/byokCrypto";
 import { assertSafeCustomBaseUrl } from "./lib/baseUrlValidation";
+import { parseAIJson } from "./lib/parseAIJson";
+
+/** Shape the grammar-check prompt asks the model to return. */
+interface GrammarCheckPayload {
+  issues?: Array<{
+    type: "grammar" | "spelling" | "style" | "tone" | "clarity";
+    message: string;
+    suggestion: string;
+    severity: "low" | "medium" | "high";
+  }>;
+  overallScore?: number;
+  summary?: string;
+}
+
+/** Shape the script-review prompt asks the model to return. */
+interface ScriptReviewPayload {
+  overallScore?: number;
+  strengths?: string[];
+  improvements?: string[];
+  suggestions?: Array<{
+    chapter: string;
+    suggestion: string;
+    priority: "low" | "medium" | "high";
+  }>;
+  toneCompliance?: { score: number; notes: string };
+  pacing?: { score: number; notes: string };
+  clarity?: { score: number; notes: string };
+}
+
+/**
+ * Helper: Parse a structured AI response or throw.
+ *
+ * Throwing matters: the previous code returned a truthy `{error, rawResponse}`
+ * object, which the client spread into `issues || []` and rendered as a
+ * successful "No issues found" panel. Callers rely on try/catch → toast.error.
+ */
+function parseAIResponseOrThrow<T>(response: string, label: string): T {
+  const parsed = parseAIJson<T>(response);
+  if (!parsed.ok) {
+    throw new Error(
+      parsed.reason === "truncated"
+        ? `The AI response for ${label} was cut off before it finished. Try again, or use a shorter selection.`
+        : `The AI returned an unreadable ${label} response (${parsed.reason}). Please try again.`
+    );
+  }
+  return parsed.data;
+}
 
 /**
  * Helper: Extract plain text from Tiptap JSONContent (server-side version)
@@ -219,7 +266,7 @@ async function callAnthropic(
       ...(systemParts.length > 0 ? { system: systemParts.join("\n\n") } : {}),
       messages: chatMessages,
       temperature: 0.7,
-      max_tokens: 2000,
+      max_tokens: 8000,
     }),
   });
 
@@ -281,7 +328,7 @@ async function callAI(
       model: config.model,
       messages,
       temperature: 0.7,
-      max_tokens: 2000,
+      max_tokens: 8000,
     }),
   });
 
@@ -431,11 +478,11 @@ ${textToCheck.slice(0, 8000)}`;
     // Track usage
     await trackAIRequest(ctx, args.scriptId, "grammar", config.model, config.provider);
 
-    try {
-      return JSON.parse(response);
-    } catch {
-      return { error: "Failed to parse AI response", rawResponse: response };
-    }
+    const parsed = parseAIResponseOrThrow<GrammarCheckPayload>(
+      response,
+      "grammar check"
+    );
+    return { ...parsed, model: config.model, provider: config.provider };
   },
 });
 
@@ -496,11 +543,11 @@ ${plainText.slice(0, 8000)}`;
     // Track usage
     await trackAIRequest(ctx, args.scriptId, "review", config.model, config.provider);
 
-    try {
-      return JSON.parse(response);
-    } catch {
-      return { error: "Failed to parse AI response", rawResponse: response };
-    }
+    const parsed = parseAIResponseOrThrow<ScriptReviewPayload>(
+      response,
+      "script review"
+    );
+    return { ...parsed, model: config.model, provider: config.provider };
   },
 });
 
