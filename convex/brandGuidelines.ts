@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getUserByTokenIdentifier } from "./users";
+import { Id } from "./_generated/dataModel";
 
 /**
  * Upload new brand guideline
@@ -165,6 +166,30 @@ export const remove = mutation({
 
     if (!guideline || guideline.organizationId !== user.organizationId) {
       throw new Error("Not authorized");
+    }
+
+    // `fileUrl` actually holds a storage ID (see schema comment). Delete the
+    // underlying storage object so it doesn't stay orphaned forever.
+    if (guideline.fileUrl) {
+      try {
+        await ctx.storage.delete(guideline.fileUrl as Id<"_storage">);
+      } catch (error) {
+        // The row is the source of truth for the user; a missing or already-
+        // deleted storage object must not block removing the guideline.
+        console.error("Failed to delete guideline file from storage:", error);
+      }
+
+      // Also drop the ownership row so fileUploads doesn't accumulate rows
+      // for files that no longer exist.
+      const fileUpload = await ctx.db
+        .query("fileUploads")
+        .withIndex("by_storage", (q) =>
+          q.eq("storageId", guideline.fileUrl as Id<"_storage">)
+        )
+        .unique();
+      if (fileUpload) {
+        await ctx.db.delete(fileUpload._id);
+      }
     }
 
     await ctx.db.delete(args.guidelineId);

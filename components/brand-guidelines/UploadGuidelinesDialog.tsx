@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Upload, FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { MAX_GUIDELINE_FILE_BYTES } from "@/lib/constants";
 
 interface Props {
   open: boolean;
@@ -36,6 +37,12 @@ export function UploadGuidelinesDialog({ open, onOpenChange }: Props) {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
+
+    if (selectedFile.size > MAX_GUIDELINE_FILE_BYTES) {
+      toast.error("File exceeds the 10MB limit. Please choose a smaller file.");
+      e.target.value = "";
+      return;
+    }
 
     setFile(selectedFile);
     setName(selectedFile.name.replace(/\.[^/.]+$/, ""));

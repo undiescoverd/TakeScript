@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalQuery, mutation } from "./_generated/server";
+import { internalMutation, internalQuery, mutation } from "./_generated/server";
 
 /**
  * Register ownership of a just-uploaded storage file. The client calls this
@@ -62,5 +62,26 @@ export const isOwnedBy = internalQuery({
       .unique();
 
     return record?.userId === args.userId;
+  },
+});
+
+/**
+ * Internal-only: remove the ownership row for a storage file. Used when a
+ * storage object is deleted (guideline removal, oversized-file rejection) so
+ * the fileUploads table doesn't accumulate rows for files that no longer
+ * exist. Called from fileUpload.ts's actions via ctx.runMutation, since
+ * actions can't touch ctx.db directly.
+ */
+export const removeByStorageId = internalMutation({
+  args: { storageId: v.id("_storage") },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("fileUploads")
+      .withIndex("by_storage", (q) => q.eq("storageId", args.storageId))
+      .unique();
+
+    if (existing) {
+      await ctx.db.delete(existing._id);
+    }
   },
 });

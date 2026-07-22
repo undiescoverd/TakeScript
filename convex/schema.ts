@@ -143,7 +143,7 @@ export default defineSchema({
     organizationId: v.id("organizations"),
     name: v.string(),
     content: v.string(), // Extracted plain text from file
-    fileUrl: v.optional(v.string()), // Convex storage URL
+    fileUrl: v.optional(v.string()), // Despite the name, this holds a Convex storage ID (Id<"_storage">), not a URL.
     fileType: v.string(), // "pdf" | "docx" | "txt"
     uploadedBy: v.id("users"),
     isActive: v.boolean(),

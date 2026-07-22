@@ -5,6 +5,7 @@ import { action } from "./_generated/server";
 import type { ActionCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
+import { MAX_GUIDELINE_FILE_BYTES } from "../lib/constants";
 
 async function requireAuth(ctx: ActionCtx) {
   const identity = await ctx.auth.getUserIdentity();
@@ -67,6 +68,17 @@ export const extractTextFromFile = action({
     // Get file from storage
     const file = await ctx.storage.get(args.storageId);
     if (!file) throw new Error("File not found in storage");
+
+    if (file.size > MAX_GUIDELINE_FILE_BYTES) {
+      // The blob is already uploaded at this point — drop it before
+      // rejecting, or we orphan the very file Task 6a's remove cleanup
+      // exists to prevent.
+      await ctx.storage.delete(args.storageId);
+      await ctx.runMutation(internal.fileUploads.removeByStorageId, {
+        storageId: args.storageId,
+      });
+      throw new Error("File exceeds the 10MB limit");
+    }
 
     const arrayBuffer = await file.arrayBuffer();
 
