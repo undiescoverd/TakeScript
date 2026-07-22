@@ -20,6 +20,7 @@ import type * as fileUpload from "../fileUpload.js";
 import type * as fileUploads from "../fileUploads.js";
 import type * as invitations from "../invitations.js";
 import type * as kanban from "../kanban.js";
+import type * as lib_baseUrlValidation from "../lib/baseUrlValidation.js";
 import type * as lib_byokCrypto from "../lib/byokCrypto.js";
 import type * as migrations from "../migrations.js";
 import type * as organizations from "../organizations.js";
@@ -47,6 +48,7 @@ declare const fullApi: ApiFromModules<{
   fileUploads: typeof fileUploads;
   invitations: typeof invitations;
   kanban: typeof kanban;
+  "lib/baseUrlValidation": typeof lib_baseUrlValidation;
   "lib/byokCrypto": typeof lib_byokCrypto;
   migrations: typeof migrations;
   organizations: typeof organizations;

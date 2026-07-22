@@ -11,6 +11,7 @@ import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 import { getUserByTokenIdentifier } from "./users";
 import { decryptApiKey, encryptApiKey, maskKey } from "./lib/byokCrypto";
+import { assertSafeCustomBaseUrl } from "./lib/baseUrlValidation";
 
 const providerValidator = v.union(
   v.literal("openrouter"),
@@ -78,9 +79,7 @@ async function requireUserForScope(ctx: QueryCtx, scope: "org" | "user") {
 function validateBaseUrl(provider: string, baseUrl: string | undefined) {
   if (provider === "custom") {
     if (!baseUrl) throw new Error("Base URL is required for custom providers");
-    if (!baseUrl.startsWith("https://")) {
-      throw new Error("Custom provider base URL must use https://");
-    }
+    assertSafeCustomBaseUrl(baseUrl);
   }
 }
 
@@ -365,6 +364,7 @@ export const testProviderKey = action({
           const root = baseUrl!.replace(/\/+$/, "");
           const modelsRes = await fetch(`${root}/models`, {
             headers: { Authorization: `Bearer ${apiKey}` },
+            redirect: "manual",
           });
           if (modelsRes.ok) return { ok: true };
 
@@ -372,6 +372,7 @@ export const testProviderKey = action({
           // fall back to a minimal 1-token completion.
           const completionRes = await fetch(`${root}/chat/completions`, {
             method: "POST",
+            redirect: "manual",
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${apiKey}`,

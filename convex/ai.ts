@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import { action } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { decryptApiKey } from "./lib/byokCrypto";
+import { assertSafeCustomBaseUrl } from "./lib/baseUrlValidation";
 
 /**
  * Helper: Extract plain text from Tiptap JSONContent (server-side version)
@@ -262,6 +263,8 @@ async function callAI(
       break;
     case "custom":
       if (!config.baseUrl) throw new Error("Custom provider base URL not configured");
+      // Re-check at request time — stored configs must never reach internal hosts
+      assertSafeCustomBaseUrl(config.baseUrl);
       url = `${config.baseUrl.replace(/\/+$/, "")}/chat/completions`;
       break;
     default:
@@ -271,6 +274,9 @@ async function callAI(
   const response = await fetch(url, {
     method: "POST",
     headers,
+    // Custom endpoints must not follow redirects (SSRF guard); their error
+    // bodies are also never echoed back to clients.
+    ...(config.provider === "custom" ? { redirect: "manual" as const } : {}),
     body: JSON.stringify({
       model: config.model,
       messages,
@@ -280,6 +286,9 @@ async function callAI(
   });
 
   if (!response.ok) {
+    if (config.provider === "custom") {
+      throw new Error(`AI provider error (custom): ${response.status} ${response.statusText}`);
+    }
     const error = await response.text();
     throw new Error(`AI provider error (${config.provider}): ${response.statusText} - ${error}`);
   }
