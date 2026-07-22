@@ -238,17 +238,36 @@ async function resolveAIConfig(ctx: any): Promise<EffectiveAIConfig> {
 }
 
 /**
- * Helper: Build system prompt with brand guidelines
+ * Helper: build the system messages for an AI call, split into a stable half
+ * and a per-request half.
+ *
+ * ORDER IS LOAD-BEARING. Prompt caching is a prefix match: the provider reuses
+ * its work only up to the first byte that differs from the previous request.
+ * Brand guidelines can run to thousands of tokens and are identical on every
+ * call, so they must sit at the very front, ahead of anything that varies.
+ *
+ * This previously interpolated the per-task instruction ahead of the
+ * guidelines, which meant each of the four AI features produced a different
+ * prefix from its first sentence and none of them could share a cache entry.
+ *
+ * Returns [stable, perRequest]:
+ *   stable     — identity + brand guidelines. Byte-identical across every
+ *                feature and every request, so it is the cache breakpoint.
+ *   perRequest — the task instruction. Callers may append script context to
+ *                this, but must never prepend anything to `stable`.
  */
-function buildSystemPrompt(brandGuidelines: string | null, task: string): string {
-  let prompt = `You are a professional writing assistant for video tutorial scripts. ${task}\n\n`;
+function buildSystemPrompts(
+  brandGuidelines: string | null,
+  task: string
+): { stable: string; perRequest: string } {
+  let stable = `You are a professional writing assistant for video tutorial scripts.\n\n`;
 
   if (brandGuidelines) {
-    prompt += `BRAND GUIDELINES:\n${brandGuidelines}\n\n`;
-    prompt += `Always follow these brand guidelines in your suggestions.\n\n`;
+    stable += `BRAND GUIDELINES:\n${brandGuidelines}\n\n`;
+    stable += `Always follow these brand guidelines in your suggestions.\n\n`;
   }
 
-  return prompt;
+  return { stable, perRequest: `${task}\n\n` };
 }
 
 /**
@@ -265,6 +284,22 @@ async function callAnthropic(
     systemParts.push(chatMessages.shift()!.content);
   }
 
+  // Send `system` as discrete blocks rather than one joined string, and mark
+  // the first one as a cache breakpoint. buildSystemPrompts puts the stable
+  // half (identity + brand guidelines) first, so everything up to and
+  // including block 0 is reused across requests at ~10% of the input price;
+  // the per-request blocks after it are billed normally.
+  //
+  // Caching is best-effort: below the model's minimum cacheable prefix
+  // (roughly 1-4k tokens depending on model) the marker is simply ignored and
+  // billing is unchanged, so a short or absent brand guideline costs nothing
+  // extra. Entries expire after ~5 minutes idle.
+  const systemBlocks = systemParts.map((text, i) => ({
+    type: "text" as const,
+    text,
+    ...(i === 0 ? { cache_control: { type: "ephemeral" as const } } : {}),
+  }));
+
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -274,7 +309,7 @@ async function callAnthropic(
     },
     body: JSON.stringify({
       model: config.model,
-      ...(systemParts.length > 0 ? { system: systemParts.join("\n\n") } : {}),
+      ...(systemBlocks.length > 0 ? { system: systemBlocks } : {}),
       messages: chatMessages,
       // No `temperature`/`top_p`/`top_k`: current Anthropic models (Opus 4.8,
       // Opus 4.7, Sonnet 5, Fable 5) reject sampling parameters with a 400.
@@ -419,7 +454,7 @@ export const chat = action({
     const plainText = scriptContent ? extractPlainText(scriptContent) : "";
 
     // Build context-aware prompt
-    const systemPrompt = buildSystemPrompt(
+    const { stable, perRequest } = buildSystemPrompts(
       brandGuidelines,
       "Help the user write better tutorial scripts by providing suggestions, improvements, and guidance."
     );
@@ -428,9 +463,12 @@ export const chat = action({
       ? `\n\nCURRENT SCRIPT CONTENT:\n${plainText.slice(0, 4000)}\n\n`
       : "";
 
-    // Prepare messages
+    // `stable` must stay its own leading message and must not be concatenated
+    // with anything request-specific — it is the cache breakpoint. Script
+    // content changes on every keystroke, so it belongs after it.
     const messages = [
-      { role: "system", content: systemPrompt + contextPrompt },
+      { role: "system", content: stable },
+      { role: "system", content: perRequest + contextPrompt },
       ...args.conversationHistory,
       { role: "user", content: args.message },
     ];
@@ -461,7 +499,7 @@ export const checkGrammarAndStyle = action({
     const scriptContent = script?.content ? JSON.parse(script.content) : null;
     const textToCheck = args.selectedText || (scriptContent ? extractPlainText(scriptContent) : "");
 
-    const systemPrompt = buildSystemPrompt(
+    const { stable, perRequest } = buildSystemPrompts(
       brandGuidelines,
       "Analyze the text for grammar, spelling, style, tone, and clarity issues."
     );
@@ -495,8 +533,10 @@ RULES FOR originalText — strict:
 TEXT TO ANALYZE:
 ${textToCheck.slice(0, 8000)}`;
 
+    // `stable` stays its own leading message — it is the cache breakpoint.
     const messages = [
-      { role: "system", content: systemPrompt },
+      { role: "system", content: stable },
+      { role: "system", content: perRequest },
       { role: "user", content: prompt },
     ];
 
@@ -526,7 +566,7 @@ export const reviewScript = action({
     const scriptContent = script?.content ? JSON.parse(script.content) : null;
     const plainText = scriptContent ? extractPlainText(scriptContent) : "";
 
-    const systemPrompt = buildSystemPrompt(
+    const { stable, perRequest } = buildSystemPrompts(
       brandGuidelines,
       "Provide comprehensive review of tutorial scripts."
     );
@@ -560,8 +600,10 @@ export const reviewScript = action({
 SCRIPT CONTENT:
 ${plainText.slice(0, 8000)}`;
 
+    // `stable` stays its own leading message — it is the cache breakpoint.
     const messages = [
-      { role: "system", content: systemPrompt },
+      { role: "system", content: stable },
+      { role: "system", content: perRequest },
       { role: "user", content: prompt },
     ];
 
@@ -600,7 +642,7 @@ export const generateContent = action({
     const scriptContent = script?.content ? JSON.parse(script.content) : null;
     const plainText = scriptContent ? extractPlainText(scriptContent) : "";
 
-    const systemPrompt = buildSystemPrompt(
+    const { stable, perRequest } = buildSystemPrompts(
       brandGuidelines,
       `Generate tutorial script content. Task: ${args.task}.`
     );
@@ -629,8 +671,11 @@ export const generateContent = action({
       ? `\n\nCURRENT SCRIPT:\n${plainText.slice(0, 2000)}\n\n`
       : "";
 
+    // `stable` stays its own leading message — it is the cache breakpoint.
+    // Script context varies per request, so it goes after it.
     const messages = [
-      { role: "system", content: systemPrompt + contextPrompt },
+      { role: "system", content: stable },
+      { role: "system", content: perRequest + contextPrompt },
       { role: "user", content: taskPrompt },
     ];
 
