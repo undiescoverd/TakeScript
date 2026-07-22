@@ -9,6 +9,7 @@
  */
 
 import type * as ai from "../ai.js";
+import type * as aiProviders from "../aiProviders.js";
 import type * as aiRequests from "../aiRequests.js";
 import type * as analytics from "../analytics.js";
 import type * as annotations from "../annotations.js";
@@ -19,6 +20,7 @@ import type * as fileUpload from "../fileUpload.js";
 import type * as fileUploads from "../fileUploads.js";
 import type * as invitations from "../invitations.js";
 import type * as kanban from "../kanban.js";
+import type * as lib_byokCrypto from "../lib/byokCrypto.js";
 import type * as migrations from "../migrations.js";
 import type * as organizations from "../organizations.js";
 import type * as scripts from "../scripts.js";
@@ -34,6 +36,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   ai: typeof ai;
+  aiProviders: typeof aiProviders;
   aiRequests: typeof aiRequests;
   analytics: typeof analytics;
   annotations: typeof annotations;
@@ -44,6 +47,7 @@ declare const fullApi: ApiFromModules<{
   fileUploads: typeof fileUploads;
   invitations: typeof invitations;
   kanban: typeof kanban;
+  "lib/byokCrypto": typeof lib_byokCrypto;
   migrations: typeof migrations;
   organizations: typeof organizations;
   scripts: typeof scripts;

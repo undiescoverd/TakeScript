@@ -178,6 +178,30 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_storage", ["storageId"]),
 
+  // BYOK AI provider configuration (org default + per-user override).
+  // encryptedKey is AES-256-GCM ciphertext ("v1:<b64 iv>:<b64 ct>") — only
+  // actions encrypt/decrypt; no public function may ever return this field.
+  aiProviderConfigs: defineTable({
+    scope: v.union(v.literal("org"), v.literal("user")),
+    organizationId: v.optional(v.id("organizations")), // when scope === "org"
+    userId: v.optional(v.id("users")), // when scope === "user"
+    provider: v.union(
+      v.literal("openrouter"),
+      v.literal("openai"),
+      v.literal("anthropic"),
+      v.literal("custom")
+    ),
+    baseUrl: v.optional(v.string()), // required for "custom" (https only)
+    encryptedKey: v.string(),
+    keyLast4: v.string(),
+    model: v.string(),
+    createdBy: v.id("users"),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_user", ["userId"]),
+
   // Kanban stage customization per user
   kanbanStages: defineTable({
     userId: v.id("users"),

@@ -19,6 +19,7 @@ export interface FeatureFlags {
   aiReviewEnabled: boolean;
   aiGenerationEnabled: boolean;
   aiInlineSuggestionsEnabled: boolean;
+  aiByokEnabled: boolean;
 }
 
 /**
@@ -42,6 +43,7 @@ function getFeatureFlagsFromEnv(): FeatureFlags {
     aiReviewEnabled: process.env.NEXT_PUBLIC_FEATURE_AI_REVIEW === 'true',
     aiGenerationEnabled: process.env.NEXT_PUBLIC_FEATURE_AI_GENERATION === 'true',
     aiInlineSuggestionsEnabled: process.env.NEXT_PUBLIC_FEATURE_AI_INLINE === 'true',
+    aiByokEnabled: process.env.NEXT_PUBLIC_FEATURE_AI_BYOK === 'true',
   };
 }
 

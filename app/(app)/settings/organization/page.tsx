@@ -95,7 +95,19 @@ export default function OrganizationSettingsPage() {
         </div>
       </Card>
 
-      {flags.aiEnabled && (
+      {flags.aiEnabled && flags.aiByokEnabled && (
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-2">AI Providers</h3>
+          <p className="text-muted-foreground mb-4">
+            Configure organization and personal AI provider keys (BYOK)
+          </p>
+          <Link href="/settings/ai">
+            <Button variant="outline">Manage AI Providers</Button>
+          </Link>
+        </Card>
+      )}
+
+      {flags.aiEnabled && !flags.aiByokEnabled && (
         <Card className="p-6">
           <h3 className="text-lg font-semibold mb-4">AI Settings</h3>
           <div className="space-y-4">
