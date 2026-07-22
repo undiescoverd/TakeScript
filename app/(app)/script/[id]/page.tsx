@@ -7,6 +7,7 @@ import { JSONContent, Editor } from "@tiptap/react";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import { useAutosave } from "@/hooks/use-autosave";
+import { useApplySuggestions } from "@/hooks/use-apply-suggestions";
 import { useFocusChromeReveal } from "@/hooks/use-focus-chrome-reveal";
 import { useEditorStore } from "@/store/editor-store";
 import { ScriptEditor } from "@/components/editor/ScriptEditor";
@@ -26,6 +27,16 @@ import { getFeatureFlags } from "@/lib/feature-flags";
 import { userFacingError } from "@/lib/convex-error";
 import { toast } from "sonner";
 import { useSpeakerStore, Speaker } from "@/store/speaker-store";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface GrammarCheckResult {
   issues?: Array<{
@@ -109,6 +120,18 @@ export default function ScriptPage() {
   // AI Actions
   const checkGrammar = useAction(api.ai.checkGrammarAndStyle);
   const reviewScript = useAction(api.ai.reviewScript);
+
+  // Inline AI suggestions: turns a grammar check into anchored annotation rows
+  // and drives Apply / Apply all from the annotations panel. All ProseMirror
+  // position logic lives in the hook + lib/tiptap; this page only orchestrates.
+  const {
+    createBatch,
+    applyOne,
+    applyAll,
+    pendingConfirm,
+    confirmPending,
+    cancelPending,
+  } = useApplySuggestions(scriptId, editorRef);
 
   // Track when save completes - we use getLastSavedContent() to compare instead
   useEffect(() => {
@@ -275,7 +298,6 @@ export default function ScriptPage() {
     try {
       toast.info("Checking grammar and style...");
       const result = await checkGrammar({ scriptId });
-      setGrammarCheckResults(result);
 
       // Dev-only harvest hook for the anchor-rate gate. The fixtures in
       // lib/tiptap/__fixtures__/ must come from this exact code path — a
@@ -292,13 +314,44 @@ export default function ScriptPage() {
           "[harvest] window.__lastGrammarHarvest is ready — see lib/tiptap/__fixtures__/README.md"
         );
       }
+
+      // Flag OFF: exactly today's behaviour — a read-only results panel, no rows
+      // written. Flag ON: the issues become anchored annotation rows and the
+      // results live in the annotations panel instead, so we don't show both.
+      if (flags.aiInlineSuggestionsEnabled) {
+        const stats = await createBatch(result.issues ?? [], {
+          model: result.model,
+          provider: result.provider,
+        });
+        // createBatch returns null only when the editor isn't mounted yet.
+        if (stats) {
+          setAnnotationsOpen(true);
+          toast.success(
+            stats.total === 0
+              ? "No issues found"
+              : `${stats.anchored}/${stats.total} suggestions placed in the document`
+          );
+        } else {
+          setGrammarCheckResults(result);
+        }
+      } else {
+        setGrammarCheckResults(result);
+      }
     } catch (error) {
       console.error("Grammar check error:", error);
       toast.error(
         userFacingError(error, "Failed to check grammar. Please try again.")
       );
     }
-  }, [flags.aiGrammarCheckEnabled, checkGrammar, scriptId, editorRef]);
+  }, [
+    flags.aiGrammarCheckEnabled,
+    flags.aiInlineSuggestionsEnabled,
+    checkGrammar,
+    createBatch,
+    setAnnotationsOpen,
+    scriptId,
+    editorRef,
+  ]);
 
   const handleScriptReview = useCallback(async () => {
     if (!flags.aiReviewEnabled) return;
@@ -549,6 +602,8 @@ export default function ScriptPage() {
           isOpen={annotationsOpen}
           onClose={() => setAnnotationsOpen(false)}
           editor={editorRef}
+          onApplyOne={applyOne}
+          onApplyAll={applyAll}
         />
 
         {/* Speaker Legend Panel */}
@@ -611,6 +666,57 @@ export default function ScriptPage() {
         )}
 
       </div>
+
+      {/* Drift confirmation for Apply / Apply all. The hook sets pendingConfirm
+          only when the document no longer matches what the model saw; without
+          this dialog the apply would silently do nothing. */}
+      <AlertDialog
+        open={pendingConfirm !== null}
+        onOpenChange={(open) => {
+          if (!open) cancelPending();
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              The text has changed since this suggestion
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingConfirm && pendingConfirm.driftedCount > 1
+                ? `${pendingConfirm.driftedCount} suggestions no longer match the document. Apply anyway?`
+                : "This suggestion no longer matches the document. Apply anyway?"}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          {pendingConfirm?.sample && (
+            <div className="space-y-2 text-sm">
+              <div>
+                <div className="mb-1 text-xs font-medium text-muted-foreground">
+                  Expected
+                </div>
+                <div className="rounded bg-muted px-2 py-1 italic">
+                  &ldquo;{pendingConfirm.sample.expectedText}&rdquo;
+                </div>
+              </div>
+              <div>
+                <div className="mb-1 text-xs font-medium text-muted-foreground">
+                  Now in the document
+                </div>
+                <div className="rounded bg-muted px-2 py-1 italic">
+                  &ldquo;{pendingConfirm.sample.currentText}&rdquo;
+                </div>
+              </div>
+            </div>
+          )}
+
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={cancelPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmPending}>
+              Apply anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
