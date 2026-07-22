@@ -94,6 +94,13 @@ export function exportToPlainText(doc: JSONContent): string {
         lines.push("");
         break;
 
+      case "thumbnailTitle":
+        lines.push("");
+        lines.push(`[THUMBNAIL: ${node.attrs?.title || "Untitled"}]`);
+        node.content?.forEach(extractText);
+        lines.push("");
+        break;
+
       case "editorNote":
         // Editor notes are production-only and never read on camera
         break;
@@ -114,15 +121,26 @@ export function exportToPlainText(doc: JSONContent): string {
 }
 
 /**
- * Get plain text content from a node and its children
+ * Get plain text content from a node and its children.
+ * Inline children (text runs) concatenate directly; block children
+ * (e.g. multiple paragraphs inside a screen recording) are separated by
+ * newlines so their words don't run together.
  */
 function getTextContent(node: JSONContent): string {
   if (node.type === "text" && node.text) {
     return node.text;
   }
 
+  if (node.type === "hardBreak") {
+    return "\n";
+  }
+
   if (node.content) {
-    return node.content.map(getTextContent).join("");
+    const isInlineContent = node.content.every(
+      (child) => child.type === "text" || child.type === "hardBreak"
+    );
+    const parts = node.content.map(getTextContent);
+    return isInlineContent ? parts.join("") : parts.filter(Boolean).join("\n");
   }
 
   return "";

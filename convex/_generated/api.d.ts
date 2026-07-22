@@ -14,7 +14,6 @@ import type * as analytics from "../analytics.js";
 import type * as annotations from "../annotations.js";
 import type * as brandGuidelines from "../brandGuidelines.js";
 import type * as comments from "../comments.js";
-import type * as debug from "../debug.js";
 import type * as diagnostics from "../diagnostics.js";
 import type * as fileUpload from "../fileUpload.js";
 import type * as invitations from "../invitations.js";
@@ -39,7 +38,6 @@ declare const fullApi: ApiFromModules<{
   annotations: typeof annotations;
   brandGuidelines: typeof brandGuidelines;
   comments: typeof comments;
-  debug: typeof debug;
   diagnostics: typeof diagnostics;
   fileUpload: typeof fileUpload;
   invitations: typeof invitations;

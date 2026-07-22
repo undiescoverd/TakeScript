@@ -555,6 +555,42 @@ export const remove = mutation({
       await ctx.db.delete(comment._id);
     }
 
+    // Delete all annotations
+    const annotations = await ctx.db
+      .query("annotations")
+      .withIndex("by_script", (q) => q.eq("scriptId", args.scriptId))
+      .collect();
+
+    for (const annotation of annotations) {
+      await ctx.db.delete(annotation._id);
+    }
+
+    // Detach AI request analytics instead of deleting them — they're
+    // billing/usage history, but must not point at a dead script id
+    const aiRequests = await ctx.db
+      .query("aiRequests")
+      .withIndex("by_script", (q) => q.eq("scriptId", args.scriptId))
+      .collect();
+
+    for (const request of aiRequests) {
+      await ctx.db.patch(request._id, { scriptId: undefined });
+    }
+
+    // If deleting a folder, re-parent its children to the folder's own parent
+    // so they don't become orphans pointing at a dead folder id
+    if (script.isFolder) {
+      const children = await ctx.db
+        .query("scripts")
+        .withIndex("by_user_and_parent", (q) =>
+          q.eq("userId", user._id).eq("parentFolderId", args.scriptId)
+        )
+        .collect();
+
+      for (const child of children) {
+        await ctx.db.patch(child._id, { parentFolderId: script.parentFolderId });
+      }
+    }
+
     // Delete the script
     await ctx.db.delete(args.scriptId);
   },

@@ -1,14 +1,8 @@
 import { v } from "convex/values";
 import { mutation, query, QueryCtx } from "./_generated/server";
 import { Id } from "./_generated/dataModel";
-
-// Default stages for new users
-export const DEFAULT_STAGES = [
-  { id: "draft", name: "Draft", color: "#6b7280" },
-  { id: "in-progress", name: "In Progress", color: "#3b82f6" },
-  { id: "review", name: "Review", color: "#f59e0b" },
-  { id: "ready", name: "Ready", color: "#22c55e" },
-];
+// Single source of truth for default stages, shared with the client
+import { DEFAULT_STAGES } from "../types/kanban";
 
 // Resolve the stage list for a user (custom config or defaults).
 // Used by scripts.ts mutations to validate stageId args.
@@ -67,6 +61,13 @@ export const updateStages = mutation({
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
       throw new Error("Not authenticated");
+    }
+
+    if (args.stages.length === 0) {
+      throw new Error("At least one stage is required");
+    }
+    if (new Set(args.stages.map((s) => s.id)).size !== args.stages.length) {
+      throw new Error("Stage ids must be unique");
     }
 
     const user = await ctx.db

@@ -44,11 +44,12 @@ export function SpeakerEditDialog({
   const [selectedSpeakerId, setSelectedSpeakerId] = useState<string>("");
   const [selectedCameraMode, setSelectedCameraMode] = useState<CameraModeNullable>(null);
 
-  // Initialize form values when dialog opens
+  // Initialize form values when dialog opens. Always reset — otherwise
+  // opening for a paragraph with no speaker shows the previous edit's values.
   useEffect(() => {
-    if (isOpen && currentSpeakerId) {
-      setSelectedSpeakerId(currentSpeakerId);
-      setSelectedCameraMode(currentCameraMode);
+    if (isOpen) {
+      setSelectedSpeakerId(currentSpeakerId ?? "");
+      setSelectedCameraMode(currentSpeakerId ? currentCameraMode : null);
     }
   }, [isOpen, currentSpeakerId, currentCameraMode]);
 

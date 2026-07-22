@@ -195,6 +195,12 @@ export const accept = mutation({
 export const decline = mutation({
   args: { token: v.string() },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Not authenticated");
+
+    const user = await getUserByTokenIdentifier(ctx, identity.tokenIdentifier);
+    if (!user) throw new Error("User not found");
+
     const invitation = await ctx.db
       .query("organizationInvitations")
       .withIndex("by_token", (q) => q.eq("token", args.token))
@@ -202,6 +208,15 @@ export const decline = mutation({
 
     if (!invitation) {
       throw new Error("Invalid invitation");
+    }
+
+    if (invitation.status !== "pending") {
+      throw new Error("Invitation already processed");
+    }
+
+    // Only the invitee can decline (mirrors the accept check)
+    if (invitation.email !== user.email) {
+      throw new Error("Invitation is for a different email address");
     }
 
     await ctx.db.patch(invitation._id, { status: "declined" });

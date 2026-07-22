@@ -258,9 +258,28 @@ export const getSystemTemplates = query({
 export const markAsUsed = mutation({
   args: { templateId: v.id("templates") },
   handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Not authenticated");
+    }
+
     const template = await ctx.db.get(args.templateId);
     if (!template) {
       return;
+    }
+
+    // User templates can only be marked used by their owner
+    if (!template.isSystem) {
+      const user = await ctx.db
+        .query("users")
+        .withIndex("by_token", (q) =>
+          q.eq("tokenIdentifier", identity.tokenIdentifier)
+        )
+        .unique();
+
+      if (!user || template.userId !== user._id) {
+        throw new Error("Not authorized");
+      }
     }
 
     await ctx.db.patch(args.templateId, {

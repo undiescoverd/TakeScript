@@ -31,11 +31,29 @@ export const defaultSpeakerColors = [
   "#84cc16", // lime
 ];
 
-// Get next available color for a new speaker
+// Get next available color for a new speaker: the least-used palette color,
+// so duplicates only appear once every color is already taken (and then
+// spread evenly instead of clustering)
 export function getNextSpeakerColor(existingSpeakers: Speaker[]): string {
-  const usedColors = new Set(existingSpeakers.map((s) => s.color));
-  const availableColor = defaultSpeakerColors.find((c) => !usedColors.has(c));
-  return availableColor || defaultSpeakerColors[existingSpeakers.length % defaultSpeakerColors.length];
+  const counts = new Map<string, number>(
+    defaultSpeakerColors.map((c) => [c, 0])
+  );
+  for (const speaker of existingSpeakers) {
+    if (counts.has(speaker.color)) {
+      counts.set(speaker.color, counts.get(speaker.color)! + 1);
+    }
+  }
+
+  let best = defaultSpeakerColors[0];
+  let bestCount = Infinity;
+  for (const color of defaultSpeakerColors) {
+    const count = counts.get(color)!;
+    if (count < bestCount) {
+      best = color;
+      bestCount = count;
+    }
+  }
+  return best;
 }
 
 // Generate a unique speaker ID

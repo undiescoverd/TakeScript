@@ -1,6 +1,8 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-const isPublicRoute = createRouteMatcher(["/", "/login(.*)", "/api(.*)"]);
+// Note: /api routes are intentionally NOT public — any future API route is
+// auth-protected by default and must opt out here explicitly.
+const isPublicRoute = createRouteMatcher(["/", "/login(.*)"]);
 
 export default clerkMiddleware(async (auth, req) => {
   if (!isPublicRoute(req)) {

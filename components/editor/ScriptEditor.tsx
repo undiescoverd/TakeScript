@@ -91,9 +91,6 @@ export function ScriptEditor({
         setEditorError(error as Error);
       }
     },
-    onCreate: ({ editor }) => {
-      console.log("[ScriptEditor] Editor created successfully");
-    },
   });
 
   // Timeout detection - if editor doesn't initialize in 10 seconds, show error
@@ -183,7 +180,6 @@ export function ScriptEditor({
   }
 
   if (!editor) {
-    console.log("[ScriptEditor] Waiting for editor to initialize...");
     return (
       <div className="flex h-full items-center justify-center">
         <div className="animate-pulse text-muted-foreground">
@@ -192,8 +188,6 @@ export function ScriptEditor({
       </div>
     );
   }
-
-  console.log("[ScriptEditor] Editor initialized successfully, rendering content");
 
   return (
     <div className="relative h-full overflow-auto bg-background" data-mode={mode}>

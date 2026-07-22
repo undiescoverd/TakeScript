@@ -72,9 +72,7 @@ export default function ScriptPage() {
 
     if (script.content && script.content.trim() !== "") {
       try {
-        console.log(`[Script ${scriptId}] Parsing content, length: ${script.content.length}`);
         const parsed = JSON.parse(script.content);
-        console.log(`[Script ${scriptId}] Parse successful, type: ${parsed?.type}, content items: ${parsed?.content?.length || 0}`);
 
         if (parsed && typeof parsed === 'object' && parsed.type === 'doc') {
           return parsed;
@@ -86,10 +84,8 @@ export default function ScriptPage() {
           });
         }
       } catch (parseError) {
-        console.error(`[Script ${scriptId}] Failed to parse script content:`, parseError, "Content preview:", script.content?.substring(0, 200));
+        console.error(`[Script ${scriptId}] Failed to parse script content:`, parseError);
       }
-    } else {
-      console.log(`[Script ${scriptId}] Empty or null content, using empty document`);
     }
 
     return emptyContent;
@@ -419,7 +415,6 @@ export default function ScriptPage() {
 
   // Loading state
   if (script === undefined) {
-    console.log(`[Script ${scriptId}] Waiting for script to load from Convex...`);
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="animate-pulse text-muted-foreground">
@@ -431,7 +426,6 @@ export default function ScriptPage() {
 
   // Not found state
   if (script === null) {
-    console.error(`[Script ${scriptId}] Script not found in database`);
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-4">
         <h1 className="text-2xl font-bold">Script not found</h1>
@@ -453,7 +447,6 @@ export default function ScriptPage() {
 
   // Wait for content to be initialized
   if (!localContent) {
-    console.log(`[Script ${scriptId}] Waiting for content to initialize. Script loaded: ${!!script}, initialContent: ${!!initialContent}`);
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="animate-pulse text-muted-foreground">
@@ -462,9 +455,6 @@ export default function ScriptPage() {
       </div>
     );
   }
-
-  console.log(`[Script ${scriptId}] Rendering editor with content`);
-
 
   return (
     <div

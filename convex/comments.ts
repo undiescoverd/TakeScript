@@ -74,62 +74,15 @@ export const create = mutation({
       throw new Error("Script not found");
     }
 
-    // Ensure user exists and has latest name/email
-    let user = await ctx.db
+    // Users are provisioned (with organization and role) by users.store at
+    // login — creating them here would drift from that and a brand-new user
+    // could never own the script anyway.
+    const user = await ctx.db
       .query("users")
       .withIndex("by_token", (q) =>
         q.eq("tokenIdentifier", identity.tokenIdentifier)
       )
       .unique();
-
-    // Helper to get a display name from identity
-    const getDisplayName = () => {
-      // Try different name fields that Clerk might provide
-      // Clerk with Google OAuth may use: givenName, given_name, firstName, name
-      const nameFields = [
-        identity.givenName,
-        identity.given_name,
-        identity.firstName,
-        identity.name,
-        identity.nickname,
-      ];
-
-      for (const nameField of nameFields) {
-        if (nameField && typeof nameField === 'string' && nameField.trim()) {
-          return nameField.trim();
-        }
-      }
-
-      // Fallback to email-based name
-      if (identity.email && identity.email.trim()) {
-        const emailLocal = identity.email.split("@")[0];
-        return emailLocal.charAt(0).toUpperCase() + emailLocal.slice(1);
-      }
-
-      return "Anonymous";
-    };
-
-    const displayName = getDisplayName();
-
-    if (!user) {
-      // Create user if they don't exist
-      const userId = await ctx.db.insert("users", {
-        name: displayName,
-        email: identity.email ?? "",
-        avatar: identity.pictureUrl,
-        tokenIdentifier: identity.tokenIdentifier,
-      });
-      user = await ctx.db.get(userId);
-    } else {
-      // Always update user with latest info from Clerk to ensure we have current name
-      await ctx.db.patch(user._id, {
-        name: displayName,
-        email: identity.email ?? user.email ?? "",
-        avatar: identity.pictureUrl ?? user.avatar,
-      });
-      // Refresh user object to get updated data
-      user = await ctx.db.get(user._id);
-    }
 
     if (!user || script.userId !== user._id) {
       throw new Error("Not authorized");

@@ -74,30 +74,40 @@ declare module "@tiptap/core" {
 const SpeakerDecorationPluginKey = new PluginKey("speakerDecoration");
 
 /**
- * Find the first speaker mark in a paragraph node
+ * Find the speaker mark for a paragraph node.
+ * Returns null when the paragraph contains marks for more than one speaker —
+ * a whole-paragraph label/border would mislabel mixed content, so mixed
+ * paragraphs get no paragraph-level decoration (the inline mark styling
+ * still shows per-span colors).
  */
 function findSpeakerInParagraph(
   node: ProseMirrorNode
 ): { speakerId: string; cameraMode: CameraModeNullable } | null {
   let result: { speakerId: string; cameraMode: CameraModeNullable } | null = null;
+  let mixed = false;
 
   node.descendants((child) => {
-    if (result) return false; // Stop if we found one
+    if (mixed) return false;
 
     if (child.isText) {
       const speakerMark = child.marks.find((m) => m.type.name === "speaker");
       if (speakerMark) {
-        result = {
-          speakerId: speakerMark.attrs.speakerId,
-          cameraMode: speakerMark.attrs.cameraMode || null,
-        };
-        return false;
+        if (result && result.speakerId !== speakerMark.attrs.speakerId) {
+          mixed = true;
+          return false;
+        }
+        if (!result) {
+          result = {
+            speakerId: speakerMark.attrs.speakerId,
+            cameraMode: speakerMark.attrs.cameraMode || null,
+          };
+        }
       }
     }
     return true;
   });
 
-  return result;
+  return mixed ? null : result;
 }
 
 // Block types that need extra margin for following speaker labels
@@ -487,6 +497,19 @@ export const SpeakerMark = Mark.create<SpeakerMarkOptions>({
       Enter: ({ editor }) => {
         const { selection } = editor.state;
         const { $from } = selection;
+
+        // Only take over Enter in plain top-level paragraphs. Lists and
+        // blockquotes have their own split behavior (e.g. splitListItem)
+        // that a bare splitBlock would break.
+        if ($from.parent.type.name !== "paragraph") {
+          return false;
+        }
+        for (let depth = $from.depth - 1; depth > 0; depth--) {
+          const ancestor = $from.node(depth).type.name;
+          if (ancestor === "listItem" || ancestor === "blockquote") {
+            return false;
+          }
+        }
 
         // Check if current position has speaker mark
         const speakerMark = $from.marks().find((m) => m.type.name === "speaker");
