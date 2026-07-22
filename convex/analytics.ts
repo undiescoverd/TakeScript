@@ -1,4 +1,5 @@
 import { query } from "./_generated/server";
+import { getStagesForUser } from "./kanban";
 
 // Helper function to calculate word count from Tiptap JSON content
 function calculateWordCount(content: string): number {
@@ -56,10 +57,15 @@ export const getUserStats = query({
       return acc + wordCount;
     }, 0);
 
-    // Count completed scripts
-    const completedScripts = scripts.filter(
-      (s) => s.status === "complete"
-    ).length;
+    // Count completed scripts. `stageId` is the canonical workflow state; the
+    // legacy `status` field is never written. Scripts sitting in the user's
+    // final Kanban stage count as completed.
+    const stages = await getStagesForUser(ctx, user._id);
+    const completedStageId = stages[stages.length - 1]?.id;
+
+    const completedScripts = completedStageId
+      ? scripts.filter((s) => s.stageId === completedStageId).length
+      : 0;
 
     // Recent activity (scripts edited in last 7 days)
     const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;

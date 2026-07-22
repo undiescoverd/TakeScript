@@ -56,7 +56,8 @@ export default defineSchema({
     targetLength: v.optional(v.number()), // Duration in minutes or page count
     targetType: v.optional(v.string()), // "pages" | "minutes"
     category: v.optional(v.string()), // Project/folder name
-    status: v.optional(v.string()), // "draft" | "in-progress" | "complete" | "archived"
+    // DEPRECATED: never written; `stageId` is the canonical workflow state.
+    status: v.optional(v.string()),
     organizationId: v.optional(v.id("organizations")), // Link to organization
     sharedWith: v.optional(v.array(v.id("users"))), // Specific users with access
     // Speaker data (stored with script for collaboration and reliability)
