@@ -1,5 +1,36 @@
 import { v } from "convex/values";
-import { query, mutation } from "./_generated/server";
+import { query, mutation, QueryCtx } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
+
+/**
+ * Look up the given script only if the authenticated user owns it.
+ * Returns null for missing scripts, unauthenticated callers, and non-owners
+ * so unauthorized callers can't distinguish "exists" from "not found".
+ */
+async function getOwnedScript(ctx: QueryCtx, scriptId: Id<"scripts">) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    return null;
+  }
+
+  const script = await ctx.db.get(scriptId);
+  if (!script) {
+    return null;
+  }
+
+  const user = await ctx.db
+    .query("users")
+    .withIndex("by_token", (q) =>
+      q.eq("tokenIdentifier", identity.tokenIdentifier)
+    )
+    .unique();
+
+  if (!user || script.userId !== user._id) {
+    return null;
+  }
+
+  return script;
+}
 
 /**
  * Diagnostic query to check script health
@@ -8,7 +39,7 @@ import { query, mutation } from "./_generated/server";
 export const checkScriptHealth = query({
   args: { scriptId: v.id("scripts") },
   handler: async (ctx, args) => {
-    const script = await ctx.db.get(args.scriptId);
+    const script = await getOwnedScript(ctx, args.scriptId);
 
     if (!script) {
       return {
@@ -127,7 +158,7 @@ export const listAllScriptsHealth = query({
 export const repairScript = query({
   args: { scriptId: v.id("scripts") },
   handler: async (ctx, args) => {
-    const script = await ctx.db.get(args.scriptId);
+    const script = await getOwnedScript(ctx, args.scriptId);
 
     if (!script) {
       return { success: false, message: "Script not found" };

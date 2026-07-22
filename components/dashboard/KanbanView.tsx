@@ -15,7 +15,6 @@ import {
   DragOverlay,
   closestCorners,
 } from "@dnd-kit/core";
-import { arrayMove } from "@dnd-kit/sortable";
 import { useKanbanScripts, useKanbanStages } from "@/hooks/use-kanban";
 import { KanbanColumn } from "./KanbanColumn";
 import { KanbanCard } from "./KanbanCard";
@@ -32,7 +31,6 @@ interface KanbanViewProps {
 export function KanbanView({ onOpenSettings, onAddScript }: KanbanViewProps) {
   const stages = useKanbanStages();
   const { groupedScripts, scripts, isLoading } = useKanbanScripts();
-  const updateStage = useMutation(api.scripts.updateStage);
   const reorderInStage = useMutation(api.scripts.reorderInStage);
 
   const [activeScript, setActiveScript] = useState<Doc<"scripts"> | null>(null);
@@ -77,7 +75,7 @@ export function KanbanView({ onOpenSettings, onAddScript }: KanbanViewProps) {
         activeColumn = stageId;
       }
       if (stageId === overId || stageScripts.some((s) => s._id === overId)) {
-        overColumn = stageId === overId ? stageId : stageId;
+        overColumn = stageId;
       }
     }
 
@@ -88,16 +86,22 @@ export function KanbanView({ onOpenSettings, onAddScript }: KanbanViewProps) {
 
     if (!activeColumn || !overColumn || activeColumn === overColumn) return;
 
-    // Move to different column (optimistic)
+    // Move to different column at the hovered position (optimistic)
     setLocalGrouped((prev) => {
       if (!prev) return prev;
       const script = prev[activeColumn!].find((s) => s._id === activeId);
       if (!script) return prev;
 
+      const targetScripts = prev[overColumn!] ?? [];
+      const overIndex = targetScripts.findIndex((s) => s._id === overId);
+      const insertIndex = overIndex >= 0 ? overIndex : targetScripts.length;
+      const newTarget = [...targetScripts];
+      newTarget.splice(insertIndex, 0, { ...script, stageId: overColumn! });
+
       return {
         ...prev,
         [activeColumn!]: prev[activeColumn!].filter((s) => s._id !== activeId),
-        [overColumn!]: [...prev[overColumn!], { ...script, stageId: overColumn }],
+        [overColumn!]: newTarget,
       };
     });
   }, [localGrouped, stages]);
@@ -114,13 +118,23 @@ export function KanbanView({ onOpenSettings, onAddScript }: KanbanViewProps) {
     const activeId = active.id as Id<"scripts">;
     const overId = over.id as string;
 
-    // Find target column
+    // Find target column. Cross-column drags have already moved the active
+    // card into the target column optimistically (handleDragOver), so also
+    // check which column currently holds the active card.
     let targetColumn: string | null = null;
     if (stages.some((s) => s.id === overId)) {
       targetColumn = overId;
     } else {
       for (const [stageId, stageScripts] of Object.entries(localGrouped)) {
         if (stageScripts.some((s) => s._id === overId)) {
+          targetColumn = stageId;
+          break;
+        }
+      }
+    }
+    if (!targetColumn) {
+      for (const [stageId, stageScripts] of Object.entries(localGrouped)) {
+        if (stageScripts.some((s) => s._id === activeId)) {
           targetColumn = stageId;
           break;
         }
@@ -137,28 +151,26 @@ export function KanbanView({ onOpenSettings, onAddScript }: KanbanViewProps) {
     const originalStage = originalScript?.stageId ?? "draft";
 
     try {
+      const columnScripts = localGrouped[targetColumn] ?? [];
+      const oldIndex = columnScripts.findIndex((s) => s._id === activeId);
+
       if (originalStage !== targetColumn) {
-        // Moving to different column
-        await updateStage({ scriptId: activeId, stageId: targetColumn });
+        // Cross-column move: the optimistic position from handleDragOver is
+        // where the card was dropped, so persist that index (not just append).
+        const newIndex = oldIndex >= 0 ? oldIndex : columnScripts.length;
+        await reorderInStage({
+          scriptId: activeId,
+          stageId: targetColumn,
+          newIndex,
+        });
       } else {
         // Reordering within same column
-        const columnScripts = localGrouped[targetColumn];
-        const oldIndex = columnScripts.findIndex((s) => s._id === activeId);
         const newIndex = columnScripts.findIndex((s) => s._id === overId);
-
-        if (oldIndex !== newIndex && newIndex !== -1) {
-          const newOrder = arrayMove(columnScripts, oldIndex, newIndex);
-          // Calculate new order value (use midpoint between neighbors)
-          const prevOrder = newIndex > 0 ? (newOrder[newIndex - 1].stageOrder ?? 0) : 0;
-          const nextOrder = newIndex < newOrder.length - 1
-            ? (newOrder[newIndex + 1].stageOrder ?? prevOrder + 2)
-            : prevOrder + 2;
-          const newOrderValue = (prevOrder + nextOrder) / 2;
-
+        if (oldIndex !== newIndex && oldIndex !== -1 && newIndex !== -1) {
           await reorderInStage({
             scriptId: activeId,
             stageId: targetColumn,
-            newOrder: newOrderValue,
+            newIndex,
           });
         }
       }
@@ -168,7 +180,7 @@ export function KanbanView({ onOpenSettings, onAddScript }: KanbanViewProps) {
 
     // Clear local state to let server state take over
     setLocalGrouped(null);
-  }, [localGrouped, stages, scripts, updateStage, reorderInStage]);
+  }, [localGrouped, stages, scripts, reorderInStage]);
 
   const handleDragCancel = useCallback(() => {
     setActiveScript(null);

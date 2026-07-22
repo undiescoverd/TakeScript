@@ -32,16 +32,14 @@ export const save = mutation({
       throw new Error("Not authorized");
     }
 
-    // Get the latest version number
-    const versions = await ctx.db
+    // Get the latest version number via the index (sorted by versionNumber)
+    const latest = await ctx.db
       .query("scriptVersions")
       .withIndex("by_script", (q) => q.eq("scriptId", args.scriptId))
-      .collect();
+      .order("desc")
+      .first();
 
-    const latestVersion = versions.reduce(
-      (max, v) => Math.max(max, v.versionNumber),
-      0
-    );
+    const latestVersion = latest?.versionNumber ?? 0;
 
     // Create new version
     const versionId = await ctx.db.insert("scriptVersions", {
@@ -81,13 +79,12 @@ export const list = query({
       return [];
     }
 
-    const versions = await ctx.db
+    // Index is [scriptId, versionNumber], so desc order = newest first
+    return await ctx.db
       .query("scriptVersions")
       .withIndex("by_script", (q) => q.eq("scriptId", args.scriptId))
+      .order("desc")
       .collect();
-
-    // Sort by version number descending (newest first)
-    return versions.sort((a, b) => b.versionNumber - a.versionNumber);
   },
 });
 
@@ -159,15 +156,13 @@ export const restore = mutation({
     }
 
     // Save current state as a new version before restoring
-    const versions = await ctx.db
+    const latest = await ctx.db
       .query("scriptVersions")
       .withIndex("by_script", (q) => q.eq("scriptId", script._id))
-      .collect();
+      .order("desc")
+      .first();
 
-    const latestVersion = versions.reduce(
-      (max, v) => Math.max(max, v.versionNumber),
-      0
-    );
+    const latestVersion = latest?.versionNumber ?? 0;
 
     await ctx.db.insert("scriptVersions", {
       scriptId: script._id,

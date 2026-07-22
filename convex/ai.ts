@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { action } from "./_generated/server";
-import { api } from "./_generated/api";
+import { api, internal } from "./_generated/api";
 
 /**
  * Helper: Extract plain text from Tiptap JSONContent (server-side version)
@@ -144,7 +144,7 @@ async function getDefaultAIModel(ctx: any): Promise<string> {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) throw new Error("Not authenticated");
 
-  const user = await ctx.runQuery(api.users.getByToken, {
+  const user = await ctx.runQuery(internal.users.getByToken, {
     tokenIdentifier: identity.tokenIdentifier
   });
   if (!user) throw new Error("User not found");
@@ -226,7 +226,7 @@ async function trackAIRequest(
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) return;
 
-    const user = await ctx.runQuery(api.users.getByToken, {
+    const user = await ctx.runQuery(internal.users.getByToken, {
       tokenIdentifier: identity.tokenIdentifier
     });
     if (!user || !user.organizationId) return;

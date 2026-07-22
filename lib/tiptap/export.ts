@@ -94,6 +94,17 @@ export function exportToPlainText(doc: JSONContent): string {
         lines.push("");
         break;
 
+      case "thumbnailTitle":
+        lines.push("");
+        lines.push(`[THUMBNAIL: ${node.attrs?.title || "Untitled"}]`);
+        node.content?.forEach(extractText);
+        lines.push("");
+        break;
+
+      case "editorNote":
+        // Editor notes are production-only and never read on camera
+        break;
+
       default:
         // Recursively process unknown nodes
         node.content?.forEach(extractText);
@@ -110,27 +121,54 @@ export function exportToPlainText(doc: JSONContent): string {
 }
 
 /**
- * Get plain text content from a node and its children
+ * Get plain text content from a node and its children.
+ * Inline children (text runs) concatenate directly; block children
+ * (e.g. multiple paragraphs inside a screen recording) are separated by
+ * newlines so their words don't run together.
  */
 function getTextContent(node: JSONContent): string {
   if (node.type === "text" && node.text) {
     return node.text;
   }
 
+  if (node.type === "hardBreak") {
+    return "\n";
+  }
+
   if (node.content) {
-    return node.content.map(getTextContent).join("");
+    const isInlineContent = node.content.every(
+      (child) => child.type === "text" || child.type === "hardBreak"
+    );
+    const parts = node.content.map(getTextContent);
+    return isInlineContent ? parts.join("") : parts.filter(Boolean).join("\n");
   }
 
   return "";
 }
 
 /**
- * Calculate word count from Tiptap document
+ * Calculate word count from Tiptap document.
+ * Counts only actual text content (not structural markers like chapter
+ * titles' [BRACKETS] or "[SCREEN RECORDING]" labels), splitting on
+ * whitespace so contractions like "don't" count as one word.
  */
 export function getWordCount(doc: JSONContent): number {
-  const text = exportToPlainText(doc);
-  const words = text.match(/\b\w+\b/g);
-  return words ? words.length : 0;
+  let count = 0;
+
+  function countWords(node: JSONContent): void {
+    // Editor notes aren't spoken, so they don't contribute to read time
+    if (node.type === "editorNote") {
+      return;
+    }
+    if (node.type === "text" && node.text) {
+      count += node.text.trim().split(/\s+/).filter(Boolean).length;
+      return;
+    }
+    node.content?.forEach(countWords);
+  }
+
+  countWords(doc);
+  return count;
 }
 
 /**

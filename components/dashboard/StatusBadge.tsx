@@ -36,6 +36,11 @@ export function StatusBadge({ scriptId, stageId }: StatusBadgeProps) {
     }
   };
 
+  // No stages configured — nothing sensible to render or select
+  if (!currentStage) {
+    return null;
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger

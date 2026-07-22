@@ -2,6 +2,43 @@
 
 import { v } from "convex/values";
 import { action } from "./_generated/server";
+import type { ActionCtx } from "./_generated/server";
+import { internal } from "./_generated/api";
+import { Id } from "./_generated/dataModel";
+
+async function requireAuth(ctx: ActionCtx) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new Error("Not authenticated");
+  }
+  return identity;
+}
+
+/**
+ * Require that the authenticated caller is the one who uploaded this
+ * storageId (recorded via fileUploads.recordUpload right after upload).
+ * Being merely authenticated isn't enough here — without this, any logged-in
+ * user could read, probe, or delete any file in storage by guessing/reusing
+ * a storageId.
+ */
+async function requireFileOwnership(ctx: ActionCtx, storageId: Id<"_storage">) {
+  const identity = await requireAuth(ctx);
+
+  const user = await ctx.runQuery(internal.users.getByToken, {
+    tokenIdentifier: identity.tokenIdentifier,
+  });
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  const owned = await ctx.runQuery(internal.fileUploads.isOwnedBy, {
+    storageId,
+    userId: user._id,
+  });
+  if (!owned) {
+    throw new Error("Not authorized");
+  }
+}
 
 /**
  * Generate upload URL for file storage
@@ -9,6 +46,7 @@ import { action } from "./_generated/server";
  */
 export const generateUploadUrl = action({
   handler: async (ctx) => {
+    await requireAuth(ctx);
     return await ctx.storage.generateUploadUrl();
   },
 });
@@ -24,6 +62,8 @@ export const extractTextFromFile = action({
     fileType: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireFileOwnership(ctx, args.storageId);
+
     // Get file from storage
     const file = await ctx.storage.get(args.storageId);
     if (!file) throw new Error("File not found in storage");
@@ -64,6 +104,7 @@ export const deleteFile = action({
     storageId: v.id("_storage"),
   },
   handler: async (ctx, args) => {
+    await requireFileOwnership(ctx, args.storageId);
     await ctx.storage.delete(args.storageId);
   },
 });
@@ -76,6 +117,7 @@ export const getFileMetadata = action({
     storageId: v.id("_storage"),
   },
   handler: async (ctx, args) => {
+    await requireFileOwnership(ctx, args.storageId);
     const file = await ctx.storage.get(args.storageId);
     if (!file) return null;
 

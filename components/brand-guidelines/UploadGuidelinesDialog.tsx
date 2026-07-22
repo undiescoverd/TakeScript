@@ -30,6 +30,7 @@ export function UploadGuidelinesDialog({ open, onOpenChange }: Props) {
 
   const generateUploadUrl = useAction(api.fileUpload.generateUploadUrl);
   const extractText = useAction(api.fileUpload.extractTextFromFile);
+  const recordUpload = useMutation(api.fileUploads.recordUpload);
   const uploadGuideline = useMutation(api.brandGuidelines.upload);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -65,7 +66,11 @@ export function UploadGuidelinesDialog({ open, onOpenChange }: Props) {
 
       const { storageId } = await result.json();
 
-      // 3. Extract text from file
+      // 3. Record ownership so extractTextFromFile (and any later
+      // delete/metadata calls) can verify we're the uploader
+      await recordUpload({ storageId });
+
+      // 4. Extract text from file
       const fileType = file.type.includes("pdf")
         ? "pdf"
         : file.type.includes("wordprocessingml") || file.name.endsWith(".docx")
@@ -74,7 +79,7 @@ export function UploadGuidelinesDialog({ open, onOpenChange }: Props) {
 
       const content = extractedText || (await extractText({ storageId, fileType }));
 
-      // 4. Save to database
+      // 5. Save to database
       await uploadGuideline({
         name,
         content,

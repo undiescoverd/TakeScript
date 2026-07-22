@@ -57,7 +57,7 @@ export default function ScriptPage() {
   const flags = getFeatureFlags();
   const scriptId = params.id as Id<"scripts">;
   const script = useQuery(api.scripts.get, { scriptId });
-  const { scheduleAutosave, saveNow, setOnSaveComplete, getLastSavedContent, initializeLastSaved } = useAutosave(scriptId);
+  const { scheduleAutosave, saveNow, cancelPendingSave, setOnSaveComplete, getLastSavedContent, initializeLastSaved, syncLastEditedAt } = useAutosave(scriptId);
   const { mode, viewMode, toggleViewMode, commentsOpen, setCommentsOpen, annotationsOpen, setAnnotationsOpen, collaborationEnabled, speakersOpen, setSpeakersOpen } = useEditorStore();
   const { chromeRevealed, chromeMouseHandlers } = useFocusChromeReveal(viewMode);
   const { speakers, setSpeakers } = useSpeakerStore();
@@ -72,9 +72,7 @@ export default function ScriptPage() {
 
     if (script.content && script.content.trim() !== "") {
       try {
-        console.log(`[Script ${scriptId}] Parsing content, length: ${script.content.length}`);
         const parsed = JSON.parse(script.content);
-        console.log(`[Script ${scriptId}] Parse successful, type: ${parsed?.type}, content items: ${parsed?.content?.length || 0}`);
 
         if (parsed && typeof parsed === 'object' && parsed.type === 'doc') {
           return parsed;
@@ -86,10 +84,8 @@ export default function ScriptPage() {
           });
         }
       } catch (parseError) {
-        console.error(`[Script ${scriptId}] Failed to parse script content:`, parseError, "Content preview:", script.content?.substring(0, 200));
+        console.error(`[Script ${scriptId}] Failed to parse script content:`, parseError);
       }
-    } else {
-      console.log(`[Script ${scriptId}] Empty or null content, using empty document`);
     }
 
     return emptyContent;
@@ -122,12 +118,16 @@ export default function ScriptPage() {
     return () => setOnSaveComplete(null);
   }, [setOnSaveComplete]);
 
-  // Initialize speakers from script data
+  // Initialize speakers from script data. Always set (falling back to an empty
+  // list) so a script without speakers doesn't inherit the previous script's
+  // speakers from the global store.
   useEffect(() => {
-    if (script?.speakers && Array.isArray(script.speakers)) {
-      setSpeakers(script.speakers as Speaker[]);
-    }
-  }, [script?.speakers, setSpeakers]);
+    if (script === undefined) return;
+    const scriptSpeakers = Array.isArray(script?.speakers)
+      ? (script.speakers as Speaker[])
+      : [];
+    setSpeakers(scriptSpeakers);
+  }, [script, setSpeakers]);
 
   // Handle speakers change - save to Convex
   const handleSpeakersChange = useCallback(
@@ -164,7 +164,7 @@ export default function ScriptPage() {
       // Initialize autosave
       if (typeof initializeLastSaved === 'function') {
         try {
-          initializeLastSaved(contentString);
+          initializeLastSaved(contentString, script.lastEditedAt);
           lastScriptContentRef.current = contentString;
         } catch (initError) {
           console.error("Error initializing last saved content:", initError);
@@ -211,11 +211,14 @@ export default function ScriptPage() {
         lastScriptContentRef.current = script.content;
         setLocalContent(initialContent);
         isRestoringVersionRef.current = false;
+        // Resync the autosave concurrency baseline so the next save builds
+        // on this new server state instead of being rejected as stale.
+        syncLastEditedAt(script.lastEditedAt);
       } catch {
         // ignore parse errors
       }
     }
-  }, [script?.content, initialContent, getLastSavedContent]);
+  }, [script?.content, script?.lastEditedAt, initialContent, getLastSavedContent, syncLastEditedAt]);
 
   const handleContentUpdate = useCallback(
     (content: string) => {
@@ -230,8 +233,13 @@ export default function ScriptPage() {
     [scheduleAutosave]
   );
 
-  // Mark version restore when it happens (version restore will set this before calling restore)
-  // This is handled by checking if content differs from last saved
+  // Called by VersionHistory right before a restore mutation runs: drop any
+  // debounced autosave (it holds pre-restore content that would overwrite the
+  // restored version) and flag the incoming content change as a restore.
+  const handleBeforeRestore = useCallback(() => {
+    isRestoringVersionRef.current = true;
+    cancelPendingSave();
+  }, [cancelPendingSave]);
 
   const handleSaveNow = useCallback(async () => {
     if (localContent) {
@@ -410,7 +418,6 @@ export default function ScriptPage() {
 
   // Loading state
   if (script === undefined) {
-    console.log(`[Script ${scriptId}] Waiting for script to load from Convex...`);
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="animate-pulse text-muted-foreground">
@@ -422,7 +429,6 @@ export default function ScriptPage() {
 
   // Not found state
   if (script === null) {
-    console.error(`[Script ${scriptId}] Script not found in database`);
     return (
       <div className="flex h-screen flex-col items-center justify-center gap-4">
         <h1 className="text-2xl font-bold">Script not found</h1>
@@ -444,7 +450,6 @@ export default function ScriptPage() {
 
   // Wait for content to be initialized
   if (!localContent) {
-    console.log(`[Script ${scriptId}] Waiting for content to initialize. Script loaded: ${!!script}, initialContent: ${!!initialContent}`);
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="animate-pulse text-muted-foreground">
@@ -453,9 +458,6 @@ export default function ScriptPage() {
       </div>
     );
   }
-
-  console.log(`[Script ${scriptId}] Rendering editor with content`);
-
 
   return (
     <div
@@ -506,7 +508,7 @@ export default function ScriptPage() {
         </div>
 
         {/* Version History */}
-        <VersionHistory scriptId={scriptId} />
+        <VersionHistory scriptId={scriptId} onBeforeRestore={handleBeforeRestore} />
 
         {/* Comments Panel */}
         <CommentsPanel

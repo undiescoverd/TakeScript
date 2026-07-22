@@ -25,13 +25,17 @@ export function useKanbanScripts() {
       groups[stage.id] = [];
     }
 
-    // Group scripts
+    // Group scripts. A stageId that doesn't match any configured stage
+    // (stage deleted/renamed, bad data) falls back to the first column so
+    // the script never silently disappears from the board.
+    const fallbackStageId = stages[0]?.id ?? "draft";
     for (const script of scripts) {
       const stageId = script.stageId ?? "draft";
-      if (!groups[stageId]) {
-        groups[stageId] = [];
+      const targetStageId = groups[stageId] ? stageId : fallbackStageId;
+      if (!groups[targetStageId]) {
+        groups[targetStageId] = [];
       }
-      groups[stageId].push(script);
+      groups[targetStageId].push(script);
     }
 
     // Sort each group by stageOrder

@@ -47,21 +47,33 @@ export function KanbanSettingsDialog({
 
   const [stages, setStages] = useState<KanbanStage[]>(currentStages);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
 
-  // Sync local state when dialog opens or stages change
+  // Reset the dirty flag each time the dialog opens
   useEffect(() => {
     if (open) {
+      setIsDirty(false);
+    }
+  }, [open]);
+
+  // Sync local state from the server while the dialog is open, but stop as
+  // soon as the user edits something so a query refresh can't wipe their
+  // in-progress changes.
+  useEffect(() => {
+    if (open && !isDirty) {
       setStages(currentStages);
     }
-  }, [open, currentStages]);
+  }, [open, isDirty, currentStages]);
 
   const handleNameChange = (id: string, name: string) => {
+    setIsDirty(true);
     setStages((prev) =>
       prev.map((s) => (s.id === id ? { ...s, name } : s))
     );
   };
 
   const handleColorChange = (id: string, color: string) => {
+    setIsDirty(true);
     setStages((prev) =>
       prev.map((s) => (s.id === id ? { ...s, color } : s))
     );
@@ -91,6 +103,7 @@ export function KanbanSettingsDialog({
     try {
       await resetToDefaults();
       setStages(DEFAULT_STAGES);
+      setIsDirty(false);
       toast.success("Stages reset to defaults");
     } catch {
       toast.error("Failed to reset stages");
