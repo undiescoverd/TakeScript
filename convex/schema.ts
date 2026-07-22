@@ -111,6 +111,8 @@ export default defineSchema({
 
   annotations: defineTable({
     scriptId: v.id("scripts"),
+    // Always the triggering *human*, even for AI-authored rows, so every
+    // existing `script.userId !== user._id` ownership check works unchanged.
     userId: v.id("users"),
     content: v.string(), // The annotation note content
     selectedText: v.string(), // The text that was highlighted
@@ -120,9 +122,50 @@ export default defineSchema({
     resolved: v.boolean(),
     createdAt: v.number(),
     updatedAt: v.number(),
+
+    // --- AI-authored suggestions (all optional; existing rows read undefined) ---
+    authorType: v.optional(v.union(v.literal("user"), v.literal("ai"))), // undefined => "user"
+    aiModel: v.optional(v.string()),
+    aiProvider: v.optional(v.string()),
+    suggestionType: v.optional(
+      v.union(
+        v.literal("grammar"),
+        v.literal("spelling"),
+        v.literal("style"),
+        v.literal("tone"),
+        v.literal("clarity"),
+        v.literal("structure"),
+        v.literal("pacing")
+      )
+    ),
+    suggestedText: v.optional(v.string()), // replacement span; absent => comment-only
+    severity: v.optional(
+      v.union(v.literal("low"), v.literal("medium"), v.literal("high"))
+    ),
+    // Orthogonal to `resolved`, which stays the human concept driving the
+    // panel split. Applying or dismissing sets both, so AI rows fall into the
+    // existing "Resolved" section without changing that code.
+    status: v.optional(
+      v.union(v.literal("open"), v.literal("applied"), v.literal("dismissed"))
+    ),
+    anchored: v.optional(v.boolean()), // false => resolver failed, render unanchored
+    batchId: v.optional(v.string()), // groups one run; drives "Apply all"
   })
     .index("by_script", ["scriptId"])
-    .index("by_script_unresolved", ["scriptId", "resolved"]),
+    .index("by_script_unresolved", ["scriptId", "resolved"])
+    .index("by_script_batch", ["scriptId", "batchId"]),
+
+  // Replies live in their own table rather than a self-referencing parentId:
+  // annotations.list sorts every row by `a.from - b.from`, and making from/to
+  // optional would feed NaN into that comparator.
+  annotationReplies: defineTable({
+    annotationId: v.id("annotations"),
+    scriptId: v.id("scripts"), // denormalized: auth check needs one fetch
+    userId: v.id("users"),
+    authorType: v.optional(v.union(v.literal("user"), v.literal("ai"))),
+    content: v.string(),
+    createdAt: v.number(),
+  }).index("by_annotation", ["annotationId"]),
 
   templates: defineTable({
     name: v.string(), // Template name (required)
