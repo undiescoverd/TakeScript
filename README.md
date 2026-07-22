@@ -15,7 +15,7 @@ A professional tutorial script editor designed for SaaS companies and content cr
 
 ## Tech Stack
 
-- **Frontend**: Next.js 14 (App Router), TypeScript, Tailwind CSS
+- **Frontend**: Next.js 16 (App Router), TypeScript, Tailwind CSS
 - **UI Components**: shadcn/ui (Radix UI)
 - **Editor**: Tiptap (rich text)
 - **State Management**: Zustand
@@ -71,7 +71,12 @@ npx convex dev
 npm run dev
 ```
 
-7. Open [http://localhost:3000](http://localhost:3000)
+7. In a third terminal, start the collaboration server:
+```bash
+npm run collab
+```
+
+8. Open [http://localhost:3000](http://localhost:3000)
 
 ## Project Structure
 
@@ -84,6 +89,7 @@ takescript/
 │   │   └── script/[id]/   # Script editor
 │   ├── layout.tsx         # Root layout with providers
 │   └── providers.tsx      # Clerk + Convex + Theme providers
+├── proxy.ts               # Clerk route protection (named middleware.ts before Next.js 16)
 ├── components/
 │   ├── ui/                # shadcn/ui components
 │   ├── editor/            # Tiptap editor components
@@ -123,7 +129,8 @@ TakeScript includes specialized blocks for tutorial scripts:
 
 1. Push your code to GitHub
 2. Import the project in Vercel
-3. Add your environment variables
+3. Add your environment variables — scope them to **Preview** as well as Production, or
+   PR preview builds fail at prerender with `No address provided to ConvexReactClient`
 4. Deploy
 
 ### Convex

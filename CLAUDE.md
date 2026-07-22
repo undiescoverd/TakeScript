@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## How to Explain Things
+
+When explaining anything — code, errors, decisions, trade-offs — keep it short and use plain, non-technical language. Skip jargon or define it in one line if it's unavoidable. Reach for a simple metaphor when it genuinely makes the idea click, but don't force one into every explanation.
+
 # TakeScript
 
 A professional tutorial script editor for SaaS companies and content creators. Replaces Google Docs for video tutorial script writing with specialized features including rich text editing, custom content blocks (chapters, screen recordings, demonstrations, editor notes), recording mode, version history, and teleprompter export.
@@ -27,6 +31,12 @@ cp .env.local.example .env.local
 - `convex/_generated/` is **committed** so Git-based Vercel builds resolve `@/convex/_generated/api`.
 - After changing `convex/*.ts`, run `npx convex codegen` and commit updated files under `convex/_generated/`.
 - Production Convex deploy: `npx convex deploy` (or set `CONVEX_DEPLOY_KEY` on Vercel per Convex hosting docs).
+- **Env vars must be scoped to Preview as well as Production.** `app/providers.tsx` builds the
+  Convex client at module load, so a missing `NEXT_PUBLIC_CONVEX_URL` fails the whole build during
+  prerender with `Error: No address provided to ConvexReactClient`. This silently broke every PR
+  preview build while production kept deploying fine.
+- `next.config.ts` pins `outputFileTracingRoot` to the repo. Without it Next walks up the directory
+  tree for lockfiles and may pick an unrelated project as the workspace root.
 
 ### Development
 ```bash
@@ -35,6 +45,9 @@ npx convex dev
 
 # Terminal 2: Start Next.js development server
 npm run dev
+
+# Terminal 3: Start the collaboration server (Hocuspocus, ws://localhost:1234)
+npm run collab
 
 # Build for production
 npm run build
@@ -96,7 +109,7 @@ npx convex dev  # Automatically pushes schema on file changes
 #### 1. Authentication Flow
 - **Clerk** provides authentication with Google OAuth
 - **ConvexProviderWithClerk** integrates Clerk auth with Convex backend
-- `middleware.ts` protects all routes except `/login` and `/api`
+- `proxy.ts` protects every route except `/` and `/login` (API routes are NOT public)
 - User identity flows: Clerk → Convex → User lookup by `tokenIdentifier`
 
 #### 2. Convex Backend Architecture
@@ -463,5 +476,5 @@ npm run dev       # Terminal 2
 - `components/dashboard/StatusBadge.tsx` - Stage selector dropdown
 
 **Authentication**:
-- `middleware.ts` - Route protection
+- `proxy.ts` - Route protection (renamed from `middleware.ts` for Next.js 16)
 - `app/providers.tsx` - Auth provider setup
