@@ -293,36 +293,46 @@ export const dismiss = mutation({
  * turns N identical auth round-trips into one while still refusing a
  * hand-crafted call that mixes in someone else's annotation.
  */
+/**
+ * Extracted so the memo's auth control flow is unit-testable without spinning
+ * up the whole Convex runtime — the mutation wrapper below is the only thing
+ * registered as an endpoint. See convex/annotations.markAppliedBatch.test.ts.
+ */
+export async function markAppliedBatchHandler(
+  ctx: MutationCtx,
+  args: { annotationIds: Id<"annotations">[] }
+) {
+  if (args.annotationIds.length > MAX_AI_SUGGESTIONS_PER_BATCH) {
+    throw new Error(
+      `Too many annotations in one batch (max ${MAX_AI_SUGGESTIONS_PER_BATCH})`
+    );
+  }
+
+  const checkedScripts = new Set<string>();
+  const now = Date.now();
+
+  for (const annotationId of args.annotationIds) {
+    const annotation = await ctx.db.get(annotationId);
+    if (!annotation) {
+      throw new Error("Annotation not found");
+    }
+
+    if (!checkedScripts.has(annotation.scriptId)) {
+      await requireScriptOwner(ctx, annotation.scriptId);
+      checkedScripts.add(annotation.scriptId);
+    }
+
+    await ctx.db.patch(annotationId, {
+      status: "applied",
+      resolved: true,
+      updatedAt: now,
+    });
+  }
+}
+
 export const markAppliedBatch = mutation({
   args: { annotationIds: v.array(v.id("annotations")) },
-  handler: async (ctx, args) => {
-    if (args.annotationIds.length > MAX_AI_SUGGESTIONS_PER_BATCH) {
-      throw new Error(
-        `Too many annotations in one batch (max ${MAX_AI_SUGGESTIONS_PER_BATCH})`
-      );
-    }
-
-    const checkedScripts = new Set<string>();
-    const now = Date.now();
-
-    for (const annotationId of args.annotationIds) {
-      const annotation = await ctx.db.get(annotationId);
-      if (!annotation) {
-        throw new Error("Annotation not found");
-      }
-
-      if (!checkedScripts.has(annotation.scriptId)) {
-        await requireScriptOwner(ctx, annotation.scriptId);
-        checkedScripts.add(annotation.scriptId);
-      }
-
-      await ctx.db.patch(annotationId, {
-        status: "applied",
-        resolved: true,
-        updatedAt: now,
-      });
-    }
-  },
+  handler: markAppliedBatchHandler,
 });
 
 // Update annotation content

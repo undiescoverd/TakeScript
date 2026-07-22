@@ -13,12 +13,19 @@ import {
   Trash2,
   ChevronDown,
   ChevronUp,
+  Sparkles,
+  MapPinOff,
 } from "lucide-react";
 import { formatDistanceToNow } from "@/lib/utils";
 import { toast } from "sonner";
 import { useEditorStore } from "@/store/editor-store";
 import { annotationColors, AnnotationColor } from "@/lib/tiptap/annotation-mark";
 import { findAnnotationRange } from "@/lib/tiptap/find-annotation-range";
+import {
+  suggestionEligibility,
+  selectNewestBatchTargets,
+} from "@/lib/annotations/suggestion-selectors";
+import type { ApplicableAnnotation } from "@/hooks/use-apply-suggestions";
 import { Editor } from "@tiptap/react";
 
 interface AnnotationsPanelProps {
@@ -26,6 +33,10 @@ interface AnnotationsPanelProps {
   isOpen: boolean;
   onClose: () => void;
   editor: Editor | null;
+  /** Apply a single anchored AI suggestion. Provided by useApplySuggestions. */
+  onApplyOne?: (annotation: ApplicableAnnotation) => void;
+  /** Apply every anchored suggestion in the newest batch as one undo step. */
+  onApplyAll?: (annotations: ApplicableAnnotation[]) => void;
 }
 
 export function AnnotationsPanel({
@@ -33,6 +44,8 @@ export function AnnotationsPanel({
   isOpen,
   onClose,
   editor,
+  onApplyOne,
+  onApplyAll,
 }: AnnotationsPanelProps) {
   const annotations = useQuery(api.annotations.list, { scriptId });
   const updateAnnotation = useMutation(api.annotations.update);
@@ -276,6 +289,16 @@ export function AnnotationsPanel({
     annotations?.filter((a) => !a.resolved) || [];
   const resolvedAnnotations = annotations?.filter((a) => a.resolved) || [];
 
+  // "Apply all" acts on the newest AI run only (see selectNewestBatchTargets).
+  const applyAllTargets: ApplicableAnnotation[] = selectNewestBatchTargets(
+    unresolvedAnnotations
+  ).map((a) => ({
+    _id: a._id,
+    selectedText: a.selectedText,
+    suggestedText: a.suggestedText,
+    anchored: a.anchored,
+  }));
+
   return (
     <div className="flex w-80 flex-col border-l bg-card">
       {/* Header */}
@@ -299,6 +322,20 @@ export function AnnotationsPanel({
         Select text in the editor and click the highlight button to add an
         annotation.
       </div>
+
+      {/* Apply all — only when the newest AI run has anchored, applicable rows */}
+      {onApplyAll && applyAllTargets.length > 0 && (
+        <div className="border-b p-2">
+          <Button
+            size="sm"
+            className="w-full gap-2"
+            onClick={() => onApplyAll(applyAllTargets)}
+          >
+            <Sparkles className="h-4 w-4" />
+            Apply all ({applyAllTargets.length})
+          </Button>
+        </div>
+      )}
 
       {/* Annotations List */}
       <div className="flex-1 overflow-y-auto p-3">
@@ -341,6 +378,17 @@ export function AnnotationsPanel({
                 onDelete={() => handleDelete(annotation._id)}
                 onUpdateColor={(color) =>
                   handleUpdateColor(annotation._id, color, annotation.from, annotation.to)
+                }
+                onApply={
+                  onApplyOne
+                    ? () =>
+                        onApplyOne({
+                          _id: annotation._id,
+                          selectedText: annotation.selectedText,
+                          suggestedText: annotation.suggestedText,
+                          anchored: annotation.anchored,
+                        })
+                    : undefined
                 }
               />
             ))}
@@ -431,6 +479,12 @@ interface AnnotationCardProps {
     createdAt: number;
     from: number;
     to: number;
+    // AI-authored rows carry these; user rows read them as undefined.
+    authorType?: "user" | "ai";
+    suggestedText?: string;
+    anchored?: boolean;
+    severity?: "low" | "medium" | "high";
+    suggestionType?: string;
     user: {
       name: string;
       avatar?: string;
@@ -448,7 +502,15 @@ interface AnnotationCardProps {
   onToggleResolve: () => void;
   onDelete: () => void;
   onUpdateColor: (color: AnnotationColor) => void;
+  /** Present for AI rows only; applies this suggestion to the document. */
+  onApply?: () => void;
 }
+
+const SEVERITY_CLASSES: Record<string, string> = {
+  high: "bg-destructive/15 text-destructive",
+  medium: "bg-orange-500/15 text-orange-600 dark:text-orange-400",
+  low: "bg-muted text-muted-foreground",
+};
 
 function AnnotationCard({
   annotation,
@@ -463,8 +525,12 @@ function AnnotationCard({
   onToggleResolve,
   onDelete,
   onUpdateColor,
+  onApply,
 }: AnnotationCardProps) {
   const colorInfo = annotationColors.find((c) => c.id === annotation.color);
+  // Rule 6 of the grammar prompt lets the model skip a verbatim quote; those
+  // rows arrive anchored:false and are a normal outcome, not a failure.
+  const { isAI, isUnanchored, canApply } = suggestionEligibility(annotation);
 
   return (
     <div
@@ -473,39 +539,73 @@ function AnnotationCard({
       } ${isSelected ? "ring-2 ring-primary" : ""}`}
       onClick={onClick}
     >
-      {/* Highlighted Text Preview */}
-      <div
-        className={`mb-2 rounded px-2 py-1 text-xs ${colorInfo?.bgClass || "bg-yellow-200/60"}`}
-      >
-        <span className="line-clamp-2 italic">
-          &ldquo;{annotation.selectedText}&rdquo;
-        </span>
-      </div>
+      {/* Highlighted Text Preview — skipped for unanchored AI rows, which
+          have no span in the document to quote. */}
+      {!isUnanchored && (
+        <div
+          className={
+            isAI
+              ? "mb-2 rounded border-l-2 border-primary bg-muted/50 px-2 py-1 text-xs"
+              : `mb-2 rounded px-2 py-1 text-xs ${colorInfo?.bgClass || "bg-yellow-200/60"}`
+          }
+        >
+          <span className="line-clamp-2 italic">
+            &ldquo;{annotation.selectedText}&rdquo;
+          </span>
+        </div>
+      )}
 
-      {/* Color Selector */}
-      <div className="mb-2 flex gap-1">
-        {annotationColors.map((color) => (
-          <button
-            key={color.id}
-            onClick={(e) => {
-              e.stopPropagation();
-              onUpdateColor(color.id);
-            }}
-            className={`h-4 w-4 rounded-full border-2 transition-transform hover:scale-110 ${
-              annotation.color === color.id
-                ? "border-foreground"
-                : "border-transparent"
-            } ${color.bgClass}`}
-            title={color.name}
-          />
-        ))}
-      </div>
+      {isAI ? (
+        /* AI provenance + classification — replaces the colour swatch row,
+           which is meaningless for a marker the user can't recolour. */
+        <div className="mb-2 flex flex-wrap items-center gap-1.5">
+          <span className="inline-flex items-center gap-1 rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+            <Sparkles className="h-3 w-3" />
+            AI
+          </span>
+          {annotation.suggestionType && (
+            <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium capitalize text-muted-foreground">
+              {annotation.suggestionType}
+            </span>
+          )}
+          {annotation.severity && (
+            <span
+              className={`rounded px-1.5 py-0.5 text-[10px] font-medium capitalize ${
+                SEVERITY_CLASSES[annotation.severity] ?? SEVERITY_CLASSES.low
+              }`}
+            >
+              {annotation.severity}
+            </span>
+          )}
+        </div>
+      ) : (
+        /* Color Selector */
+        <div className="mb-2 flex gap-1">
+          {annotationColors.map((color) => (
+            <button
+              key={color.id}
+              onClick={(e) => {
+                e.stopPropagation();
+                onUpdateColor(color.id);
+              }}
+              className={`h-4 w-4 rounded-full border-2 transition-transform hover:scale-110 ${
+                annotation.color === color.id
+                  ? "border-foreground"
+                  : "border-transparent"
+              } ${color.bgClass}`}
+              title={color.name}
+            />
+          ))}
+        </div>
+      )}
 
       {/* User & Time */}
       <div className="mb-2 flex items-start justify-between">
         <div>
           <div className="text-sm font-medium">
-            {getDisplayName(annotation.user?.name, annotation.user?.email)}
+            {isAI
+              ? "AI suggestion"
+              : getDisplayName(annotation.user?.name, annotation.user?.email)}
           </div>
           <div className="text-xs text-muted-foreground">
             {formatDistanceToNow(annotation.createdAt)}
@@ -520,7 +620,13 @@ function AnnotationCard({
               e.stopPropagation();
               onToggleResolve();
             }}
-            title={annotation.resolved ? "Unresolve" : "Resolve"}
+            title={
+              annotation.resolved
+                ? "Unresolve"
+                : isAI
+                  ? "Dismiss"
+                  : "Resolve"
+            }
           >
             <Check
               className={`h-3 w-3 ${
@@ -543,8 +649,44 @@ function AnnotationCard({
         </div>
       </div>
 
-      {/* Note Content */}
-      {isEditing ? (
+      {/* AI message: read-only. The model's note is not a user note to edit. */}
+      {isAI ? (
+        <>
+          {annotation.content && (
+            <p className="text-sm text-muted-foreground">{annotation.content}</p>
+          )}
+
+          {isUnanchored && (
+            <div className="mt-2 flex items-start gap-1.5 rounded bg-muted/60 px-2 py-1.5 text-xs text-muted-foreground">
+              <MapPinOff className="mt-0.5 h-3 w-3 shrink-0" />
+              <span>
+                Couldn&apos;t be located in the document — review and apply this
+                one manually.
+              </span>
+            </div>
+          )}
+
+          {canApply && annotation.suggestedText && (
+            <div className="mt-2 space-y-1.5">
+              <div className="rounded border border-primary/40 bg-primary/5 px-2 py-1 text-xs">
+                <span className="line-clamp-2">→ {annotation.suggestedText}</span>
+              </div>
+              <Button
+                size="sm"
+                className="w-full gap-1.5"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onApply?.();
+                }}
+              >
+                <Check className="h-3.5 w-3.5" />
+                Apply
+              </Button>
+            </div>
+          )}
+        </>
+      ) : /* Note Content */
+      isEditing ? (
         <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
           <Textarea
             value={editContent}

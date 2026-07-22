@@ -371,6 +371,19 @@
   background-color: rgba(253, 186, 116, 0.7);
 }
 
+/* AI suggestion — a provenance marker, not a user-pickable colour.
+   Underlined rather than filled so it never reads as another user highlight;
+   uses the primary accent so it stays on-theme in light and dark. */
+.annotation-ai {
+  background-color: transparent;
+  border-radius: 0;
+  border-bottom: 2px solid var(--primary);
+  padding-bottom: 0;
+}
+.annotation-ai:hover {
+  background-color: color-mix(in oklch, var(--primary) 15%, transparent);
+}
+
 /* Active/Selected annotation */
 .annotation-highlight.annotation-active,
 .annotation-highlight[data-selected="true"] {
