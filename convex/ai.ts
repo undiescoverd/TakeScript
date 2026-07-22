@@ -1,7 +1,7 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { action } from "./_generated/server";
 import { api, internal } from "./_generated/api";
-import { decryptApiKey } from "./lib/byokCrypto";
+import { decryptApiKey, KeyDecryptionError } from "./lib/byokCrypto";
 import { assertSafeCustomBaseUrl } from "./lib/baseUrlValidation";
 import { parseAIJson } from "./lib/parseAIJson";
 
@@ -228,10 +228,28 @@ async function resolveAIConfig(ctx: any): Promise<EffectiveAIConfig> {
     };
   }
 
+  let apiKey: string;
+  try {
+    apiKey = await decryptApiKey(config.encryptedKey);
+  } catch (error) {
+    if (!(error instanceof KeyDecryptionError)) throw error;
+
+    // Deliberately NOT falling through to the platform key. Someone who
+    // configured BYOK expects their own key and their own bill; quietly
+    // spending the platform's credits instead would hide a broken config
+    // behind working features, and the operator would find out from an
+    // invoice. Fail, but say exactly what to do about it.
+    throw new ConvexError(
+      config.source === "org"
+        ? "Your organization's saved AI provider key could not be read. An owner or admin needs to re-enter it in Settings -> AI."
+        : "Your saved AI provider key could not be read. Please re-enter it in Settings -> AI."
+    );
+  }
+
   return {
     provider: config.provider,
     baseUrl: config.baseUrl,
-    apiKey: await decryptApiKey(config.encryptedKey),
+    apiKey,
     model: config.model,
     source: config.source,
   };

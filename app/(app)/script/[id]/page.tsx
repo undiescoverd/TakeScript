@@ -23,6 +23,7 @@ import { ScriptReviewPanel } from "@/components/ai/ScriptReviewPanel";
 import { AIGenerationDialog } from "@/components/ai/AIGenerationDialog";
 import { SpeakerLegend } from "@/components/editor/SpeakerLegend";
 import { getFeatureFlags } from "@/lib/feature-flags";
+import { userFacingError } from "@/lib/convex-error";
 import { toast } from "sonner";
 import { useSpeakerStore, Speaker } from "@/store/speaker-store";
 
@@ -275,11 +276,29 @@ export default function ScriptPage() {
       toast.info("Checking grammar and style...");
       const result = await checkGrammar({ scriptId });
       setGrammarCheckResults(result);
+
+      // Dev-only harvest hook for the anchor-rate gate. The fixtures in
+      // lib/tiptap/__fixtures__/ must come from this exact code path — a
+      // reconstructed prompt would measure the reconstruction, not production.
+      // Neither the editor nor the action result is otherwise reachable from
+      // the console, so expose the pair the fixture format needs.
+      // See lib/tiptap/__fixtures__/README.md.
+      if (process.env.NODE_ENV !== "production") {
+        (window as unknown as Record<string, unknown>).__lastGrammarHarvest = {
+          docJSON: editorRef?.getJSON(),
+          issues: result.issues,
+        };
+        console.info(
+          "[harvest] window.__lastGrammarHarvest is ready — see lib/tiptap/__fixtures__/README.md"
+        );
+      }
     } catch (error) {
       console.error("Grammar check error:", error);
-      toast.error("Failed to check grammar. Please try again.");
+      toast.error(
+        userFacingError(error, "Failed to check grammar. Please try again.")
+      );
     }
-  }, [flags.aiGrammarCheckEnabled, checkGrammar, scriptId]);
+  }, [flags.aiGrammarCheckEnabled, checkGrammar, scriptId, editorRef]);
 
   const handleScriptReview = useCallback(async () => {
     if (!flags.aiReviewEnabled) return;
@@ -290,7 +309,9 @@ export default function ScriptPage() {
       setReviewResults(result);
     } catch (error) {
       console.error("Review error:", error);
-      toast.error("Failed to review script. Please try again.");
+      toast.error(
+        userFacingError(error, "Failed to review script. Please try again.")
+      );
     }
   }, [flags.aiReviewEnabled, reviewScript, scriptId]);
 

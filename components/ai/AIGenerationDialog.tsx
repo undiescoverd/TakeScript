@@ -23,6 +23,7 @@ import {
 import { Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { Id } from "@/convex/_generated/dataModel";
+import { userFacingError } from "@/lib/convex-error";
 
 interface Props {
   scriptId: Id<"scripts">;
@@ -88,7 +89,9 @@ export function AIGenerationDialog({
       setGeneratedContent(result.generatedContent);
     } catch (error) {
       console.error("Generation error:", error);
-      toast.error("Failed to generate content. Please try again.");
+      toast.error(
+        userFacingError(error, "Failed to generate content. Please try again.")
+      );
     } finally {
       setGenerating(false);
     }

@@ -62,17 +62,45 @@ export async function encryptApiKey(plaintext: string): Promise<string> {
   return `${VERSION}:${base64Encode(iv)}:${base64Encode(new Uint8Array(ciphertext))}`;
 }
 
+/**
+ * A stored key exists but cannot be read back: the deployment's
+ * BYOK_ENCRYPTION_SECRET has been rotated since the key was saved, or the row
+ * is corrupt.
+ *
+ * Distinct from the errors `getEncryptionKey` throws, and the distinction is
+ * load-bearing. A missing or malformed secret is an operator misconfiguration
+ * affecting everyone, and must not be reported to a user as "re-enter your
+ * key" — re-entering cannot fix it. Only failures of this *particular*
+ * ciphertext become this error.
+ *
+ * Callers must catch it and say something actionable. Raw WebCrypto surfaces
+ * "OperationError: Decryption failed", which tells a user nothing.
+ */
+export class KeyDecryptionError extends Error {
+  constructor(cause?: unknown) {
+    super("Stored API key could not be decrypted");
+    this.name = "KeyDecryptionError";
+    this.cause = cause;
+  }
+}
+
 export async function decryptApiKey(stored: string): Promise<string> {
   const [version, ivB64, ctB64] = stored.split(":");
   if (version !== VERSION || !ivB64 || !ctB64) {
-    throw new Error("Unrecognized encrypted key format");
+    throw new KeyDecryptionError("Unrecognized encrypted key format");
   }
 
+  // Deliberately outside the try: a bad deployment secret is not a bad key.
   const key = await getEncryptionKey();
-  const iv = base64Decode(ivB64);
-  const ciphertext = base64Decode(ctB64);
-  const plaintext = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
-  return new TextDecoder().decode(plaintext);
+
+  try {
+    const iv = base64Decode(ivB64);
+    const ciphertext = base64Decode(ctB64);
+    const plaintext = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
+    return new TextDecoder().decode(plaintext);
+  } catch (error) {
+    throw new KeyDecryptionError(error);
+  }
 }
 
 export function maskKey(key: string): string {

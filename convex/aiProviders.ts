@@ -10,7 +10,12 @@ import {
 import { internal } from "./_generated/api";
 import { Id } from "./_generated/dataModel";
 import { getUserByTokenIdentifier } from "./users";
-import { decryptApiKey, encryptApiKey, maskKey } from "./lib/byokCrypto";
+import {
+  decryptApiKey,
+  encryptApiKey,
+  KeyDecryptionError,
+  maskKey,
+} from "./lib/byokCrypto";
 import { assertSafeCustomBaseUrl } from "./lib/baseUrlValidation";
 
 const providerValidator = v.union(
@@ -323,7 +328,18 @@ export const testProviderKey = action({
         return { ok: false, error: "No saved key for this scope" };
       }
       provider = config.provider;
-      apiKey = await decryptApiKey(config.encryptedKey);
+      try {
+        apiKey = await decryptApiKey(config.encryptedKey);
+      } catch (error) {
+        if (!(error instanceof KeyDecryptionError)) throw error;
+        // This action's whole contract is to report why a config is unusable,
+        // so an unreadable key is a result, not a crash.
+        return {
+          ok: false,
+          error:
+            "Saved key could not be decrypted (the encryption secret has changed since it was saved). Re-enter the key to fix it.",
+        };
+      }
       baseUrl = config.baseUrl;
       model = config.model;
     } else {
