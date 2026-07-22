@@ -5,10 +5,21 @@ import { decryptApiKey } from "./lib/byokCrypto";
 import { assertSafeCustomBaseUrl } from "./lib/baseUrlValidation";
 import { parseAIJson } from "./lib/parseAIJson";
 
-/** Shape the grammar-check prompt asks the model to return. */
+/**
+ * Shape the grammar-check prompt asks the model to return.
+ *
+ * The quote fields are optional on purpose: rule 6 of the prompt lets the model
+ * omit originalText when it cannot point at a specific span, and those issues
+ * are kept as unanchored general notes rather than being dropped or given a
+ * hallucinated anchor.
+ */
 interface GrammarCheckPayload {
   issues?: Array<{
     type: "grammar" | "spelling" | "style" | "tone" | "clarity";
+    originalText?: string;
+    occurrence?: number;
+    contextBefore?: string;
+    contextAfter?: string;
     message: string;
     suggestion: string;
     severity: "low" | "medium" | "high";
@@ -451,19 +462,31 @@ export const checkGrammarAndStyle = action({
       "Analyze the text for grammar, spelling, style, tone, and clarity issues."
     );
 
-    const prompt = `Analyze this text and provide structured feedback in JSON format:
+    const prompt = `Return ONLY a JSON object. No markdown fences, no prose.
 {
-  "issues": [
-    {
-      "type": "grammar" | "spelling" | "style" | "tone" | "clarity",
-      "message": "Brief description of the issue",
-      "suggestion": "Suggested fix",
-      "severity": "low" | "medium" | "high"
-    }
-  ],
+  "issues": [{
+    "type": "grammar"|"spelling"|"style"|"tone"|"clarity",
+    "originalText": "EXACT verbatim substring copied character-for-character from the text below",
+    "occurrence": 1,
+    "contextBefore": "up to 40 chars immediately preceding originalText, verbatim",
+    "contextAfter":  "up to 40 chars immediately following originalText, verbatim",
+    "message": "what is wrong, one sentence",
+    "suggestion": "replacement text for originalText, or \\"\\" if advice only",
+    "severity": "low"|"medium"|"high"
+  }],
   "overallScore": 1-10,
-  "summary": "Brief overall assessment"
+  "summary": "brief overall assessment"
 }
+
+RULES FOR originalText — strict:
+1. Copy EXACTLY. Do not fix, normalize, re-case, or re-punctuate it.
+2. Between 3 and 200 characters. Prefer the shortest span containing the issue.
+3. It must NOT span a line break.
+4. Quote ONLY from ordinary prose. Never quote a line in [SQUARE BRACKETS], an ALL-CAPS
+   heading, a "(00:45)" duration line, or the "• "/"1. " prefix of a list item.
+5. "occurrence" is 1-based: if originalText appears 3 times and you mean the 2nd, set 2.
+6. If you cannot point at a specific span, OMIT originalText and give the observation in
+   "message". It will be shown as a general note.
 
 TEXT TO ANALYZE:
 ${textToCheck.slice(0, 8000)}`;
