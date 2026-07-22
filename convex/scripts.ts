@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { getStagesForUser } from "./kanban";
+import { getAccessibleTemplate } from "./templates";
 
 // Helper function to generate unique IDs for blocks
 function generateBlockId(blockType: string): string {
@@ -306,7 +307,7 @@ export const create = mutation({
 
     // Try to get content from template ID first (new system)
     if (args.templateId) {
-      const template = await ctx.db.get(args.templateId);
+      const template = await getAccessibleTemplate(ctx, args.templateId, user._id);
       if (template) {
         // Sanitize template content to regenerate block IDs
         initialContent = sanitizeTemplateContent(template.content);

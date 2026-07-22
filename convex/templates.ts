@@ -1,5 +1,6 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, QueryCtx } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
 
 // Helper function to generate unique IDs for blocks
 function generateBlockId(blockType: string): string {
@@ -121,6 +122,23 @@ export const list = query({
   },
 });
 
+/**
+ * Resolve a template the given user is allowed to read: system templates are
+ * public, user templates require ownership. Returns null when the template is
+ * missing or not accessible. Both `templates.get` and `scripts.create` must go
+ * through this so the rule lives in one place.
+ */
+export async function getAccessibleTemplate(
+  ctx: QueryCtx,
+  templateId: Id<"templates">,
+  userId: Id<"users">
+) {
+  const template = await ctx.db.get(templateId);
+  if (!template) return null;
+  if (template.isSystem) return template;
+  return template.userId === userId ? template : null;
+}
+
 // Get a single template by ID
 export const get = query({
   args: { templateId: v.id("templates") },
@@ -130,7 +148,8 @@ export const get = query({
       return null;
     }
 
-    // System templates are accessible to everyone
+    // System templates are accessible to everyone, including unauthenticated
+    // callers, so this branch must stay before requiring an identity.
     if (template.isSystem) {
       return template;
     }
@@ -148,11 +167,11 @@ export const get = query({
       )
       .unique();
 
-    if (!user || template.userId !== user._id) {
+    if (!user) {
       return null;
     }
 
-    return template;
+    return getAccessibleTemplate(ctx, args.templateId, user._id);
   },
 });
 
