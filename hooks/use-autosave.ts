@@ -15,6 +15,7 @@ export function useAutosave(scriptId: Id<"scripts">) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const savingIndicatorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pendingContentRef = useRef<string | null>(null);
+  const queuedContentRef = useRef<string | null>(null);
   const saveRef = useRef<((content: string) => Promise<void>) | null>(null);
   const lastSavedContentRef = useRef<string | null>(null);
   const onSaveCompleteRef = useRef<((content: string) => void) | null>(null);
@@ -22,23 +23,44 @@ export function useAutosave(scriptId: Id<"scripts">) {
 
   const save = useCallback(
     async (content: string) => {
-      // Prevent concurrent saves
+      // A save is already in flight: queue this (newer) content so it is
+      // written as soon as the current save finishes, instead of dropping it.
       if (isSavingRef.current) {
+        queuedContentRef.current = content;
         return;
       }
 
+      isSavingRef.current = true;
+      setIsSaving(true);
       try {
-        isSavingRef.current = true;
-        setIsSaving(true);
-        await updateScript({ scriptId, content });
-        lastSavedContentRef.current = content;
-        setLastSavedAt(Date.now());
-        // Notify that save completed
-        if (onSaveCompleteRef.current) {
-          onSaveCompleteRef.current(content);
+        let toSave: string | null = content;
+        while (toSave !== null) {
+          try {
+            await updateScript({ scriptId, content: toSave });
+            lastSavedContentRef.current = toSave;
+            if (pendingContentRef.current === toSave) {
+              pendingContentRef.current = null;
+            }
+            setLastSavedAt(Date.now());
+            // Notify that save completed
+            if (onSaveCompleteRef.current) {
+              onSaveCompleteRef.current(toSave);
+            }
+          } catch (error) {
+            console.error("Failed to save:", error);
+            // Keep the unsaved content pending so blur/unload/unmount retries it
+            if (pendingContentRef.current === null) {
+              pendingContentRef.current = toSave;
+            }
+            break;
+          }
+          // Drain anything queued while we were saving
+          toSave = queuedContentRef.current;
+          queuedContentRef.current = null;
+          if (toSave === lastSavedContentRef.current) {
+            toSave = null;
+          }
         }
-      } catch (error) {
-        console.error("Failed to save:", error);
       } finally {
         isSavingRef.current = false;
         setIsSaving(false);
@@ -49,6 +71,17 @@ export function useAutosave(scriptId: Id<"scripts">) {
 
   // Keep save function in ref for event listeners
   saveRef.current = save;
+
+  const clearTimers = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+    if (savingIndicatorTimeoutRef.current) {
+      clearTimeout(savingIndicatorTimeoutRef.current);
+      savingIndicatorTimeoutRef.current = null;
+    }
+  }, []);
 
   const scheduleAutosave = useCallback(
     (content: string) => {
@@ -116,10 +149,10 @@ export function useAutosave(scriptId: Id<"scripts">) {
         }
 
         // Only save if content is still pending and different from last saved
+        // (save() clears pendingContentRef itself once the write succeeds)
         if (contentToSave && contentToSave !== lastSavedContentRef.current && saveRef.current) {
           saveRef.current(contentToSave);
         }
-        pendingContentRef.current = null;
       }, AUTOSAVE_DELAY);
     },
     [setIsSaving]
@@ -127,90 +160,64 @@ export function useAutosave(scriptId: Id<"scripts">) {
 
   const saveNow = useCallback(
     async (content: string) => {
-      // Clear all pending timeouts
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-      if (savingIndicatorTimeoutRef.current) {
-        clearTimeout(savingIndicatorTimeoutRef.current);
-        savingIndicatorTimeoutRef.current = null;
-      }
-      pendingContentRef.current = null;
+      clearTimers();
+      // Pending content is cleared by save() only after a successful write,
+      // so a failure here leaves it retryable by later saves.
       await save(content);
     },
-    [save]
+    [save, clearTimers]
   );
 
-  // Save pending content when page becomes hidden (browser close, tab switch, navigation)
+  // Discard any scheduled/pending autosave without saving it.
+  // Used before a version restore so a stale debounced save can't overwrite
+  // the restored content.
+  const cancelPendingSave = useCallback(() => {
+    clearTimers();
+    pendingContentRef.current = null;
+    queuedContentRef.current = null;
+    if (!isSavingRef.current) {
+      setIsSaving(false);
+    }
+  }, [clearTimers, setIsSaving]);
+
+  // Save pending content when the page is hidden or unloading.
+  // NOTE: these fire an async Convex mutation, which is reliable for tab
+  // switches and SPA navigation but best-effort on hard close/refresh (the
+  // browser may kill the connection before the write lands). Pending content
+  // is intentionally NOT cleared here — save() clears it only on success, so
+  // a surviving page can retry.
   useEffect(() => {
+    const flushPending = () => {
+      if (pendingContentRef.current && saveRef.current) {
+        const content = pendingContentRef.current;
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+        if (savingIndicatorTimeoutRef.current) {
+          clearTimeout(savingIndicatorTimeoutRef.current);
+          savingIndicatorTimeoutRef.current = null;
+        }
+        saveRef.current(content).catch((error) => {
+          console.error("Failed to save on page hide/unload:", error);
+        });
+      }
+    };
+
     const handleVisibilityChange = () => {
-      if (document.visibilityState === "hidden" && pendingContentRef.current && saveRef.current) {
-        // Use sendBeacon for reliable save on page unload
-        const content = pendingContentRef.current;
-        // Clear the timeouts since we're saving now
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-          timeoutRef.current = null;
-        }
-        if (savingIndicatorTimeoutRef.current) {
-          clearTimeout(savingIndicatorTimeoutRef.current);
-          savingIndicatorTimeoutRef.current = null;
-        }
-        // Save synchronously
-        saveRef.current(content).catch((error) => {
-          console.error("Failed to save on visibility change:", error);
-        });
-        pendingContentRef.current = null;
-      }
-    };
-
-    const handlePageHide = () => {
-      if (pendingContentRef.current && saveRef.current) {
-        const content = pendingContentRef.current;
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-          timeoutRef.current = null;
-        }
-        if (savingIndicatorTimeoutRef.current) {
-          clearTimeout(savingIndicatorTimeoutRef.current);
-          savingIndicatorTimeoutRef.current = null;
-        }
-        // Try to save, but don't block page unload
-        saveRef.current(content).catch((error) => {
-          console.error("Failed to save on page hide:", error);
-        });
-        pendingContentRef.current = null;
-      }
-    };
-
-    const handleBeforeUnload = () => {
-      if (pendingContentRef.current && saveRef.current) {
-        const content = pendingContentRef.current;
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-          timeoutRef.current = null;
-        }
-        if (savingIndicatorTimeoutRef.current) {
-          clearTimeout(savingIndicatorTimeoutRef.current);
-          savingIndicatorTimeoutRef.current = null;
-        }
-        // Use sendBeacon or synchronous save attempt
-        saveRef.current(content).catch((error) => {
-          console.error("Failed to save on beforeunload:", error);
-        });
-        pendingContentRef.current = null;
+      if (document.visibilityState === "hidden") {
+        flushPending();
       }
     };
 
     document.addEventListener("visibilitychange", handleVisibilityChange);
-    window.addEventListener("pagehide", handlePageHide);
-    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("pagehide", flushPending);
+    window.addEventListener("beforeunload", flushPending);
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
-      window.removeEventListener("pagehide", handlePageHide);
-      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("pagehide", flushPending);
+      window.removeEventListener("beforeunload", flushPending);
     };
   }, []);
 
@@ -226,7 +233,6 @@ export function useAutosave(scriptId: Id<"scripts">) {
       // Save any pending content on unmount (navigation)
       if (pendingContentRef.current && saveRef.current) {
         saveRef.current(pendingContentRef.current);
-        pendingContentRef.current = null;
       }
     };
   }, []);
@@ -246,5 +252,12 @@ export function useAutosave(scriptId: Id<"scripts">) {
     lastSavedContentRef.current = content;
   }, []);
 
-  return { scheduleAutosave, saveNow, setOnSaveComplete, getLastSavedContent, initializeLastSaved };
+  return {
+    scheduleAutosave,
+    saveNow,
+    cancelPendingSave,
+    setOnSaveComplete,
+    getLastSavedContent,
+    initializeLastSaved,
+  };
 }

@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { internalQuery, mutation, query } from "./_generated/server";
 
 export const store = mutation({
   args: {},
@@ -144,9 +144,10 @@ export async function getUserByTokenIdentifier(ctx: any, tokenIdentifier: string
 
 /**
  * Query to get user by token identifier
- * Can be called from actions via ctx.runQuery
+ * Internal-only: called from actions via ctx.runQuery(internal.users.getByToken).
+ * Must not be public — it would allow unauthenticated PII reads / user enumeration.
  */
-export const getByToken = query({
+export const getByToken = internalQuery({
   args: { tokenIdentifier: v.string() },
   handler: async (ctx, args) => {
     return await ctx.db

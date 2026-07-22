@@ -1,13 +1,25 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { mutation, query, QueryCtx } from "./_generated/server";
+import { Id } from "./_generated/dataModel";
 
 // Default stages for new users
-const DEFAULT_STAGES = [
+export const DEFAULT_STAGES = [
   { id: "draft", name: "Draft", color: "#6b7280" },
   { id: "in-progress", name: "In Progress", color: "#3b82f6" },
   { id: "review", name: "Review", color: "#f59e0b" },
   { id: "ready", name: "Ready", color: "#22c55e" },
 ];
+
+// Resolve the stage list for a user (custom config or defaults).
+// Used by scripts.ts mutations to validate stageId args.
+export async function getStagesForUser(ctx: QueryCtx, userId: Id<"users">) {
+  const kanbanConfig = await ctx.db
+    .query("kanbanStages")
+    .withIndex("by_user", (q) => q.eq("userId", userId))
+    .unique();
+
+  return kanbanConfig?.stages ?? DEFAULT_STAGES;
+}
 
 // Get user's stages, creating defaults if none exist
 export const getOrCreateStages = query({

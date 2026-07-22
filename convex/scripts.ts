@@ -1,5 +1,6 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { getStagesForUser } from "./kanban";
 
 // Helper function to generate unique IDs for blocks
 function generateBlockId(blockType: string): string {
@@ -281,6 +282,26 @@ export const create = mutation({
     }
 
     const now = Date.now();
+
+    // Validate the target stage and place the script at the end of it,
+    // using the same small-integer ordering scheme as updateStage/reorderInStage
+    const stages = await getStagesForUser(ctx, user._id);
+    const stageId =
+      args.stageId && stages.some((s) => s.id === args.stageId)
+        ? args.stageId
+        : stages[0]?.id ?? "draft";
+
+    const scriptsInStage = await ctx.db
+      .query("scripts")
+      .withIndex("by_user_and_stage", (q) =>
+        q.eq("userId", user._id).eq("stageId", stageId)
+      )
+      .collect();
+    const maxOrder = scriptsInStage.reduce(
+      (max, s) => Math.max(max, s.stageOrder ?? 0),
+      0
+    );
+
     let initialContent: string;
 
     // Try to get content from template ID first (new system)
@@ -312,8 +333,8 @@ export const create = mutation({
       targetType: args.targetType,
       category: args.category,
       status: "draft",
-      stageId: args.stageId ?? "draft",
-      stageOrder: now, // Use timestamp for initial ordering
+      stageId,
+      stageOrder: maxOrder + 1,
       lastEditedAt: now,
       createdAt: now,
     });
@@ -408,13 +429,11 @@ export const get = query({
       return null;
     }
 
-    // Allow access if user is the owner OR if they're authenticated (for collaboration)
-    // This enables sharing - any authenticated user can view the script
-    // Write permissions are still restricted to owners in mutations
+    // Owner-only access. Sharing (the schema's `sharedWith` field) is not
+    // implemented yet — when it is, extend this check rather than opening reads
+    // to every authenticated user.
     if (script.userId !== user._id) {
-      // User is not the owner, but they're authenticated
-      // Allow read access for collaboration
-      return script;
+      return null;
     }
 
     return script;
@@ -610,6 +629,11 @@ export const updateStage = mutation({
       throw new Error("Not authorized");
     }
 
+    const stages = await getStagesForUser(ctx, user._id);
+    if (!stages.some((s) => s.id === args.stageId)) {
+      throw new Error("Invalid stage");
+    }
+
     // Get max stageOrder in the target stage for positioning at end
     const scriptsInStage = await ctx.db
       .query("scripts")
@@ -631,12 +655,14 @@ export const updateStage = mutation({
   },
 });
 
-// Reorder a script within its stage (Kanban)
+// Move a script to a position within a stage (Kanban).
+// Rewrites stageOrder for the whole target column as consecutive integers,
+// which also repairs legacy values (undefined, colliding, or timestamp-scale).
 export const reorderInStage = mutation({
   args: {
     scriptId: v.id("scripts"),
     stageId: v.string(),
-    newOrder: v.number(),
+    newIndex: v.number(),
   },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
@@ -658,10 +684,42 @@ export const reorderInStage = mutation({
       throw new Error("Not authorized");
     }
 
-    await ctx.db.patch(args.scriptId, {
-      stageId: args.stageId,
-      stageOrder: args.newOrder,
-      lastEditedAt: Date.now(),
-    });
+    const stages = await getStagesForUser(ctx, user._id);
+    if (!stages.some((s) => s.id === args.stageId)) {
+      throw new Error("Invalid stage");
+    }
+
+    const scriptsInStage = await ctx.db
+      .query("scripts")
+      .withIndex("by_user_and_stage", (q) =>
+        q.eq("userId", user._id).eq("stageId", args.stageId)
+      )
+      .collect();
+
+    const ordered = scriptsInStage
+      .filter((s) => s._id !== args.scriptId)
+      .sort(
+        (a, b) =>
+          (a.stageOrder ?? 0) - (b.stageOrder ?? 0) || a.createdAt - b.createdAt
+      );
+
+    const insertIndex = Math.max(
+      0,
+      Math.min(Math.round(args.newIndex), ordered.length)
+    );
+    ordered.splice(insertIndex, 0, script);
+
+    for (let i = 0; i < ordered.length; i++) {
+      const isMoved = ordered[i]._id === args.scriptId;
+      if (isMoved) {
+        await ctx.db.patch(args.scriptId, {
+          stageId: args.stageId,
+          stageOrder: i,
+          lastEditedAt: Date.now(),
+        });
+      } else if (ordered[i].stageOrder !== i) {
+        await ctx.db.patch(ordered[i]._id, { stageOrder: i });
+      }
+    }
   },
 });

@@ -57,7 +57,7 @@ export default function ScriptPage() {
   const flags = getFeatureFlags();
   const scriptId = params.id as Id<"scripts">;
   const script = useQuery(api.scripts.get, { scriptId });
-  const { scheduleAutosave, saveNow, setOnSaveComplete, getLastSavedContent, initializeLastSaved } = useAutosave(scriptId);
+  const { scheduleAutosave, saveNow, cancelPendingSave, setOnSaveComplete, getLastSavedContent, initializeLastSaved } = useAutosave(scriptId);
   const { mode, viewMode, toggleViewMode, commentsOpen, setCommentsOpen, annotationsOpen, setAnnotationsOpen, collaborationEnabled, speakersOpen, setSpeakersOpen } = useEditorStore();
   const { chromeRevealed, chromeMouseHandlers } = useFocusChromeReveal(viewMode);
   const { speakers, setSpeakers } = useSpeakerStore();
@@ -122,12 +122,16 @@ export default function ScriptPage() {
     return () => setOnSaveComplete(null);
   }, [setOnSaveComplete]);
 
-  // Initialize speakers from script data
+  // Initialize speakers from script data. Always set (falling back to an empty
+  // list) so a script without speakers doesn't inherit the previous script's
+  // speakers from the global store.
   useEffect(() => {
-    if (script?.speakers && Array.isArray(script.speakers)) {
-      setSpeakers(script.speakers as Speaker[]);
-    }
-  }, [script?.speakers, setSpeakers]);
+    if (script === undefined) return;
+    const scriptSpeakers = Array.isArray(script?.speakers)
+      ? (script.speakers as Speaker[])
+      : [];
+    setSpeakers(scriptSpeakers);
+  }, [script, setSpeakers]);
 
   // Handle speakers change - save to Convex
   const handleSpeakersChange = useCallback(
@@ -230,8 +234,13 @@ export default function ScriptPage() {
     [scheduleAutosave]
   );
 
-  // Mark version restore when it happens (version restore will set this before calling restore)
-  // This is handled by checking if content differs from last saved
+  // Called by VersionHistory right before a restore mutation runs: drop any
+  // debounced autosave (it holds pre-restore content that would overwrite the
+  // restored version) and flag the incoming content change as a restore.
+  const handleBeforeRestore = useCallback(() => {
+    isRestoringVersionRef.current = true;
+    cancelPendingSave();
+  }, [cancelPendingSave]);
 
   const handleSaveNow = useCallback(async () => {
     if (localContent) {
@@ -506,7 +515,7 @@ export default function ScriptPage() {
         </div>
 
         {/* Version History */}
-        <VersionHistory scriptId={scriptId} />
+        <VersionHistory scriptId={scriptId} onBeforeRestore={handleBeforeRestore} />
 
         {/* Comments Panel */}
         <CommentsPanel

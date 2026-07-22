@@ -20,9 +20,10 @@ import { toast } from "sonner";
 
 interface VersionHistoryProps {
   scriptId: Id<"scripts">;
+  onBeforeRestore?: () => void;
 }
 
-export function VersionHistory({ scriptId }: VersionHistoryProps) {
+export function VersionHistory({ scriptId, onBeforeRestore }: VersionHistoryProps) {
   const { versionHistoryOpen, setVersionHistoryOpen } = useEditorStore();
   const versions = useQuery(api.versions.list, { scriptId });
   const restoreVersion = useMutation(api.versions.restore);
@@ -36,6 +37,7 @@ export function VersionHistory({ scriptId }: VersionHistoryProps) {
 
   const handleRestore = async (versionId: Id<"scriptVersions">) => {
     try {
+      onBeforeRestore?.();
       await restoreVersion({ versionId });
       toast.success("Version restored");
     } catch {

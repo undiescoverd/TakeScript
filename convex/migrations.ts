@@ -1,4 +1,4 @@
-import { mutation } from "./_generated/server";
+import { internalMutation } from "./_generated/server";
 
 // Helper function to generate unique IDs for blocks
 function generateBlockId(blockType: string): string {
@@ -8,7 +8,8 @@ function generateBlockId(blockType: string): string {
 }
 
 // Migration: Populate database with system templates
-export const seedSystemTemplates = mutation({
+// Internal-only: run via `npx convex run migrations:seedSystemTemplates` or the dashboard
+export const seedSystemTemplates = internalMutation({
   handler: async (ctx) => {
     // Check if system templates already exist
     const existingSystemTemplates = await ctx.db
@@ -294,7 +295,7 @@ export const seedSystemTemplates = mutation({
 });
 
 // Helper mutation to clear all system templates (for development/testing)
-export const clearSystemTemplates = mutation({
+export const clearSystemTemplates = internalMutation({
   handler: async (ctx) => {
     const systemTemplates = await ctx.db
       .query("templates")
@@ -314,7 +315,7 @@ export const clearSystemTemplates = mutation({
 });
 
 // Helper mutation to check migration status
-export const checkMigrationStatus = mutation({
+export const checkMigrationStatus = internalMutation({
   handler: async (ctx) => {
     const systemTemplates = await ctx.db
       .query("templates")

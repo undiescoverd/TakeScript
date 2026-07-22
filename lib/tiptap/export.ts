@@ -94,6 +94,10 @@ export function exportToPlainText(doc: JSONContent): string {
         lines.push("");
         break;
 
+      case "editorNote":
+        // Editor notes are production-only and never read on camera
+        break;
+
       default:
         // Recursively process unknown nodes
         node.content?.forEach(extractText);
@@ -125,12 +129,28 @@ function getTextContent(node: JSONContent): string {
 }
 
 /**
- * Calculate word count from Tiptap document
+ * Calculate word count from Tiptap document.
+ * Counts only actual text content (not structural markers like chapter
+ * titles' [BRACKETS] or "[SCREEN RECORDING]" labels), splitting on
+ * whitespace so contractions like "don't" count as one word.
  */
 export function getWordCount(doc: JSONContent): number {
-  const text = exportToPlainText(doc);
-  const words = text.match(/\b\w+\b/g);
-  return words ? words.length : 0;
+  let count = 0;
+
+  function countWords(node: JSONContent): void {
+    // Editor notes aren't spoken, so they don't contribute to read time
+    if (node.type === "editorNote") {
+      return;
+    }
+    if (node.type === "text" && node.text) {
+      count += node.text.trim().split(/\s+/).filter(Boolean).length;
+      return;
+    }
+    node.content?.forEach(countWords);
+  }
+
+  countWords(doc);
+  return count;
 }
 
 /**

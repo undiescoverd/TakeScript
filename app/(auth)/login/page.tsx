@@ -5,18 +5,27 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 
+// Only allow same-origin relative paths — "//evil.com" and absolute URLs
+// would let ?redirect= send users to an attacker-controlled site after login.
+function sanitizeRedirect(redirect: string | null): string {
+  if (redirect && redirect.startsWith("/") && !redirect.startsWith("//")) {
+    return redirect;
+  }
+  return "/dashboard";
+}
+
 function LoginContent() {
   const { isSignedIn, isLoaded } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const redirectUrl = sanitizeRedirect(searchParams.get("redirect"));
 
   useEffect(() => {
     if (isLoaded && isSignedIn) {
       // Redirect to the script page if there's a redirect param, otherwise go to dashboard
-      const redirect = searchParams.get("redirect");
-      router.push(redirect || "/dashboard");
+      router.push(redirectUrl);
     }
-  }, [isSignedIn, isLoaded, router, searchParams]);
+  }, [isSignedIn, isLoaded, router, redirectUrl]);
 
   if (!isLoaded) {
     return (
@@ -62,7 +71,7 @@ function LoginContent() {
         {/* Sign In Button */}
         <SignInButton
           mode="modal"
-          forceRedirectUrl={searchParams.get("redirect") || "/dashboard"}
+          forceRedirectUrl={redirectUrl}
         >
           <Button size="lg" className="w-full max-w-xs">
             <svg

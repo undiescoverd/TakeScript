@@ -2,6 +2,15 @@
 
 import { v } from "convex/values";
 import { action } from "./_generated/server";
+import type { ActionCtx } from "./_generated/server";
+
+async function requireAuth(ctx: ActionCtx) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) {
+    throw new Error("Not authenticated");
+  }
+  return identity;
+}
 
 /**
  * Generate upload URL for file storage
@@ -9,6 +18,7 @@ import { action } from "./_generated/server";
  */
 export const generateUploadUrl = action({
   handler: async (ctx) => {
+    await requireAuth(ctx);
     return await ctx.storage.generateUploadUrl();
   },
 });
@@ -24,6 +34,8 @@ export const extractTextFromFile = action({
     fileType: v.string(),
   },
   handler: async (ctx, args) => {
+    await requireAuth(ctx);
+
     // Get file from storage
     const file = await ctx.storage.get(args.storageId);
     if (!file) throw new Error("File not found in storage");
@@ -64,6 +76,7 @@ export const deleteFile = action({
     storageId: v.id("_storage"),
   },
   handler: async (ctx, args) => {
+    await requireAuth(ctx);
     await ctx.storage.delete(args.storageId);
   },
 });
@@ -76,6 +89,7 @@ export const getFileMetadata = action({
     storageId: v.id("_storage"),
   },
   handler: async (ctx, args) => {
+    await requireAuth(ctx);
     const file = await ctx.storage.get(args.storageId);
     if (!file) return null;
 

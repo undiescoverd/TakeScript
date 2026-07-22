@@ -138,7 +138,10 @@ export function ScriptEditor({
         return true;
       };
 
-      if (!deepEqual(currentContent, newContent) && !editor.isFocused) {
+      // Apply even while the editor is focused: the parent only changes
+      // initialContent for genuine external updates (e.g. version restore),
+      // and skipping here would let the next keystroke autosave the stale doc.
+      if (!deepEqual(currentContent, newContent)) {
         editor.commands.setContent(initialContent, { emitUpdate: false });
       }
     }
