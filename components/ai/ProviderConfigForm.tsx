@@ -6,13 +6,7 @@ import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { NativeSelect } from "@/components/ui/native-select";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -164,22 +158,18 @@ export function ProviderConfigForm({ scope, config, disabled = false }: Props) {
     <div className="space-y-4">
       <div>
         <Label htmlFor={`provider-${scope}`}>Provider</Label>
-        <Select
+        <NativeSelect
+          id={`provider-${scope}`}
           value={provider}
-          onValueChange={(value) => handleProviderChange(value as Provider)}
+          onChange={(e) => handleProviderChange(e.target.value as Provider)}
           disabled={disabled}
         >
-          <SelectTrigger id={`provider-${scope}`}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {(Object.keys(PROVIDER_LABELS) as Provider[]).map((id) => (
-              <SelectItem key={id} value={id}>
-                {PROVIDER_LABELS[id]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+          {(Object.keys(PROVIDER_LABELS) as Provider[]).map((id) => (
+            <option key={id} value={id}>
+              {PROVIDER_LABELS[id]}
+            </option>
+          ))}
+        </NativeSelect>
       </div>
 
       <div>
@@ -211,8 +201,9 @@ export function ProviderConfigForm({ scope, config, disabled = false }: Props) {
           />
           <p className="text-xs text-muted-foreground mt-1">
             Any OpenAI-compatible endpoint. Must be https:// and reachable from
-            the cloud &mdash; e.g. Groq&apos;s https://api.groq.com/openai/v1, or a
-            local Ollama exposed via a tunnel (ngrok, cloudflared, Tailscale).
+            the cloud &mdash; e.g. z.ai&apos;s https://api.z.ai/api/paas/v4,
+            Groq&apos;s https://api.groq.com/openai/v1, or a local Ollama exposed
+            via a tunnel (ngrok, cloudflared, Tailscale).
           </p>
         </div>
       )}
@@ -220,23 +211,18 @@ export function ProviderConfigForm({ scope, config, disabled = false }: Props) {
       <div>
         <Label htmlFor={`model-${scope}`}>Model</Label>
         {provider === "openrouter" ? (
-          <Select value={model} onValueChange={setModel} disabled={disabled}>
-            <SelectTrigger id={`model-${scope}`}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {OPENROUTER_MODELS.map((m) => (
-                <SelectItem key={m.id} value={m.id}>
-                  <div className="flex flex-col">
-                    <span className="font-medium">{m.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {m.description}
-                    </span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <NativeSelect
+            id={`model-${scope}`}
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            disabled={disabled}
+          >
+            {OPENROUTER_MODELS.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name} — {m.description}
+              </option>
+            ))}
+          </NativeSelect>
         ) : (
           <>
             <Input
