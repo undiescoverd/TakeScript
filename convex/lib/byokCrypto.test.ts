@@ -12,8 +12,17 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { encryptApiKey, decryptApiKey, KeyDecryptionError } from "./byokCrypto";
 
-const SECRET_A = "aGVsbG8gd29ybGQgdGhpcyBpcyAzMiBieXRlcyEhISE=";
-const SECRET_B = "Z29vZGJ5ZSB3b3JsZCB0aGlzIGlzIDMyIGJ5dGVzISE=";
+/**
+ * Encoded at runtime rather than pasted as base64 literals.
+ *
+ * getEncryptionKey requires exactly 32 decoded bytes, and a 32-byte base64
+ * blob is indistinguishable from a real AES key to a secret scanner — the
+ * literal form tripped GitGuardian's high-entropy rule twice. Writing the
+ * plaintext keeps the fixtures valid, makes it self-evident to a reader that
+ * they are not credentials, and leaves nothing key-shaped in the source.
+ */
+const SECRET_A = btoa("hello world this is 32 bytes!!!!");
+const SECRET_B = btoa("goodbye world this is 32 bytes!!");
 
 function setSecret(value: string | undefined) {
   if (value === undefined) delete process.env.BYOK_ENCRYPTION_SECRET;
@@ -87,7 +96,7 @@ describe("deployment misconfiguration — NOT a KeyDecryptionError", () => {
     setSecret(SECRET_A);
     const stored = await encryptApiKey("sk-or-v1-example");
 
-    setSecret("dG9vLXNob3J0");
+    setSecret(btoa("too-short"));
     await expect(decryptApiKey(stored)).rejects.not.toBeInstanceOf(
       KeyDecryptionError
     );
