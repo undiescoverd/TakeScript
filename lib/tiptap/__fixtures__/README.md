@@ -39,7 +39,21 @@ its own author.
 
 4. Save as `real-<slug>.json` in this directory.
 
-Scrub anything confidential first — these files are committed.
+### Do not harvest confidential scripts
+
+These files are committed, and git history is permanent — a script that gets
+in here cannot be quietly removed later. Unreleased products, customer
+content, anything under NDA: pick a different script.
+
+Note that scrubbing after the fact does **not** work. The model's quotes are
+matched against the document as exact substrings, so editing the prose without
+identically editing every `originalText`, `contextBefore` and `contextAfter`
+breaks anchoring and the fixture silently measures nothing.
+
+What the gate needs is a *structurally* realistic document — chapter and
+screen-recording blocks, speaker dialogue, lists, headings, curly quotes. It
+does not care whether the subject matter is real, so a script written about a
+fictional product measures the prompt exactly as well.
 
 ## `adversarial-*.json` — behavioural cases
 
