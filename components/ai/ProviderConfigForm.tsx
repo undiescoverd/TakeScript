@@ -90,6 +90,7 @@ export function ProviderConfigForm({ scope, config, disabled = false }: Props) {
             provider,
             apiKey: apiKey.trim(),
             baseUrl: provider === "custom" ? baseUrl.trim() : undefined,
+            model: model.trim() || undefined,
           })
         : await testProviderKey({ scope });
 

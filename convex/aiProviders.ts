@@ -294,6 +294,7 @@ export const testProviderKey = action({
     provider: v.optional(providerValidator),
     apiKey: v.optional(v.string()),
     baseUrl: v.optional(v.string()),
+    model: v.optional(v.string()),
     scope: v.optional(scopeValidator),
   },
   handler: async (ctx, args): Promise<{ ok: boolean; error?: string }> => {
@@ -309,6 +310,7 @@ export const testProviderKey = action({
       provider = args.provider;
       apiKey = args.apiKey.trim();
       baseUrl = args.baseUrl;
+      model = args.model ?? "";
     } else if (args.scope) {
       const config = await ctx.runQuery(internal.aiProviders.resolveEffectiveConfig, {
         tokenIdentifier: identity.tokenIdentifier,
