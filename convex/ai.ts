@@ -348,6 +348,47 @@ async function callAnthropic(
 }
 
 /**
+ * OpenRouter: mark the stable system prefix as cacheable.
+ *
+ * buildSystemPrompts puts the identity + brand-guidelines block first, and it
+ * is byte-identical on every call. Converting just that first block into a
+ * content-array carrying an Anthropic-style `cache_control: ephemeral`
+ * breakpoint lets OpenRouter reuse the prefix instead of re-billing thousands
+ * of guideline tokens at full price on every request.
+ *
+ * OpenRouter documents content-array `cache_control` as safe across all models
+ * and translates it per route: it forwards the marker to explicit-cache models
+ * (Claude, Qwen, Gemini), rewrites it to `prompt_cache_breakpoint` for OpenAI,
+ * and harmlessly ignores it for auto-cache models (DeepSeek, Grok). So this
+ * cannot malform the body for whichever model the default key happens to route
+ * to — the exact risk that held this back from the first caching pass.
+ *
+ * Only the first message is touched, and only when it is a system message, so
+ * a call with no system prefix serialises byte-identically to before.
+ */
+export function withOpenRouterCache(
+  messages: Array<{ role: string; content: string }>
+): Array<{ role: string; content: unknown }> {
+  if (messages.length === 0 || messages[0].role !== "system") {
+    return messages;
+  }
+  const [stable, ...rest] = messages;
+  return [
+    {
+      role: "system",
+      content: [
+        {
+          type: "text",
+          text: stable.content,
+          cache_control: { type: "ephemeral" as const },
+        },
+      ],
+    },
+    ...rest,
+  ];
+}
+
+/**
  * Helper: Call the resolved AI provider with an OpenAI-shaped message list.
  * OpenRouter, OpenAI, and custom endpoints share the chat-completions shape;
  * Anthropic is dispatched to its native Messages API.
@@ -386,6 +427,11 @@ async function callAI(
       throw new Error(`Unsupported AI provider: ${config.provider}`);
   }
 
+  // Cache markers only on the OpenRouter path. OpenAI caches automatically and
+  // custom endpoints are unknown third parties whose bodies must stay untouched.
+  const bodyMessages: Array<{ role: string; content: unknown }> =
+    config.provider === "openrouter" ? withOpenRouterCache(messages) : messages;
+
   const response = await fetch(url, {
     method: "POST",
     headers,
@@ -394,7 +440,7 @@ async function callAI(
     ...(config.provider === "custom" ? { redirect: "manual" as const } : {}),
     body: JSON.stringify({
       model: config.model,
-      messages,
+      messages: bodyMessages,
       temperature: 0.7,
       max_tokens: 8000,
     }),
